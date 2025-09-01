@@ -1,8 +1,12 @@
-
 <div class="view">
   <div class="card">
     <h1 class="title">Iniciar Sesión</h1>
-    <form class= "form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <form
+      class="form"
+      [formGroup]="form"
+      (ngSubmit)="onSubmit()"
+      novalidate
+    >
       <label class="label" for="email">Correo electrónico institucional</label>
       <input class="input" id="email" type="email" formControlName="email" autocomplete="username"/>
       <small class="msg" *ngIf="form.controls.email.touched && form.controls.email.errors">Ingresa un correo válido (ej: nombre.apellido@utem.cl).</small>

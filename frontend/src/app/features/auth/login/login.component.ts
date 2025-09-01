@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../auth.service';
 
 /** Login screen (email + password) with UTEM styling; frontend-only */
 @Component({
@@ -15,6 +16,7 @@ import { Router, RouterLink } from '@angular/router';
 export class LoginComponent {
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private auth = inject(AuthService);
 
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -27,6 +29,15 @@ export class LoginComponent {
   onSubmit(){
     if (this.form.invalid) { this.router.navigateByUrl('/auth/status/missing-fields'); return; }
     this.loading.set(true); this.error.set(null);
-    setTimeout(() => { this.loading.set(false); this.router.navigateByUrl('/auth/status/login-success'); }, 700);
+    this.auth.login(this.form.getRawValue() as {email: string; password: string}).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.router.navigateByUrl('/auth/status/login-success');
+      },
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Error al iniciar sesión');
+      }
+    });
   }
 }
