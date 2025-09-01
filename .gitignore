@@ -18,6 +18,8 @@ env/
 # Archivos de configuración locales
 *.env
 .env.*
+!.env
+
 
 # Migraciones compiladas
 */migrations/__pycache__/
