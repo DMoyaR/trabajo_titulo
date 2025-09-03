@@ -1,0 +1,27 @@
+<h2 class="ttl">Perfil de usuario</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Información Personal</h3>
+    <div class="row"><b>Nombre</b><span>Juan Pérez</span></div>
+    <div class="row"><b>Correo</b><span>juan.perez@example.com</span></div>
+    <div class="row"><b>Carrera</b><span>Ingeniería Informática</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Editar</h3>
+    <div class="row">
+      <b>Teléfono</b>
+      <input class="inp" type="tel" placeholder="Agregar número de teléfono" [(ngModel)]="tel" />
+    </div>
+    <div class="row">
+      <b>Contraseña</b>
+      <a class="link" href="javascript:void(0)">Cambiar</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Historial de Sesiones</h3>
+  <ul class="list"><li>Último acceso: 23 de abril de 2024</li></ul>
+</div>

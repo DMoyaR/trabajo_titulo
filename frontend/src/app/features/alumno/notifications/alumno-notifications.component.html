@@ -1,0 +1,13 @@
+<h2 class="ttl">Notificaciones</h2>
+
+<ul class="list">
+  <li *ngFor="let n of notis()">
+    <span class="ic">{{n.icon}}</span>
+    <div class="txt">
+      <div class="msg">{{n.texto}}</div>
+      <small>{{n.tiempo}}</small>
+    </div>
+  </li>
+</ul>
+
+<button class="btn">Marcar como leído</button>

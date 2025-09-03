@@ -1,0 +1,15 @@
+<h2 class="ttl">Trabajo de Título</h2>
+
+<div class="card">
+  <h3>Subir Entrega</h3>
+  <div class="drop">📥 Bitácoras, informes, anexos</div>
+</div>
+
+<div class="card">
+  <h3>Entregas recientes</h3>
+  <ul class="list">
+    <li *ngFor="let e of entregas()">
+      {{e.nombre}} — <span class="chip ok">{{e.estado}}</span> ({{e.fecha}})
+    </li>
+  </ul>
+</div>

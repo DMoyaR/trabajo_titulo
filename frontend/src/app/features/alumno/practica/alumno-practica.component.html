@@ -1,0 +1,29 @@
+<h2 class="ttl">Práctica Profesional</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Progreso</h3>
+    <ul class="list">
+      <li *ngFor="let i of indicadores()">
+        <b>{{ i.etapa }}</b>
+        <div class="prog"><div class="bar" [style.width.%]="i.pct"></div></div>
+        <small>{{ i.pct }}%</small>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Subir Entrega</h3>
+    <div class="drop">📥 Bitácoras, informes, anexos</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Documentos oficiales</h3>
+  <ul class="files">
+    <li *ngFor="let d of documentos()">
+      <span>📄 {{ d.nombre }}</span><small>{{ d.tipo }}</small>
+      <button class="btn sm">Descargar</button>
+    </li>
+  </ul>
+</div>
