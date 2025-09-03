@@ -1,0 +1,9 @@
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+.side{background:#143a4e;color:#fff;display:flex;flex-direction:column;padding:16px 12px;gap:10px;}
+.brand{font-weight:900;background:rgba(255,255,255,.12);padding:8px 10px;border-radius:10px;}
+.nav{display:grid;gap:6px;}
+.nav a{color:#fff;text-decoration:none;background:rgba(255,255,255,.06);padding:8px 10px;border-radius:8px;}
+.nav a.active{background:#fff;color:#143a4e;font-weight:800;}
+.main{display:flex;flex-direction:column;}
+.hdr{padding:16px;}
+.content{padding:16px;}

@@ -1,0 +1,48 @@
+<h2 class="ttl">Entrega</h2>
+
+<!-- Encabezado (avance y fechas mock) -->
+<div class="meta">
+  <div>
+    <b>avance_2</b>
+    <div class="small">Fecha de entrega: 29 de junio de 2025 23:59</div>
+  </div>
+  <div class="pill green">Entregas confirmadas. Se notificará al docente.</div>
+</div>
+
+<!-- Instrucciones (texto de referencia del mock) -->
+<section class="box">
+  <h3 class="h3">Instrucciones</h3>
+  <p class="p">
+    Se permite la reentrega ilimitada. Recuerde que solo serán válidas las entregas dentro de
+    la ventana definida por los encargados de la evaluación.
+  </p>
+</section>
+
+<!-- Selección de tipo de presentación -->
+<section class="box">
+  <h3 class="h3">Elige un tipo de presentación</h3>
+
+  <div class="types">
+    <button class="type" [class.active]="selected()==='url'" (click)="selected.set('url')">
+      <span class="ic">🔗</span> URL web
+    </button>
+    <label class="type" [class.active]="selected()==='archivo'">
+      <span class="ic">⤴️</span> Cargar archivo
+      <input type="file" hidden (change)="onFile($event); selected.set('archivo')" />
+    </label>
+    <button class="type" [class.active]="selected()==='mas'" (click)="selected.set('mas')">
+      <span class="ic">➕</span> Más
+    </button>
+  </div>
+
+  <!-- Resultado de selección (mock) -->
+  <div class="result" *ngIf="selected()==='archivo' && archivoNombre()">
+    Archivo seleccionado: <b>{{ archivoNombre() }}</b>
+  </div>
+  <div class="result" *ngIf="selected()==='url'">Ingresa la URL en el campo que agregaremos al integrar la API.</div>
+</section>
+
+<!-- Botón de enviar (no hace nada aún) -->
+<div class="actions">
+  <button class="btn">Enviar</button>
+</div>

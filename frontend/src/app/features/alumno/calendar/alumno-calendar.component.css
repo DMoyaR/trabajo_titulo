@@ -1,0 +1,15 @@
+.ttl { color:#1a3e6a; margin-bottom:8px; }
+.cal { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:14px; }
+.hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.month { font-weight:900; font-size:18px; }
+.tbl { width:100%; border-collapse:collapse; text-align:center; }
+th,td { padding:8px; border:1px solid #f0f2f8; }
+.actions { margin-top:10px; display:flex; justify-content:flex-end; }
+.btn { background:#1976d2; color:#fff; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:grid; place-items:center; }
+.modal { background:#fff; border-radius:12px; padding:16px; width:min(420px,90vw); }
+header { display:flex; justify-content:space-between; margin-bottom:10px; }
+.x { border:0; background:transparent; cursor:pointer; font-size:18px; }
+.body { display:grid; gap:10px; margin-bottom:10px; }
+footer { display:flex; justify-content:flex-end; gap:8px; }
+.btn.muted { background:#e5e7eb; color:#1f2a37; }

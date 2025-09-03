@@ -1,0 +1,50 @@
+<h2 class="ttl">Evaluaciones</h2>
+
+<section class="box">
+  <div class="row">
+    <b>{{ titulo }}</b>
+    <button class="btn ghost" (click)="showUpload.set(true)">Subir Entrega</button>
+  </div>
+
+  <!-- Barra de pasos (mock visual) -->
+  <div class="steps">
+    <div class="step" *ngFor="let p of pasos">
+      <div class="dot" [class.done]="p.estado==='Completado'" [class.warn]="p.estado==='En revisión'"></div>
+      <div class="label">
+        <div class="n">{{ p.nombre }}</div>
+        <div class="s">{{ p.estado }}</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">Entrega confirmada. Se notificará al docente.</p>
+</section>
+
+<!-- Modal "Subir Entrega" (UI) -->
+<div class="overlay" *ngIf="showUpload()">
+  <div class="modal">
+    <header>
+      <h3>Subir Entrega</h3>
+      <button class="x" (click)="showUpload.set(false)">✕</button>
+    </header>
+
+    <div class="body">
+      <label class="lab">Tipo de entrega</label>
+      <select class="inp"><option>Informe final</option></select>
+
+      <label class="lab">Fecha</label>
+      <input type="date" class="inp" />
+
+      <label class="lab">Archivo</label>
+      <input type="file" class="inp" />
+
+      <label class="lab">Comentario (opcional)</label>
+      <textarea class="inp" rows="3"></textarea>
+    </div>
+
+    <footer>
+      <button class="btn muted" (click)="showUpload.set(false)">Cancelar</button>
+      <button class="btn" (click)="showUpload.set(false)">Subir entrega</button>
+    </footer>
+  </div>
+</div>
