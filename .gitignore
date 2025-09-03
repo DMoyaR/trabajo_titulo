@@ -48,7 +48,8 @@ pnpm-debug.log*
 
 # Angular cache
 /.angular/cache
-
+/frontend/.angular/cache
+/backend/.angular/cache
 # =========================================
 # IDEs and editors
 # =========================================
