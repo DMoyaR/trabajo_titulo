@@ -157,6 +157,13 @@ export const routes: Routes = [
     ],
   },  */
 
+    {
+    path: 'coordinacion/inicio',
+    loadComponent: () =>
+      import('./features/coordinacion/inicio/coordinacion.component')
+        .then(m => m.CoordinacionComponent),
+  },
+
   // --- REDIRECCIONES ---
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: '**', redirectTo: 'auth/login' },
