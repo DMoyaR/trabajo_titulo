@@ -10,7 +10,7 @@ import { AuthService } from '../auth.service';
 @Component({
   selector: 'app-reset',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, StatusCardComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './reset.component.html',
   styleUrls: ['./reset.component.css'],
 })

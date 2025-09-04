@@ -1,0 +1,12 @@
+.ttl{color:#1a3e6a;margin-bottom:8px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:#fff;border:1px solid var(--utem-border);border-radius:12px;padding:16px;box-shadow:0 8px 28px var(--utem-shadow);}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.list li{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;}
+.prog{height:8px;background:#ecf2fb;border-radius:8px;overflow:hidden;}
+.bar{height:100%;background:#1976D2;}
+.files{list-style:none;margin:0;padding:0;display:grid;gap:8px;margin-bottom:10px;}
+.files li{display:grid;grid-template-columns:1fr auto auto;align-items:center;background:#f7faff;border:1px solid #e9eef6;border-radius:10px;padding:10px 12px;}
+.ok{color:#16a34a;font-weight:800;} .warn{color:#d97706;font-weight:800;}
+.btn{border:0;border-radius:10px;background:#1976D2;color:#fff;font-weight:800;padding:8px 12px;cursor:pointer;}
+.btn.sm{padding:6px 10px;border-radius:8px;}

@@ -1,0 +1,23 @@
+<h2 class="ttl">Notificaciones</h2>
+
+<div class="filters">
+  <label>Tipo:
+    <select [(ngModel)]="filtroTipo" (ngModelChange)="onFiltroTipoChange($event)">
+      <option value="todas">Todas</option>
+      <option value="entregas">Entregas</option>
+      <option value="retro">Retro</option>
+      <option value="reuniones">Reuniones</option>
+      <option value="estados">Estados</option>
+    </select>
+  </label>
+</div>
+
+<ul class="notis">
+  <li *ngFor="let n of list">
+    <span class="ic">{{n.icon}}</span>
+    <span class="tx">{{n.titulo}}</span>
+    <small class="tm">{{n.hace}}</small>
+  </li>
+</ul>
+
+<a class="mark" href="javascript:void(0)">Marcar como leído</a>

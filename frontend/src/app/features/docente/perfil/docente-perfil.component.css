@@ -1,0 +1,7 @@
+.ttl{color:#1a3e6a;margin-bottom:8px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:#fff;border:1px solid var(--utem-border);border-radius:12px;padding:16px;box-shadow:0 8px 28px var(--utem-shadow);}
+.row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #eef3fb;}
+.row:last-child{border-bottom:0;} .inp{border:1px solid #dfe5ee;border-radius:10px;padding:8px 10px;min-width:240px;}
+.link{color:#1976D2;text-decoration:none;font-weight:800;}
+.list{margin:0;padding-left:16px;}
