@@ -89,53 +89,53 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
-      /*{  path: 'dashboard',
-        loadComponent: () =>
-          import('./features/docente/dashboard/docente-dashboard.component')
-            .then(m => m.DocenteDashboardComponent) },
-
-      { path: 'trabajo',
-        loadComponent: () =>
-          import('./features/docente/trabajo-list/docente-trabajo-list.component')
-            .then(m => m.DocenteTrabajoListComponent) },
-
-      { path: 'trabajo/detalle',
-        loadComponent: () =>
-          import('./features/docente/trabajo-detalle/docente-trabajo-detalle.component')
-            .then(m => m.DocenteTrabajoDetalleComponent) },
-
-      { path: 'evaluaciones',
-        loadComponent: () =>
-          import('./features/docente/evaluaciones/docente-evaluaciones.component')
-            .then(m => m.DocenteEvaluacionesComponent) },
- */
-      { path: 'calendario',
+        { path: 'calendario',
         loadComponent: () =>
           import('./features/docente/calendario/calendario.component')
             .then(m => m.CalendarioComponent) },
 
-      /* { path: 'notificaciones',
+        { path: 'dashboard',
+        loadComponent: () =>
+          import('./features/docente/dashboard/docente-dashboard.component')
+            .then((m) => m.DocenteDashboardComponent), },
+
+        { path: 'notificaciones',
         loadComponent: () =>
           import('./features/docente/notificaciones/docente-notificaciones.component')
-            .then(m => m.DocenteNotificacionesComponent) },
+            .then((m) => m.DocenteNotificacionesComponent), },
 
-      { path: 'perfil',
+        { path: 'trabajo',
+        loadComponent: () =>
+          import('./features/docente/trabajolist/docente-trabajo-list.component')
+            .then((m) => m.DocenteTrabajoListComponent), },
+
+        { path: 'trabajodetalle',
+        loadComponent: () =>
+          import('./features/docente/trabajodetalle/docente-trabajo-detalle.component')
+            .then((m) => m.DocenteTrabajoDetalleComponent), },
+
+        { path: 'evaluaciones',
+        loadComponent: () =>
+          import('./features/docente/evaluaciones/docente-evaluaciones.component')
+            .then((m) => m.DocenteEvaluacionesComponent), },
+
+        { path: 'reuniones',
+        loadComponent: () =>
+          import('./features/docente/reunionesresumen/docente-reuniones.component')
+            .then((m) => m.DocenteReunionesComponent),},
+
+        { path: 'bandeja',
+        loadComponent: () =>
+          import('./features/docente/bandejachat/docente-bandeja.component')
+            .then((m) => m.DocenteBandejaComponent), },
+
+        { path: 'perfil',
         loadComponent: () =>
           import('./features/docente/perfil/docente-perfil.component')
-            .then(m => m.DocentePerfilComponent) },
-
-      { path: 'bandeja',
-        loadComponent: () =>
-          import('./features/docente/bandeja/docente-bandeja.component')
-            .then(m => m.DocenteBandejaComponent) },
-
-      { path: 'reuniones',
-        loadComponent: () =>
-          import('./features/docente/reuniones/docente-reuniones.component')
-            .then(m => m.DocenteReunionesComponent) }, */
+            .then((m) => m.DocentePerfilComponent), },
     ],
   },
-
+        
 /*   // --- COORDINACIÓN ---
   {
     path: 'coordinacion',
@@ -160,4 +160,6 @@ export const routes: Routes = [
   // --- REDIRECCIONES ---
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: '**', redirectTo: 'auth/login' },
+  { path: '**', redirectTo: 'docente' },
+  { path: '', pathMatch: 'full', redirectTo: 'docente' },
 ];

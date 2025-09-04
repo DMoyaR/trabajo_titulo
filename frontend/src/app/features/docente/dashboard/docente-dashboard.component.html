@@ -1,0 +1,40 @@
+<h2 class="ttl">Panel de docente</h2>
+
+<div class="filters">
+  <select><option>Correo</option></select>
+  <select><option>Tipo de Proceso</option></select>
+  <select><option>Estado</option></select>
+  <select><option>Avance</option></select>
+  <button class="btn sm">Filtrar</button>
+</div>
+
+<div class="grid">
+  <div class="card span2">
+    <table class="tbl">
+      <thead>
+        <tr><th>Estudiante</th><th>Correo</th><th>Tipo</th><th>Estado</th><th>Avance</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of rows()">
+          <td>{{r.estudiante}}</td>
+          <td>{{r.correo}}</td>
+          <td>{{r.tipo}}</td>
+          <td>{{r.estado}}</td>
+          <td>
+            <div class="prog"><div class="bar" [style.width.%]="r.avance"></div></div>
+            <small>{{r.avance}} %</small>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Observaciones</h3>
+    <textarea class="inp" rows="6" [(ngModel)]="obs"></textarea>
+  </div>
+  <div class="card">
+    <h3>Observaciones</h3>
+    <textarea class="inp" rows="6" [(ngModel)]="obs2"></textarea>
+  </div>
+</div>

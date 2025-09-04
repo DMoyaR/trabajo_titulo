@@ -1,0 +1,6 @@
+.ttl{color:#1a3e6a;margin-bottom:8px;}
+.filters{margin:10px 0 8px;}
+.notis{list-style:none;margin:0;padding:0;display:grid;gap:6px;}
+.notis li{display:grid;grid-template-columns:auto 1fr auto;align-items:center;background:#fff;border:1px solid var(--utem-border);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px var(--utem-shadow);}
+.ic{font-size:18px;margin-right:6px;} .tm{color:#6b7280;}
+.mark{display:inline-block;margin-top:10px;color:#1976D2;font-weight:700;text-decoration:none;}

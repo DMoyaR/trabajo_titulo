@@ -1,0 +1,10 @@
+<h2 class="ttl">Resumen de reuniones</h2>
+
+<table class="tbl">
+  <thead><tr><th>Fecha</th><th>Hora</th><th>Tema</th><th>Duración</th><th>Observaciones</th></tr></thead>
+  <tbody>
+    <tr *ngFor="let r of rows()">
+      <td>{{r.fecha}}</td><td>{{r.hora}}</td><td>{{r.tema}}</td><td>{{r.dur}}</td><td>{{r.obs}}</td>
+    </tr>
+  </tbody>
+</table>
