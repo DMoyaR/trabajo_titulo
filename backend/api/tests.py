@@ -98,3 +98,16 @@ class LoginAPITestCase(APITestCase):
         payload = {'email': 'alumno@example.com', 'password': 'wrong'}
         response = self.client.post(self.login_url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_login_unknown_role(self):
+        unknown_group = Group.objects.create(name='externo')
+        user = User.objects.create_user(
+            username='externo@example.com',
+            email='externo@example.com',
+            password='password'
+        )
+        user.groups.add(unknown_group)
+
+        payload = {'email': 'externo@example.com', 'password': 'password'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

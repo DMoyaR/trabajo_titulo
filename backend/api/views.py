@@ -1,4 +1,5 @@
-from rest_framework import viewsets
+from django.contrib.auth import authenticate
+from rest_framework import status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -7,9 +8,9 @@ from .serializers import TaskSerializer
 
 
 REDIRECTS = {
-    "alumno": "http://localhost:4200/alumno/dashboard",
-    "docente": "http://localhost:4200/docente/dashboard",
-    "coordinador": "http://localhost:4200/coordinacion/inicio",
+    "alumno": "/alumno",
+    "docente": "/docente",
+    "coordinacion": "/coordinacion/inicio",
 }
 
 
@@ -20,6 +21,18 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 @api_view(["POST"])
 def login_view(request):
-    role = request.data.get("role")
+    """Authenticate a user and return their role and redirect URL."""
+
+    email = request.data.get("email")
+    password = request.data.get("password")
+
+    user = authenticate(request, username=email, email=email, password=password)
+    if not user:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+    role = user.groups.first().name if user.groups.exists() else None
     redirect_url = REDIRECTS.get(role)
-    return Response({"redirect": redirect_url})
+    if not redirect_url:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+    return Response({"role": role, "url": redirect_url})
