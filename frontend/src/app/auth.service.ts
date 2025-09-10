@@ -4,8 +4,8 @@ import { Router } from '@angular/router';
 import { catchError, tap, throwError } from 'rxjs';
 
 interface LoginResponse {
-  rol: string;
-  redirect_url: string;
+  role: string;
+  url: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -14,14 +14,15 @@ export class AuthService {
   private router = inject(Router);
 
   login(data: { email: string; password: string }) {
-    return this.http.post<LoginResponse>('/api/login/', data).pipe(
+    return this.http.post<LoginResponse>('/api/login', data).pipe(
       tap((res) => {
-        localStorage.setItem('rol', res.rol);
-        if (res.redirect_url) {
-          this.router.navigateByUrl(res.redirect_url);
-        }
+        localStorage.setItem('role', res.role);
+        this.router.navigateByUrl(res.url);
       }),
       catchError((error: HttpErrorResponse) => {
+        if (error.status === 401) {
+          return throwError(() => new Error('Usuario o contraseña incorrectos'));
+        }
         if (error.status === 401) {
           return throwError(() => new Error('Usuario o contraseña incorrectos'));
         }
