@@ -23,9 +23,6 @@ export class AuthService {
         if (error.status === 401) {
           return throwError(() => new Error('Usuario o contraseña incorrectos'));
         }
-        if (error.status === 401) {
-          return throwError(() => new Error('Usuario o contraseña incorrectos'));
-        }
         return throwError(() => new Error('Error al iniciar sesión'));
       })
     );

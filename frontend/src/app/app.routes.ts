@@ -164,9 +164,7 @@ export const routes: Routes = [
         .then(m => m.CoordinacionComponent),
   },
 
-  // --- REDIRECCIONES ---
+    // --- REDIRECCIONES ---
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
   { path: '**', redirectTo: 'auth/login' },
-  { path: '**', redirectTo: 'docente' },
-  { path: '', pathMatch: 'full', redirectTo: 'docente' },
 ];
