@@ -3,9 +3,9 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { StatusCardComponent } from '../status-card/status-card.component';
-import { AuthService } from '../auth.service';
 
+import { StatusCardComponent } from '../status-card/status-card.component';
+import { AuthService } from '../../../auth.service';
 /** Password reset request - frontend only */
 @Component({
   selector: 'app-reset',

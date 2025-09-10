@@ -3,8 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../auth.service';
-
+import { AuthService } from '../../../auth.service';
 /** Login screen (email + password) with UTEM styling; frontend-only */
 @Component({
   selector: 'app-login',
@@ -27,17 +26,17 @@ export class LoginComponent {
   error = signal<string | null>(null);
 
   onSubmit(){
-    if (this.form.invalid) { this.router.navigateByUrl('/auth/status/missing-fields'); return; }
-    this.loading.set(true); this.error.set(null);
-    this.auth.login(this.form.getRawValue() as {email: string; password: string}).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigateByUrl('/auth/status/login-success');
-      },
-      error: () => {
-        this.loading.set(false);
-        this.error.set('Error al iniciar sesión');
-      }
-    });
+    this.auth
+      .login(this.form.getRawValue() as { email: string; password: string })
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          // La redirección es manejada por AuthService
+        },
+        error: (err: Error) => {
+          this.loading.set(false);
+          this.error.set(err.message);
+        },
+      });
   }
-}
+  }

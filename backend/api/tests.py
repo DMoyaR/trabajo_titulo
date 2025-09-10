@@ -1,6 +1,7 @@
 from django.urls import reverse
+from django.contrib.auth.models import User, Group
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from .models import Task
 
 
@@ -31,3 +32,69 @@ class TaskAPITestCase(APITestCase):
         response = self.client.get(url, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Single Task')
+
+
+class LoginAPITestCase(APITestCase):
+    """Tests for the login endpoint using APIClient."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.login_url = '/api/login'
+
+        # Create groups representing user roles
+        alumno_group = Group.objects.create(name='alumno')
+        docente_group = Group.objects.create(name='docente')
+        coordinacion_group = Group.objects.create(name='coordinacion')
+
+        # Create users for each role
+        self.alumno = User.objects.create_user(
+            username='alumno@example.com',
+            email='alumno@example.com',
+            password='password'
+        )
+        self.alumno.groups.add(alumno_group)
+
+        self.docente = User.objects.create_user(
+            username='docente@example.com',
+            email='docente@example.com',
+            password='password'
+        )
+        self.docente.groups.add(docente_group)
+
+        self.coordinacion = User.objects.create_user(
+            username='coordinacion@example.com',
+            email='coordinacion@example.com',
+            password='password'
+        )
+        self.coordinacion.groups.add(coordinacion_group)
+
+    def test_login_alumno_success(self):
+        payload = {'email': 'alumno@example.com', 'password': 'password'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get('role'), 'alumno')
+        self.assertEqual(response.data.get('url'), '/alumno')
+
+    def test_login_docente_success(self):
+        payload = {'email': 'docente@example.com', 'password': 'password'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get('role'), 'docente')
+        self.assertEqual(response.data.get('url'), '/docente')
+
+    def test_login_coordinacion_success(self):
+        payload = {'email': 'coordinacion@example.com', 'password': 'password'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get('role'), 'coordinacion')
+        self.assertEqual(response.data.get('url'), '/coordinacion/inicio')
+
+    def test_login_nonexistent_email(self):
+        payload = {'email': 'missing@example.com', 'password': 'password'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_login_wrong_password(self):
+        payload = {'email': 'alumno@example.com', 'password': 'wrong'}
+        response = self.client.post(self.login_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
