@@ -2,7 +2,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User, Group
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
-from .models import Task
+from .models import Task, Usuario
 
 
 class TaskAPITestCase(APITestCase):
@@ -41,32 +41,39 @@ class LoginAPITestCase(APITestCase):
         self.client = APIClient()
         self.login_url = '/api/login'
 
-        # Create groups representing user roles
-        alumno_group = Group.objects.create(name='alumno')
-        docente_group = Group.objects.create(name='docente')
-        coordinacion_group = Group.objects.create(name='coordinacion')
-
-        # Create users for each role
-        self.alumno = User.objects.create_user(
-            username='alumno@example.com',
-            email='alumno@example.com',
-            password='password'
+     # Create users for each role
+        self.alumno = Usuario(
+            nombre_completo='Alumno',
+            correo='alumno@example.com',
+            carrera='Test',
+            rut='1',
+            telefono='1',
+            rol='alumno',
         )
-        self.alumno.groups.add(alumno_group)
+        self.alumno.set_password('password')
+        self.alumno.save()
 
-        self.docente = User.objects.create_user(
-            username='docente@example.com',
-            email='docente@example.com',
-            password='password'
+        self.docente = Usuario(
+            nombre_completo='Docente',
+            correo='docente@example.com',
+            carrera='Test',
+            rut='2',
+            telefono='2',
+            rol='docente',
         )
-        self.docente.groups.add(docente_group)
+        self.docente.set_password('password')
+        self.docente.save()
 
-        self.coordinacion = User.objects.create_user(
-            username='coordinacion@example.com',
-            email='coordinacion@example.com',
-            password='password'
+        self.coordinacion = Usuario(
+            nombre_completo='Coordinacion',
+            correo='coordinacion@example.com',
+            carrera='Test',
+            rut='3',
+            telefono='3',
+            rol='coordinacion',
         )
-        self.coordinacion.groups.add(coordinacion_group)
+        self.coordinacion.set_password('password')
+        self.coordinacion.save()
 
     def test_login_alumno_success(self):
         payload = {'email': 'alumno@example.com', 'password': 'password'}
@@ -100,13 +107,16 @@ class LoginAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_login_unknown_role(self):
-        unknown_group = Group.objects.create(name='externo')
-        user = User.objects.create_user(
-            username='externo@example.com',
-            email='externo@example.com',
-            password='password'
+        user = Usuario(
+            nombre_completo='Externo',
+            correo='externo@example.com',
+            carrera='Test',
+            rut='4',
+            telefono='4',
+            rol='externo',
         )
-        user.groups.add(unknown_group)
+        user.set_password('password')
+        user.save()
 
         payload = {'email': 'externo@example.com', 'password': 'password'}
         response = self.client.post(self.login_url, payload, format='json')

@@ -1,38 +1,29 @@
-from django.contrib.auth import authenticate
-from rest_framework import status, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
-from .models import Task
-from .serializers import TaskSerializer
-
+from rest_framework import status
+from .serializers import LoginSerializer
 
 REDIRECTS = {
-    "alumno": "/alumno",
-    "docente": "/docente",
-    "coordinacion": "/coordinacion/inicio",
+    "alumno": "http://localhost:4200/alumno/dashboard",
+    "docente": "http://localhost:4200/docente/dashboard",
+    "coordinador": "http://localhost:4200/coordinacion/inicio",
 }
 
-
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
-
-
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def login_view(request):
-    """Authenticate a user and return their role and redirect URL."""
+    serializer = LoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({"detail": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    email = request.data.get("email")
-    password = request.data.get("password")
+    usuario = serializer.validated_data["usuario"]
+    redirect_url = REDIRECTS.get(usuario.rol)
 
-    user = authenticate(request, username=email, email=email, password=password)
-    if not user:
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-    role = user.groups.first().name if user.groups.exists() else None
-    redirect_url = REDIRECTS.get(role)
-    if not redirect_url:
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
-
-    return Response({"role": role, "url": redirect_url})
+    return Response({
+        "status": "success",
+        "rol": usuario.rol,
+        "redirect_url": redirect_url,
+        "nombre": usuario.nombre_completo,
+        "correo": usuario.correo,
+    }, status=status.HTTP_200_OK)

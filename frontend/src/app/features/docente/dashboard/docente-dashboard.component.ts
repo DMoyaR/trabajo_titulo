@@ -21,3 +21,4 @@ export class DocenteDashboardComponent {
   obs: string = '';
   obs2: string = '';
 }
+

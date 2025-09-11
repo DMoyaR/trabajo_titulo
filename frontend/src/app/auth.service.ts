@@ -1,34 +1,29 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { catchError, tap, throwError } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
 
 interface LoginResponse {
-  role: string;
-  url: string;
+  status: string;
+  rol: string;
+  redirect_url: string;
+  nombre: string;
+  correo: string;
 }
+// ... other imports and code
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private http = inject(HttpClient);
-  private router = inject(Router);
+  private base = 'http://localhost:8000/api';
 
-  login(data: { email: string; password: string }) {
-    return this.http.post<LoginResponse>('/api/login', data).pipe(
-      tap((res) => {
-        localStorage.setItem('role', res.role);
-        this.router.navigateByUrl(res.url);
-      }),
-      catchError((error: HttpErrorResponse) => {
-        if (error.status === 401) {
-          return throwError(() => new Error('Usuario o contraseña incorrectos'));
-        }
-        return throwError(() => new Error('Error al iniciar sesión'));
-      })
-    );
+  constructor(private http: HttpClient) {}
+
+  login(email: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/login`, { email, password });
   }
 
-  reset(data: { email: string }) {
-    return this.http.post('/api/reset', data);
+   /** Simulate password reset request */
+  reset(data: { email: string }): Observable<void> {
+    // Replace this with a real HTTP request if available
+    return of(void 0);
   }
 }

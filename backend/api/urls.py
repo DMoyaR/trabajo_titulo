@@ -1,16 +1,6 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
-
-from .views import TaskViewSet, login_view
-
-
-router = DefaultRouter()
-router.register(r"tasks", TaskViewSet)
-
+from .views import login_view
 
 urlpatterns = [
-    path("login", login_view),
+    path("login", login_view, name="login"),
 ]
-
-
-urlpatterns += router.urls
