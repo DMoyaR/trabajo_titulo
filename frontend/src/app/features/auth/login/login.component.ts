@@ -47,7 +47,7 @@ export class LoginComponent implements OnInit {
           console.log('login OK:', res);
           localStorage.setItem('rol', res.rol);
           localStorage.setItem('usuario', res.nombre);
-
+          
           if (res.rol === 'alumno') {
             this.router.navigateByUrl('/alumno/dashboard');
           } else if (res.rol === 'docente') {
