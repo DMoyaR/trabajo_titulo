@@ -1,5 +1,5 @@
 <div class="dashboard">
-  <!-- Sidebar del Código 1 -->
+  <!-- Sidebar -->
   <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
     <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
       <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
@@ -16,24 +16,24 @@
           <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
         </li>
-        <li class="nav-item active" (click)="navigateTo('bandeja')">
+        <li class="nav-item" (click)="navigateTo('bandeja')">
           <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
         </li>
-        <li class="nav-item" (click)="navigateTo('dashboard')">
+        <li class="nav-item" (click)="navigateTo('inicio')">
           <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Inicio</span>
         </li>
-        <li class="nav-item" (click)="navigateTo('trabajo')">
-          <img src="assets/Procesos.png" alt="Trabajo de Titulo" class="menu-icon" />
+        <li class="nav-item active" (click)="navigateTo('procesos')">
+          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
         </li>
         <li class="nav-item" (click)="navigateTo('evaluaciones')">
           <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
         </li>
-        <li class="nav-item" (click)="navigateTo('calendario')">
-          <img src="assets/Calendario.png" alt="Calendario" class="menu-icon" />
+        <li class="nav-item" (click)="navigateTo('reportes')">
+          <img src="assets/Calendario.png" alt="Reportes" class="menu-icon" />
           <span class="label" [class.hidden]="!menuOpen">Calendario</span>
         </li>
         <li class="nav-item" (click)="navigateTo('perfil')">
@@ -48,38 +48,34 @@
     </nav>
   </aside>
 
-  <!-- Contenido principal reemplazando perfil por Bandeja -->
+  <!-- Contenido principal -->
   <main class="content">
-    <h2 class="ttl">Bandeja de Entrada</h2>
+    <h2 class="ttl">Trabajo de Título — Grupo 3</h2>
 
-    <div class="wrap">
-      <!-- Sidebar de chats -->
-      <aside class="list">
-        <input class="search" placeholder="Buscar"/>
-        <ul>
-          <li *ngFor="let c of chats(); let i=index" 
-              [class.active]="i===selected()" 
-              (click)="selected.set(i)">
-            <b>{{c.nombre}}</b>
-            <small>{{c.asunto}}</small>
+    <div class="grid">
+      <div class="card">
+        <h3>Indicadores de Avance</h3>
+        <ul class="list">
+          <li *ngFor="let i of indicadores()">
+            <b>{{i.estudiante}}</b>
+            <div class="prog"><div class="bar" [style.width.%]="i.avance"></div></div>
+            <small [class.ok]="i.estado==='ok'" [class.warn]="i.estado!=='ok'">{{i.estado}}</small>
           </li>
         </ul>
-        <button class="btn sm">Nuevo mensaje</button>
-      </aside>
+      </div>
 
-      <!-- Chat seleccionado -->
-      <section class="chat">
-        <header>
-          <h3>{{chat.nombre}}</h3><small>{{chat.asunto}}</small>
-        </header>
-        <div class="msgs">
-          <div *ngFor="let m of chat.mensajes" [class.me]="m.yo" class="bubble">{{m.t}}</div>
-        </div>
-        <footer>
-          <input class="inp" placeholder="Escribe un mensaje…"/>
-          <button class="send">➤</button>
-        </footer>
-      </section>
+      <div class="card">
+        <h3>Repositorio de Documentos Oficiales</h3>
+        <ul class="files">
+          <li *ngFor="let d of repo()">
+            <span>📄 {{d.nombre}}</span><small>{{d.fecha}}</small>
+            <button class="btn sm">Descargar</button>
+          </li>
+        </ul>
+        <button class="btn" (click)="showUpload.set(true)">Revisar entregas</button>
+      </div>
     </div>
+
+    <docente-upload-dialog *ngIf="showUpload()" (close)="showUpload.set(false)" (confirm)="showUpload.set(false)"></docente-upload-dialog>
   </main>
 </div>
