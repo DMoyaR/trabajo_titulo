@@ -3,6 +3,16 @@ import { CommonModule } from '@angular/common';
 import { UploadDialogComponent } from '../shareduploaddialog/upload-dialog.component';
 import { FormsModule } from '@angular/forms';
 
+interface UserProfile {
+  nombre: string;
+  correo: string;
+  carrera: string;
+  telefono?: string;
+  ultimoAcceso?: string;
+  contrasena?: string;
+}
+
+
 @Component({
   selector: 'docente-trabajo-detalle',
   standalone: true,
@@ -11,6 +21,10 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./docente-trabajo-detalle.component.css'],
 })
 export class DocenteTrabajoDetalleComponent {
+// Menu sidebar del Código 1
+  menuOpen = true;
+
+  // Contenido de Código 2
   showUpload = signal(false);
   indicadores = signal([
     { estudiante:'Ana', avance:80, estado:'ok' },
@@ -22,4 +36,20 @@ export class DocenteTrabajoDetalleComponent {
     { nombre:'Guía del Estudiante', fecha:'4 abr. 2024' },
     { nombre:'Formato de Acta', fecha:'15 abr. 2024' },
   ]);
+
+  // Funciones del Código 1
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  navigateTo(section: string): void {
+    console.log(`Navegando a: ${section}`);
+  }
+
+  logout(): void {
+    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
+    if (confirmLogout) {
+      console.log('Cerrando sesión...');
+    }
+  }
 }

@@ -9,7 +9,7 @@
 /* Sidebar fijo */
 .sidebar {
   width: 110px;
-  background: #363636 0%;
+  background: linear-gradient(180deg, #323232 0%, #222222 100%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -203,17 +203,10 @@
   margin-left:65px; 
 }
 
-.title { 
-  color:#008c4a; 
-  margin-bottom:1rem; 
-  font-size:1.8rem; 
-  font-weight:600; 
-}
-
 /* Calendario grande */
 .cal-container { 
   display:flex; 
-  gap:12px; 
+  gap:20px; 
   align-items:flex-start; 
 }
 .cal { 
@@ -224,7 +217,7 @@
   flex:1.5; 
   min-width:900px; 
   max-width:350px; 
-  padding:8px; 
+  padding:10px; 
   font-size:13px; 
 }
 
@@ -237,7 +230,7 @@
 
 .nav-left, .nav-right { 
   display:flex; 
-  gap:4px; 
+  gap:5px; 
 }
 
 .mes-titulo { 
@@ -292,18 +285,18 @@
 /* Mini calendario */
 .mini-cal { 
   flex:0.7; 
-  max-width:140px;
+  max-width:170px;
   min-width: 100px; 
-  font-size:10px; 
+  font-size:11px; 
   border:1px solid #1976d2; 
   border-radius:8px; 
   padding:4px; 
 }
 
 .cell.small { 
-  height:18px; 
-  font-size:10px; 
-  padding:1px; 
+  height:20px; 
+  font-size:12px; 
+  padding:1.5px; 
   border-radius:3px; 
 }
 
@@ -342,11 +335,11 @@
 }
 
 .btn.sm { 
-  padding:2px 4px; 
-  border-radius:5px; 
+  padding:7px 15px; 
+  border-radius:15px; 
   background:#e9eef6; 
   color:#1f2a37; 
-  font-size:9px;
+  font-size:10px;
 }
 
 .btn.muted { 
@@ -369,4 +362,14 @@ footer { display:flex; gap:6px; justify-content:flex-end; padding:6px 12px; bord
   margin-bottom: 0.1rem;
   font-size: 2rem;
   font-weight: 600;
+}
+
+/* Estilo para el elemento activo en el menú */
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-left: 3px solid #00548c;
+}
+
+.nav-item.active .menu-icon {
+  filter: brightness(0) invert(1) drop-shadow(0 0 3px rgba(0, 140, 74, 0.8));
 }

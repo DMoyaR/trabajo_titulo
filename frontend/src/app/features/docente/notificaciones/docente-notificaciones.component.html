@@ -1,23 +1,90 @@
-<h2 class="ttl">Notificaciones</h2>
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
+    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
+      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
+      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
+    </div>
 
-<div class="filters">
-  <label>Tipo:
-    <select [(ngModel)]="filtroTipo" (ngModelChange)="onFiltroTipoChange($event)">
-      <option value="todas">Todas</option>
-      <option value="entregas">Entregas</option>
-      <option value="retro">Retro</option>
-      <option value="reuniones">Reuniones</option>
-      <option value="estados">Estados</option>
-    </select>
-  </label>
+    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
+      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
+    </div>
+
+    <nav class="navigation">
+      <ul>
+        <li class="nav-item active" (click)="navigateTo('notificaciones')">
+          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('bandeja')">
+          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('inicio')">
+          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('procesos')">
+          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('evaluaciones')">
+          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('reportes')">
+          <img src="assets/Calendario.png" alt="Reportes" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('perfil')">
+          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
+        </li>
+        <li class="nav-item logout" (click)="logout()">
+          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Contenido -->
+  <main class="content">
+    <!-- Vista Notificaciones -->
+    <section *ngIf="currentView==='notificaciones'">
+      <h2 class="ttl">Notificaciones</h2>
+      <div class="filters">
+        <div class="filter-group">
+          <label>Tipo:</label>
+          <select [(ngModel)]="filtroTipo" (ngModelChange)="onFiltroTipoChange($event)">
+            <option value="todas">Todas</option>
+            <option value="entregas">Entregas</option>
+            <option value="retro">Retro</option>
+            <option value="reuniones">Reuniones</option>
+            <option value="estados">Estados</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Fecha:</label>
+          <select [(ngModel)]="filtroFecha" (ngModelChange)="onFiltroFechaChange($event)">
+            <option value="todas">Todas</option>
+            <option value="hoy">Hoy</option>
+            <option value="ayer">Ayer</option>
+            <option value="semana">Esta semana</option>
+            <option value="mes">Este mes</option>
+          </select>
+        </div>
+      </div>
+      <ul class="notis">
+        <li *ngFor="let n of list">
+          <span class="ic">{{n.icon}}</span>
+          <div class="noti-content">
+            <span class="tx">{{n.titulo}}</span>
+            <small class="tm">{{n.hace}}</small>
+          </div>
+        </li>
+      </ul>
+      <a class="mark" href="javascript:void(0)" (click)="marcarComoLeido()">Marcar como leído</a>
+    </section>
+  </main>
 </div>
-
-<ul class="notis">
-  <li *ngFor="let n of list">
-    <span class="ic">{{n.icon}}</span>
-    <span class="tx">{{n.titulo}}</span>
-    <small class="tm">{{n.hace}}</small>
-  </li>
-</ul>
-
-<a class="mark" href="javascript:void(0)">Marcar como leído</a>

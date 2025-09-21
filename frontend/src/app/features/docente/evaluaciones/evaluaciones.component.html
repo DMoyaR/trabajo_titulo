@@ -1,0 +1,84 @@
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{ open: menuOpen, closed: !menuOpen }">
+    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
+      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
+      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
+    </div>
+
+    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
+      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
+    </div>
+
+    <nav class="navigation">
+      <ul>
+        <li class="nav-item" (click)="navigateTo('notificaciones')">
+          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('bandeja')">
+          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('inicio')">
+          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('procesos')">
+          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
+        </li>
+        <li class="nav-item active" (click)="navigateTo('evaluaciones')">
+          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('reportes')">
+          <img src="assets/Calendario.png" alt="Reportes" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('perfil')">
+          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
+        </li>
+        <li class="nav-item logout" (click)="logout()">
+          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="content">
+    <h2 class="ttl">Evaluaciones — Panel del Coordinador</h2>
+
+    <div class="filters">
+      <select><option>Contrato: 2024</option></select>
+      <select><option>Semestre: 2°</option></select>
+      <select><option>Proceso: Práctica</option></select>
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Estudiante</th>
+          <th>Sección</th>
+          <th>Proceso</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of rows()">
+          <td>{{ r.estudiante }}</td>
+          <td>{{ r.seccion }}</td>
+          <td>{{ r.proy }}</td>
+          <td>{{ r.estado }}</td>
+          <td><button class="btn sm">Valorar</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="actions"><button class="btn">Exportar</button></div>
+  </main>
+</div>

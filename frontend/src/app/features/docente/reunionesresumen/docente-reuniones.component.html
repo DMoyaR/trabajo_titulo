@@ -1,10 +1,80 @@
-<h2 class="ttl">Resumen de reuniones</h2>
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
+    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
+      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
+      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
+    </div>
 
-<table class="tbl">
-  <thead><tr><th>Fecha</th><th>Hora</th><th>Tema</th><th>Duración</th><th>Observaciones</th></tr></thead>
-  <tbody>
-    <tr *ngFor="let r of rows()">
-      <td>{{r.fecha}}</td><td>{{r.hora}}</td><td>{{r.tema}}</td><td>{{r.dur}}</td><td>{{r.obs}}</td>
-    </tr>
-  </tbody>
-</table>
+    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
+      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
+    </div>
+
+    <nav class="navigation">
+      <ul>
+        <li class="nav-item" (click)="navigateTo('notificaciones')">
+          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('bandeja')">
+          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('inicio')">
+          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('procesos')">
+          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('evaluaciones')">
+          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
+        </li>
+        <li class="nav-item active" (click)="navigateTo('reportes')">
+          <img src="assets/Calendario.png" alt="Reportes" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('perfil')">
+          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
+        </li>
+        <li class="nav-item logout" (click)="logout()">
+          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="content">
+    <div class="content-wrapper">
+      <h2 class="ttl">Resumen de reuniones</h2>
+      
+      <div class="card">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Tema</th>
+              <th>Duración</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of rows()">
+              <td>{{ r.fecha }}</td>
+              <td>{{ r.hora }}</td>
+              <td>{{ r.tema }}</td>
+              <td>{{ r.dur }}</td>
+              <td>{{ r.obs }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
