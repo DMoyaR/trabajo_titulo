@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'docente-trabajo-list',
@@ -11,7 +12,16 @@ import { CommonModule } from '@angular/common';
 export class DocenteTrabajoListComponent {
   menuOpen = true;
 
-  // 🚀 Lógica de Código 2 (Trabajo de Título)
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
+  //Lógica de Código 2 (Trabajo de Título)
   tab = signal<'i' | 'ii'>('i');
   grupos = signal([
     { nombre: 'Proyecto del primer grupo', estado: 'en curso', alert: '' },
@@ -25,6 +35,8 @@ export class DocenteTrabajoListComponent {
 
   navigateTo(section: string): void {
     console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
   }
 
   logout(): void {

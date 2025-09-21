@@ -1,11 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // 👈
+import { FormsModule } from '@angular/forms'; // 
+import { Router } from '@angular/router';
+
 
 @Component({
   selector: 'docente-notificaciones',
   standalone: true,
-  imports: [CommonModule, FormsModule], // 👈
+  imports: [CommonModule, FormsModule], // 
   templateUrl: './docente-notificaciones.component.html',
   styleUrls: ['./docente-notificaciones.component.css'],
 })
@@ -13,6 +15,17 @@ export class DocenteNotificacionesComponent {
   // Estado sidebar
   menuOpen = true;
   currentView: string = 'notificaciones'; // vista por defecto
+
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
+
 
   // Filtros de notificaciones
   filtroTipo: string = 'todas';
@@ -56,12 +69,8 @@ export class DocenteNotificacionesComponent {
 
   navigateTo(section: string): void {
     // Por ahora solo funciona la sección de notificaciones
-    if (section === 'notificaciones') {
-      this.currentView = section;
-    } else {
-      console.log(`Navegando a: ${section} (funcionalidad pendiente)`);
-      // No cambiamos currentView para evitar páginas en blanco
-    }
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
   }
 
   logout(): void {

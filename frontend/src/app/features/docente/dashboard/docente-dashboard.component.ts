@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+
 
 @Component({
   selector: 'app-dashboard',
@@ -12,6 +14,16 @@ import { FormsModule } from '@angular/forms';
 export class DocenteDashboardComponent {
   menuOpen = true;
   
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
+
   rows = [
     { 
       estudiante: 'Ana López', 
@@ -64,6 +76,8 @@ export class DocenteDashboardComponent {
 
   navigateTo(section: string): void {
     console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
   }
 
   logout(): void {

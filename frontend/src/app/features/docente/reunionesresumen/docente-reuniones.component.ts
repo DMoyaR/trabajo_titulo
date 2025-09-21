@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
+import { Router } from '@angular/router';
 @Component({
   selector: 'docente-reuniones',
   standalone: true,
@@ -11,7 +11,16 @@ import { CommonModule } from '@angular/common';
 export class DocenteReunionesComponent {
  menuOpen = true;
 
-  // 🚀 Datos de reuniones
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
+  //Datos de reuniones
   rows = signal([
     { 
       fecha: '15/04/2024', 
@@ -49,6 +58,8 @@ export class DocenteReunionesComponent {
 
   navigateTo(section: string): void {
     console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
   }
 
   logout(): void {

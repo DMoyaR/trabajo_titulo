@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'docente-bandeja',
@@ -11,6 +12,14 @@ import { CommonModule } from '@angular/common';
 export class DocenteBandejaComponent {
   // Sidebar y menú
   menuOpen = true;
+
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
 
   // Bandeja de mensajes
   selected = signal(0);
@@ -29,6 +38,8 @@ export class DocenteBandejaComponent {
 
   navigateTo(section: string): void {
     console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
   }
 
   logout(): void {
