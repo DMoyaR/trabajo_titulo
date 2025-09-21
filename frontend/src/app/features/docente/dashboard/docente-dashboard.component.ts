@@ -6,8 +6,8 @@ import { FormsModule } from '@angular/forms';
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.css']
+  templateUrl: './docente-dashboard.component.html',
+  styleUrls: ['./docente-dashboard.component.css']
 })
 export class DocenteDashboardComponent {
   menuOpen = true;
