@@ -1,6 +1,5 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
 @Component({
   selector: 'docente-reuniones',
   standalone: true,
@@ -9,17 +8,6 @@ import { Router } from '@angular/router';
   styleUrls: ['./docente-reuniones.component.css'],
 })
 export class DocenteReunionesComponent {
- menuOpen = true;
-
-  private readonly sectionRouteMap: Record<string, string> = {
-    inicio: 'dashboard',
-    procesos: 'trabajo',
-    reportes: 'calendario',
-  };
-
-  constructor(private router: Router) {}
-
-
   //Datos de reuniones
   rows = signal([
     { 
@@ -51,21 +39,4 @@ export class DocenteReunionesComponent {
       obs: 'Entrega de avances' 
     },
   ]);
-
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a: ${section}`);
-    const destination = this.sectionRouteMap[section] ?? section;
-    this.router.navigate(['/docente', destination]);
-  }
-
-  logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-    }
-  }
 }
