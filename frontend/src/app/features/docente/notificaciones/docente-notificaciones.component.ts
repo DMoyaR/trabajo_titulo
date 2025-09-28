@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // 
-import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms'; //
 
 
 @Component({
@@ -12,19 +11,7 @@ import { Router } from '@angular/router';
   styleUrls: ['./docente-notificaciones.component.css'],
 })
 export class DocenteNotificacionesComponent {
-  // Estado sidebar
-  menuOpen = true;
   currentView: string = 'notificaciones'; // vista por defecto
-
-  private readonly sectionRouteMap: Record<string, string> = {
-    inicio: 'dashboard',
-    procesos: 'trabajo',
-    reportes: 'calendario',
-  };
-
-  constructor(private router: Router) {}
-
-
 
 
   // Filtros de notificaciones
@@ -60,22 +47,6 @@ export class DocenteNotificacionesComponent {
 
   onFiltroFechaChange(v: string) {
     this.filtroFecha = v;
-  }
-
-  // Funciones menú
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    // Por ahora solo funciona la sección de notificaciones
-    const destination = this.sectionRouteMap[section] ?? section;
-    this.router.navigate(['/docente', destination]);
-  }
-
-  logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) console.log('Cerrando sesión...');
   }
 
   marcarComoLeido(): void {

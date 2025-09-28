@@ -1,143 +1,93 @@
-<div class="dashboard">
-  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
-    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
-      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
-      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
-    </div>
-    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
-      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
-    </div>
-    <nav class="navigation">
-      <ul>
-        <li class="nav-item" (click)="navigateTo('notificaciones')">
-          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('bandeja')">
-          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('dashboard')">
-          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('trabajo')">
-          <img src="assets/Procesos.png" alt="Trabajo de Titulo" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('evaluaciones')">
-          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
-        </li>
-        <li class="nav-item active" (click)="navigateTo('calendario')">
-          <img src="assets/Calendario.png" alt="Calendario" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('perfil')">
-          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
-        </li>
-        <li class="nav-item logout" (click)="logout()">
-          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
-        </li>
-      </ul>
-    </nav>
-  </aside>
-
-  <main class="content">
-    <h2 class="ttl">Calendario</h2>
-    <div class="cal-container">
-
-      <!-- Calendario principal -->
-      <div class="cal">
-        <div class="hdr">
-          <div class="nav-left">
-            <button class="btn sm" (click)="goToday()">Hoy</button>
-            <button class="btn sm" (click)="prevMonth()">◀</button>
-            <button class="btn sm" (click)="nextMonth()">▶</button>
-          </div>
-
-          <div class="mes-titulo">{{ mes() }}</div>
-
-          <div class="nav-right">
-            <button class="btn sm">Resumen de reuniones</button>
-            <button class="btn sm">Agendar reunión continua</button>
-            <button class="btn sm">Agendar reunión</button>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="dow" *ngFor="let d of diasSemana">{{ d }}</div>
-          <div class="cell empty" *ngFor="let h of [].constructor(startDay())"></div>
-          <div class="cell" *ngFor="let d of days()"
-               [class.today]="d===today.getDate() && month()===today.getMonth() && year()===today.getFullYear()"
-               [class.selected]="d === selectedDay()">
-            {{ d }}
-          </div>
-        </div>
+<h2 class="ttl">Calendario</h2>
+<div class="cal-container">
+  <div class="cal">
+    <div class="hdr">
+      <div class="nav-left">
+        <button class="btn sm" (click)="goToday()">Hoy</button>
+        <button class="btn sm" (click)="prevMonth()">◀</button>
+        <button class="btn sm" (click)="nextMonth()">▶</button>
       </div>
 
-      <!-- Mini calendario -->
-      <div class="mini-cal">
-        <div class="mini-header">
-          <button class="btn sm" (click)="prevMiniMonth()">◀</button>
-          <span class="mini-title" (click)="toggleMiniPicker()">
-            {{ nombresMeses[tempMiniMonth] }} {{ tempMiniYear }}
-          </span>
-          <button class="btn sm" (click)="nextMiniMonth()">▶</button>
-        </div>
+      <div class="mes-titulo">{{ mes() }}</div>
 
-        <!-- Selector mes/año -->
-        <div *ngIf="showMiniPicker" class="mini-year-picker">
-          <div>
-            <label>Mes:</label>
-            <select [(ngModel)]="tempMiniMonth">
-              <option *ngFor="let m of nombresMeses; let i = index" [value]="i">{{ m }}</option>
-            </select>
-          </div>
-          <div>
-            <label>Año:</label>
-            <input type="number" [(ngModel)]="tempMiniYear" />
-          </div>
-          <div style="margin-top:4px; display:flex; justify-content:flex-end; gap:4px;">
-            <button class="btn sm" (click)="applyMiniPicker()">Aceptar</button>
-            <button class="btn sm" (click)="cancelMiniPicker()">Cancelar</button>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="dow" *ngFor="let d of ['L','M','M','J','V','S','D']">{{ d }}</div>
-          <div class="cell empty" *ngFor="let h of [].constructor(miniStartDay())"></div>
-          <div class="cell small" *ngFor="let d of miniDays()"
-               [class.today]="d===today.getDate() && miniMonth()===today.getMonth() && miniYear()===today.getFullYear()"
-               [class.selected]="d === selectedDay()"
-               (click)="selectDay(d)">
-            {{ d }}
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Modal agendar -->
-    <div class="overlay" *ngIf="showModal()">
-      <div class="modal">
-        <header>
-          <h3>Agendar Reunión</h3>
-          <button class="x" (click)="showModal.set(false)">✕</button>
-        </header>
-        <div class="body">
-          <label class="lab">Fecha</label>
-          <input class="inp" type="date"/>
-          <label class="lab">Label</label>
-          <input class="inp" placeholder="Nombre del grupo o tema"/>
-        </div>
-        <footer>
-          <button class="btn muted" (click)="showModal.set(false)">Cancelar</button>
-          <button class="btn" (click)="showModal.set(false)">Agendar</button>
-        </footer>
+      <div class="nav-right">
+        <button class="btn sm">Resumen de reuniones</button>
+        <button class="btn sm">Agendar reunión continua</button>
+        <button class="btn sm">Agendar reunión</button>
       </div>
     </div>
-  </main>
+
+    <div class="grid">
+      <div class="dow" *ngFor="let d of diasSemana">{{ d }}</div>
+      <div class="cell empty" *ngFor="let h of [].constructor(startDay())"></div>
+      <div
+        class="cell"
+        *ngFor="let d of days()"
+        [class.today]="d === today.getDate() && month() === today.getMonth() && year() === today.getFullYear()"
+        [class.selected]="d === selectedDay()"
+      >
+        {{ d }}
+      </div>
+    </div>
+  </div>
+
+  <div class="mini-cal">
+    <div class="mini-header">
+      <button class="btn sm" (click)="prevMiniMonth()">◀</button>
+      <span class="mini-title" (click)="toggleMiniPicker()">
+        {{ nombresMeses[tempMiniMonth] }} {{ tempMiniYear }}
+      </span>
+      <button class="btn sm" (click)="nextMiniMonth()">▶</button>
+    </div>
+
+    <div *ngIf="showMiniPicker" class="mini-year-picker">
+      <div>
+        <label>Mes:</label>
+        <select [(ngModel)]="tempMiniMonth">
+          <option *ngFor="let m of nombresMeses; let i = index" [value]="i">{{ m }}</option>
+        </select>
+      </div>
+      <div>
+        <label>Año:</label>
+        <input type="number" [(ngModel)]="tempMiniYear" />
+      </div>
+      <div class="mini-picker-actions">
+        <button class="btn sm" (click)="applyMiniPicker()">Aceptar</button>
+        <button class="btn sm" (click)="cancelMiniPicker()">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="dow" *ngFor="let d of ['L', 'M', 'M', 'J', 'V', 'S', 'D']">{{ d }}</div>
+      <div class="cell empty" *ngFor="let h of [].constructor(miniStartDay())"></div>
+      <div
+        class="cell small"
+        *ngFor="let d of miniDays()"
+        [class.today]="d === today.getDate() && miniMonth() === today.getMonth() && miniYear() === today.getFullYear()"
+        [class.selected]="d === selectedDay()"
+        (click)="selectDay(d)"
+      >
+        {{ d }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" *ngIf="showModal()">
+  <div class="modal">
+    <header>
+      <h3>Agendar Reunión</h3>
+      <button class="x" (click)="showModal.set(false)">✕</button>
+    </header>
+    <div class="body">
+      <label class="lab">Fecha</label>
+      <input class="inp" type="date" />
+      <label class="lab">Label</label>
+      <input class="inp" placeholder="Nombre del grupo o tema" />
+    </div>
+    <footer>
+      <button class="btn muted" (click)="showModal.set(false)">Cancelar</button>
+      <button class="btn" (click)="showModal.set(false)">Agendar</button>
+    </footer>
+  </div>
 </div>
