@@ -1,59 +1,104 @@
-<h1 class="page-title">Perfil de Usuario</h1>
-
-<div class="grid">
-  <div class="card">
-    <h3>Información Personal</h3>
-    <div class="row"><b>Nombre:</b><span>{{ userProfile.nombre || 'Juan Pérez' }}</span></div>
-    <div class="row"><b>Correo:</b><span>{{ userProfile.correo || 'juan.perez@example.com' }}</span></div>
-    <div class="row"><b>Carrera:</b><span>{{ userProfile.carrera || 'Ingeniería Informática' }}</span></div>
-  </div>
-
-  <div class="card">
-    <h3>Editar Información</h3>
-    <div class="row">
-      <b>Teléfono:</b>
-      <span *ngIf="!isEditing">{{ userProfile.telefono || 'Agregar número de teléfono' }}</span>
-      <input
-        *ngIf="isEditing"
-        class="inp"
-        type="tel"
-        [(ngModel)]="editableProfile.telefono"
-        placeholder="Agregar número de teléfono"
-      />
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
+    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
+      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
+      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
     </div>
 
-    <div class="row">
-      <b>Contraseña:</b>
-      <div *ngIf="!isEditing">
-        <span>****</span>
-        <button class="link" (click)="changePassword()">Cambiar</button>
+    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
+      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
+    </div>
+
+    <nav class="navigation">
+      <ul>
+        <li class="nav-item" (click)="navigateTo('notificaciones')">
+          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('bandeja')">
+          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('dashboard')">
+          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('trabajo')">
+          <img src="assets/Procesos.png" alt="Trabajo de Titulo" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('evaluaciones')">
+          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('calendario')">
+          <img src="assets/Calendario.png" alt="Calendario" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
+        </li>
+        <li class="nav-item active" (click)="navigateTo('perfil')">
+          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
+        </li>
+        <li class="nav-item logout" (click)="logout()">
+          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="content">
+    <h1 class="page-title">Perfil de Usuario</h1>
+
+    <div class="grid">
+      <!-- Card Información Personal -->
+      <div class="card">
+        <h3>Información Personal</h3>
+        <div class="row"><b>Nombre:</b><span>{{ userProfile.nombre || 'Juan Pérez' }}</span></div>
+        <div class="row"><b>Correo:</b><span>{{ userProfile.correo || 'juan.perez@example.com' }}</span></div>
+        <div class="row"><b>Carrera:</b><span>{{ userProfile.carrera || 'Ingeniería Informática' }}</span></div>
       </div>
-      <input
-        *ngIf="isEditing"
-        type="password"
-        class="inp"
-        [(ngModel)]="editableProfile.contrasena"
-        placeholder="Nueva contraseña"
-      />
+
+      <!-- Card Editar -->
+      <div class="card">
+        <h3>Editar Información</h3>
+        <div class="row">
+          <b>Teléfono:</b>
+          <span *ngIf="!isEditing">{{ userProfile.telefono || 'Agregar número de teléfono' }}</span>
+          <input *ngIf="isEditing" class="inp" type="tel" [(ngModel)]="editableProfile.telefono" placeholder="Agregar número de teléfono" />
+        </div>
+
+        <div class="row">
+          <b>Contraseña:</b>
+          <div *ngIf="!isEditing">
+            <span>****</span>
+            <button class="link" (click)="changePassword()">Cambiar</button>
+          </div>
+          <input *ngIf="isEditing" type="password" class="inp" [(ngModel)]="editableProfile.contrasena" placeholder="Nueva contraseña" />
+        </div>
+
+        <div class="action-row" *ngIf="!isEditing">
+          <button class="btn-edit" (click)="startEditing()">Editar Información</button>
+        </div>
+        <div class="action-row" *ngIf="isEditing">
+          <button class="btn-save" (click)="saveProfile()">Guardar</button>
+          <button class="btn-cancel" (click)="cancelEditing()">Cancelar</button>
+        </div>
+      </div>
     </div>
 
-    <div class="action-row" *ngIf="!isEditing">
-      <button class="btn-edit" (click)="startEditing()">Editar Información</button>
+    <!-- Card Historial de Sesiones -->
+    <div class="card">
+      <h3>Historial de Sesiones</h3>
+      <ul class="list">
+        <li>Último acceso: {{ userProfile.ultimoAcceso || '25 de abril de 2024' }}</li>
+      </ul>
+      <div class="session-actions">
+        <button class="btn-session" (click)="closeSession()">Cerrar sesión</button>
+        <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
+      </div>
     </div>
-    <div class="action-row" *ngIf="isEditing">
-      <button class="btn-save" (click)="saveProfile()">Guardar</button>
-      <button class="btn-cancel" (click)="cancelEditing()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h3>Historial de Sesiones</h3>
-  <ul class="list">
-    <li>Último acceso: {{ userProfile.ultimoAcceso || '25 de abril de 2024' }}</li>
-  </ul>
-  <div class="session-actions">
-    <button class="btn-session" (click)="closeSession()">Cerrar sesión</button>
-    <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
-  </div>
+  </main>
 </div>

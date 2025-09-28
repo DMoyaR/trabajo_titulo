@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule } from '@angular/forms'; 
+import { Router } from '@angular/router';
 
 interface UserProfile {
   nombre: string;
@@ -20,7 +21,18 @@ interface UserProfile {
   styleUrls: ['./docente-perfil.component.css'],
 })
 export class DocentePerfilComponent {
+  menuOpen = true;
   isEditing = false;
+
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
 
   userProfile: UserProfile = {
     nombre: '',
@@ -91,11 +103,25 @@ export class DocentePerfilComponent {
     this.isEditing = false;
   }
 
-  closeSession(): void {
-    const confirmed = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmed) {
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  navigateTo(section: string): void {
+    console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
+  }
+
+  logout(): void {
+    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
+    if (confirmLogout) {
       console.log('Cerrando sesión...');
     }
+  }
+
+  closeSession(): void {
+    this.logout();
   }
 
   private showSuccessMessage(message: string): void {

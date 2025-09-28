@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 
 @Component({
@@ -11,6 +12,18 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./docente-dashboard.component.css']
 })
 export class DocenteDashboardComponent {
+  menuOpen = true;
+  
+  private readonly sectionRouteMap: Record<string, string> = {
+    inicio: 'dashboard',
+    procesos: 'trabajo',
+    reportes: 'calendario',
+  };
+
+  constructor(private router: Router) {}
+
+
+
   rows = [
     { 
       estudiante: 'Ana López', 
@@ -56,4 +69,21 @@ export class DocenteDashboardComponent {
 
   obs: string = '';
   obs2: string = '';
+
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  navigateTo(section: string): void {
+    console.log(`Navegando a: ${section}`);
+    const destination = this.sectionRouteMap[section] ?? section;
+    this.router.navigate(['/docente', destination]);
+  }
+
+  logout(): void {
+    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
+    if (confirmLogout) {
+      console.log('Cerrando sesión...');
+    }
+  }
 }

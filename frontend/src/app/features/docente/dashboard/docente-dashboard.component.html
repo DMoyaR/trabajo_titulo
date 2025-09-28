@@ -1,98 +1,142 @@
-<h2 class="ttl">Panel de docente</h2>
-
-<h3 class="section-subtitle">Estudiantes Asignados</h3>
-
-<div class="filters">
-  <div class="filter-group">
-    <label class="filter-label">Carrera</label>
-    <select>
-      <option>Todas las carreras</option>
-      <option>Ingeniería en Sistemas</option>
-      <option>Administración</option>
-      <option>Ingeniería Industrial</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label class="filter-label">Tipo de Proceso</label>
-    <select>
-      <option>Todos los tipos</option>
-      <option>Tesis</option>
-      <option>Prácticas</option>
-      <option>Proyecto</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label class="filter-label">Estado</label>
-    <select>
-      <option>Todos los estados</option>
-      <option>Entregado</option>
-      <option>En proceso</option>
-      <option>Pendiente</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label class="filter-label">Avance</label>
-    <select>
-      <option>Cualquier avance</option>
-      <option>0-25%</option>
-      <option>26-50%</option>
-      <option>51-75%</option>
-      <option>76-100%</option>
-    </select>
-  </div>
-  <button class="btn sm">Filtrar</button>
-</div>
-
-<div class="grid">
-  <div class="card main-table">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>Estudiante</th>
-          <th>Carrera</th>
-          <th>Tipo de Proceso</th>
-          <th>Entrega</th>
-          <th>Avance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let r of rows">
-          <td class="student-name">{{ r.estudiante }}</td>
-          <td>{{ r.carrera }}</td>
-          <td><span class="process-type">{{ r.tipo }}</span></td>
-          <td>
-            <span
-              class="status-badge"
-              [ngClass]="'status-' + r.estado.toLowerCase().replace(' ', '-').replace('ó', 'o')"
-              >{{ r.statusIcon }}</span
-            >
-          </td>
-          <td>
-            <div class="progress-container">
-              <div class="prog">
-                <div class="bar" [style.width.%]="r.avance"></div>
-              </div>
-              <span class="progress-text">{{ r.avance }}%</span>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="observations-panel">
-    <div class="card">
-      <h3>Observaciones</h3>
-      <textarea class="inp" rows="6" [(ngModel)]="obs" placeholder="Escriba sus observaciones aquí..."></textarea>
+<div class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
+    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
+      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
+      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
     </div>
-    <div class="card">
-      <h3>Observaciones</h3>
-      <textarea
-        class="inp"
-        rows="6"
-        [(ngModel)]="obs2"
-        placeholder="Escriba sus observaciones adicionales aquí..."
-      ></textarea>
+
+    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
+      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
     </div>
-  </div>
+
+    <nav class="navigation">
+      <ul>
+        <li class="nav-item" (click)="navigateTo('notificaciones')">
+          <img src="assets/Notificaciones.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('bandeja')">
+          <img src="assets/Bandeja_entrada.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
+        </li>
+        <li class="nav-item active" (click)="navigateTo('dashboard')">
+          <img src="assets/Inicio.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Panel Docente</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('trabajo')">
+          <img src="assets/Procesos.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('evaluaciones')">
+          <img src="assets/Evaluaciones.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('calendario')">
+          <img src="assets/Calendario.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
+        </li>
+        <li class="nav-item" (click)="navigateTo('perfil')">
+          <img src="assets/Perfil.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
+        </li>
+        <li class="nav-item logout" (click)="logout()">
+          <img src="assets/Cerrar_Sesion.png" class="menu-icon" />
+          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="content">
+    <h2 class="ttl">Panel de docente</h2>
+  
+    <h3 class="section-subtitle">Estudiantes Asignados</h3>
+
+
+    <div class="filters">
+      <div class="filter-group">
+        <label class="filter-label">Carrera</label>
+        <select>
+          <option>Todas las carreras</option>
+          <option>Ingeniería en Sistemas</option>
+          <option>Administración</option>
+          <option>Ingeniería Industrial</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Tipo de Proceso</label>
+        <select>
+          <option>Todos los tipos</option>
+          <option>Tesis</option>
+          <option>Prácticas</option>
+          <option>Proyecto</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Estado</label>
+        <select>
+          <option>Todos los estados</option>
+          <option>Entregado</option>
+          <option>En proceso</option>
+          <option>Pendiente</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Avance</label>
+        <select>
+          <option>Cualquier avance</option>
+          <option>0-25%</option>
+          <option>26-50%</option>
+          <option>51-75%</option>
+          <option>76-100%</option>
+        </select>
+      </div>
+      <button class="btn sm">Filtrar</button>
+    </div>
+
+    <div class="grid">
+      <div class="card main-table">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>Carrera</th>
+              <th>Tipo de Proceso</th>
+              <th>Entrega</th>
+              <th>Avance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of rows">
+              <td class="student-name">{{r.estudiante}}</td>
+              <td>{{r.carrera}}</td>
+              <td><span class="process-type">{{r.tipo}}</span></td>
+              <td><span class="status-badge" [ngClass]="'status-' + r.estado.toLowerCase().replace(' ', '-').replace('ó', 'o')">{{r.statusIcon}}</span></td>
+              <td>
+                <div class="progress-container">
+                  <div class="prog">
+                    <div class="bar" [style.width.%]="r.avance"></div>
+                  </div>
+                  <span class="progress-text">{{r.avance}}%</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="observations-panel">
+        <div class="card">
+          <h3>Observaciones</h3>
+          <textarea class="inp" rows="6" [(ngModel)]="obs" placeholder="Escriba sus observaciones aquí..."></textarea>
+        </div>
+        <div class="card">
+          <h3>Observaciones</h3>
+          <textarea class="inp" rows="6" [(ngModel)]="obs2" placeholder="Escriba sus observaciones adicionales aquí..."></textarea>
+        </div>
+      </div>
+    </div>
+  </main>
 </div>
