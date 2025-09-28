@@ -1,85 +1,27 @@
-<div class="dashboard">
-  <!-- Sidebar del Código 1 -->
-  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
-    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
-      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
-      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
-    </div>
+<h2 class="ttl">Bandeja de Entrada</h2>
 
-    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
-      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
-    </div>
-
-    <nav class="navigation">
-      <ul>
-        <li class="nav-item" (click)="navigateTo('notificaciones')">
-          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
-        </li>
-        <li class="nav-item active" (click)="navigateTo('bandeja')">
-          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('dashboard')">
-          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('trabajo')">
-          <img src="assets/Procesos.png" alt="Trabajo de Titulo" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Trabajo de Titulo</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('evaluaciones')">
-          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('calendario')">
-          <img src="assets/Calendario.png" alt="Calendario" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Calendario</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('perfil')">
-          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
-        </li>
-        <li class="nav-item logout" (click)="logout()">
-          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
-        </li>
-      </ul>
-    </nav>
+<div class="wrap">
+  <aside class="list">
+    <input class="search" placeholder="Buscar" />
+    <ul>
+      <li *ngFor="let c of chats(); let i = index" [class.active]="i === selected()" (click)="selected.set(i)">
+        <b>{{ c.nombre }}</b>
+        <small>{{ c.asunto }}</small>
+      </li>
+    </ul>
+    <button class="btn sm">Nuevo mensaje</button>
   </aside>
 
-  <!-- Contenido principal reemplazando perfil por Bandeja -->
-  <main class="content">
-    <h2 class="ttl">Bandeja de Entrada</h2>
-
-    <div class="wrap">
-      <!-- Sidebar de chats -->
-      <aside class="list">
-        <input class="search" placeholder="Buscar"/>
-        <ul>
-          <li *ngFor="let c of chats(); let i=index" 
-              [class.active]="i===selected()" 
-              (click)="selected.set(i)">
-            <b>{{c.nombre}}</b>
-            <small>{{c.asunto}}</small>
-          </li>
-        </ul>
-        <button class="btn sm">Nuevo mensaje</button>
-      </aside>
-
-      <!-- Chat seleccionado -->
-      <section class="chat">
-        <header>
-          <h3>{{chat.nombre}}</h3><small>{{chat.asunto}}</small>
-        </header>
-        <div class="msgs">
-          <div *ngFor="let m of chat.mensajes" [class.me]="m.yo" class="bubble">{{m.t}}</div>
-        </div>
-        <footer>
-          <input class="inp" placeholder="Escribe un mensaje…"/>
-          <button class="send">➤</button>
-        </footer>
-      </section>
+  <section class="chat">
+    <header>
+      <h3>{{ chat.nombre }}</h3><small>{{ chat.asunto }}</small>
+    </header>
+    <div class="msgs">
+      <div *ngFor="let m of chat.mensajes" [class.me]="m.yo" class="bubble">{{ m.t }}</div>
     </div>
-  </main>
+    <footer>
+      <input class="inp" placeholder="Escribe un mensaje…" />
+      <button class="send">➤</button>
+    </footer>
+  </section>
 </div>

@@ -17,7 +17,9 @@ export const routes: Routes = [
    // --- DOCENTE ---
   {
     path: 'docente',
-
+    loadComponent: () =>
+      import('./features/docente/layout/docente-layout.component')
+        .then(m => m.DocenteLayoutComponent),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
