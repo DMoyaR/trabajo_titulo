@@ -32,5 +32,14 @@ class Usuario(models.Model):
     def check_password(self, raw_password: str) -> bool:
         return auth_check_password(raw_password, self.contrasena)
 
+    def save(self, *args, **kwargs):
+        """
+        Si 'contrasena' viene en texto plano (no empieza con 'pbkdf2_sha256$'),
+        la hasheamos antes de guardar. Si ya es hash, no la tocamos.
+        """
+        if self.contrasena and not str(self.contrasena).startswith('pbkdf2_sha256$'):
+            self.set_password(self.contrasena)
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.nombre_completo} ({self.rol})"
