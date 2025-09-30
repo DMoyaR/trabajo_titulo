@@ -4,14 +4,48 @@
   <div class="tabs">
     <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
     <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+    <button [class.active]="tab() === 'temas'" (click)="tab.set('temas')">Temas</button>
   </div>
 
-  <ul class="list">
-    <li *ngFor="let g of grupos()">
+  <ng-container *ngIf="tab() === 'i' || tab() === 'ii'; else temasTab">
+    <ul class="list" *ngIf="tab() === 'i'">
+      <li *ngFor="let g of grupos()">
+        <span class="dot" [class.warn]="g.alert">●</span>
+        <b>{{ g.nombre }}</b>
+        <small>{{ g.estado }}</small>
+        <button class="btn sm">Ver</button>
+      </li>
+    </ul>
+
+  <ul class="list" *ngIf="tab() === 'ii'">
+    <li *ngFor="let g of gruposII()">
       <span class="dot" [class.warn]="g.alert">●</span>
       <b>{{ g.nombre }}</b>
       <small>{{ g.estado }}</small>
       <button class="btn sm">Ver</button>
     </li>
   </ul>
+  </ng-container>
+
+  <ng-template #temasTab>
+    <div class="temas-toolbar">
+      <button class="btn primary" (click)="toggleAgregarTema()">
+        {{ isAddingTema() ? 'Cancelar' : 'Agregar tema' }}
+      </button>
+    </div>
+
+    <div *ngIf="isAddingTema()" class="agregar-tema-hint">
+      Completa el formulario para registrar un nuevo tema.
+    </div>
+
+    <ul class="temas-list">
+      <li *ngFor="let tema of temas()">
+        <div class="tema-header">
+          <h3>{{ tema.titulo }}</h3>
+          <span class="tema-status">{{ tema.estado }}</span>
+        </div>
+        <p>{{ tema.descripcion }}</p>
+      </li>
+    </ul>
+  </ng-template>
 </div>
