@@ -1,0 +1,7 @@
+
+<div class="card">
+  <div class="logo"><img [src]="logoSrc" alt="UTEM" height="64" /></div>
+  <h2 class="title">{{ title }}</h2>
+  <p class="subtitle" *ngIf="subtitle">{{ subtitle }}</p>
+  <button class="btn" type="button" (click)="primary?.()">{{ primaryText }}</button>
+</div>

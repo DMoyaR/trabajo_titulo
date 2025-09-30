@@ -1,3 +1,109 @@
 import { Routes } from '@angular/router';
+export const routes: Routes = [
+  // --- LOGIN ---
+  {
+    path: 'auth/login',
+    loadComponent: () =>
+      import('./features/auth/login/login.component')
+        .then(m => m.LoginComponent),
+  },
 
-export const routes: Routes = [];
+  // --- ALUMNO ---
+  
+  { path: 'alumno', loadChildren: () => 
+      import('./features/alumno/alumno.routes')
+        .then(m => m.ALUMNO_ROUTES) },
+
+   // --- DOCENTE ---
+  {
+    path: 'docente',
+    loadComponent: () =>
+      import('./features/docente/layout/docente-layout.component')
+        .then(m => m.DocenteLayoutComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+
+        { path: 'calendario',
+        loadComponent: () =>
+          import('./features/docente/calendario/calendario.component')
+            .then(m => m.CalendarioComponent) },
+
+        { path: 'dashboard',
+        loadComponent: () =>
+          import('./features/docente/dashboard/docente-dashboard.component')
+            .then((m) => m.DocenteDashboardComponent), },
+
+        { path: 'notificaciones',
+        loadComponent: () =>
+          import('./features/docente/notificaciones/docente-notificaciones.component')
+            .then((m) => m.DocenteNotificacionesComponent), },
+
+        { path: 'trabajo',
+        loadComponent: () =>
+          import('./features/docente/trabajolist/docente-trabajo-list.component')
+            .then((m) => m.DocenteTrabajoListComponent), },
+
+        { path: 'trabajodetalle',
+        loadComponent: () =>
+          import('./features/docente/trabajodetalle/docente-trabajo-detalle.component')
+            .then((m) => m.DocenteTrabajoDetalleComponent), },
+
+        { path: 'evaluaciones',
+        loadComponent: () =>
+          import('./features/docente/evaluaciones/docente-evaluaciones.component')
+            .then((m) => m.DocenteEvaluacionesComponent), },
+
+        { path: 'reuniones',
+        loadComponent: () =>
+          import('./features/docente/reunionesresumen/docente-reuniones.component')
+            .then((m) => m.DocenteReunionesComponent),},
+
+        { path: 'bandeja',
+        loadComponent: () =>
+          import('./features/docente/bandejachat/docente-bandeja.component')
+            .then((m) => m.DocenteBandejaComponent), },
+
+        { path: 'perfil',
+        loadComponent: () =>
+          import('./features/docente/perfil/docente-perfil.component')
+            .then((m) => m.DocentePerfilComponent), },
+
+        { path: 'subirarchivo',
+        loadComponent: () =>
+          import('./features/docente/subirarchivo/subirarchivo.component')
+            .then((m) => m.SubirArchivoComponent), },
+    ],
+  },
+        
+/*   // --- COORDINACIÓN ---
+  {
+    path: 'coordinacion',
+    loadComponent: () =>
+      import('./features/coordinacion/layout/coordinacion-layout.component')
+        .then(m => m.CoordinacionLayoutComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+
+      { path: 'dashboard',
+        loadComponent: () =>
+          import('./features/coordinacion/dashboard/coordinacion-dashboard.component')
+            .then(m => m.CoordinacionDashboardComponent) },
+
+      { path: 'panel',
+        loadComponent: () =>
+          import('./features/coordinacion/panel/coordinacion-panel.component')
+            .then(m => m.CoordinacionPanelComponent) },
+    ],
+  },  */
+
+    {
+    path: 'coordinacion/inicio',
+    loadComponent: () =>
+      import('./features/coordinacion/inicio/coordinacion.component')
+        .then(m => m.CoordinacionComponent),
+  },
+
+    // --- REDIRECCIONES ---
+  { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
+  { path: '**', redirectTo: 'auth/login' },
+];

@@ -1,0 +1,197 @@
+[
+  {
+    "model": "api.usuario",
+    "pk": 1,
+    "fields": {
+      "nombre_completo": "Cristian Ignacio Gonzales Palma",
+      "correo": "cgonzales@utem.cl",
+      "carrera": "Computación",
+      "rut": "20.184.752-3",
+      "telefono": "+569 1234 5678",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 2,
+    "fields": {
+      "nombre_completo": "María Fernanda Soto López",
+      "correo": "msoto@utem.cl",
+      "carrera": "Informática",
+      "rut": "18.456.789-2",
+      "telefono": "+569 2345 6789",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 3,
+    "fields": {
+      "nombre_completo": "Javier Alejandro Rojas Díaz",
+      "correo": "jrojas@utem.cl",
+      "carrera": "Industria",
+      "rut": "21.345.678-1",
+      "telefono": "+569 3456 7890",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 4,
+    "fields": {
+      "nombre_completo": "Camila Paz Martínez Herrera",
+      "correo": "cmartinez@utem.cl",
+      "carrera": "Mecánica",
+      "rut": "19.876.543-9",
+      "telefono": "+569 4567 8901",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 5,
+    "fields": {
+      "nombre_completo": "Valentina Andrea Vargas Silva",
+      "correo": "vvargas@utem.cl",
+      "carrera": "Trabajo Social",
+      "rut": "17.234.567-8",
+      "telefono": "+569 5678 9012",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 6,
+    "fields": {
+      "nombre_completo": "Diego Esteban Pérez Fuentes",
+      "correo": "dperez@utem.cl",
+      "carrera": "Computación",
+      "rut": "16.345.678-5",
+      "telefono": "+569 6789 0123",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 7,
+    "fields": {
+      "nombre_completo": "Constanza Belén Morales Reyes",
+      "correo": "cmorales@utem.cl",
+      "carrera": "Informática",
+      "rut": "22.456.789-6",
+      "telefono": "+569 7890 1234",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 8,
+    "fields": {
+      "nombre_completo": "Ignacio Tomás Herrera Gutiérrez",
+      "correo": "iherrera@utem.cl",
+      "carrera": "Industria",
+      "rut": "15.987.654-7",
+      "telefono": "+569 8901 2345",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 9,
+    "fields": {
+      "nombre_completo": "Francisca Isidora Torres Rivas",
+      "correo": "ftorres@utem.cl",
+      "carrera": "Trabajo Social",
+      "rut": "14.876.543-3",
+      "telefono": "+569 9012 3456",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 10,
+    "fields": {
+      "nombre_completo": "Sebastián Andrés Fuenzalida Castro",
+      "correo": "sfuenzalida@utem.cl",
+      "carrera": "Mecánica",
+      "rut": "23.765.432-1",
+      "telefono": "+569 0123 4567",
+      "rol": "alumno",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 11,
+    "fields": {
+      "nombre_completo": "Rodrigo Antonio Muñoz Vergara",
+      "correo": "rmunoz@utem.cl",
+      "carrera": "Computación",
+      "rut": "13.234.567-2",
+      "telefono": "+569 1357 2468",
+      "rol": "docente",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 12,
+    "fields": {
+      "nombre_completo": "Carolina Andrea Ramírez Torres",
+      "correo": "cramirez@utem.cl",
+      "carrera": "Industria",
+      "rut": "12.987.654-5",
+      "telefono": "+569 2468 1357",
+      "rol": "docente",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 13,
+    "fields": {
+      "nombre_completo": "Felipe Ignacio Castillo Rojas",
+      "correo": "fcastillo@utem.cl",
+      "carrera": "Informática",
+      "rut": "11.876.543-9",
+      "telefono": "+569 3579 2468",
+      "rol": "docente",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 14,
+    "fields": {
+      "nombre_completo": "Paula Alejandra Fuentes Correa",
+      "correo": "pfuentes@utem.cl",
+      "carrera": "Trabajo Social",
+      "rut": "10.765.432-8",
+      "telefono": "+569 4680 3579",
+      "rol": "coordinador",
+      "contrasena": "pass123"
+    }
+  },
+  {
+    "model": "api.usuario",
+    "pk": 15,
+    "fields": {
+      "nombre_completo": "Mauricio Esteban González Soto",
+      "correo": "mgonzalez@utem.cl",
+      "carrera": "Mecánica",
+      "rut": "24.654.321-7",
+      "telefono": "+569 5791 4680",
+      "rol": "coordinador",
+      "contrasena": "pass123"
+    }
+  }
+]

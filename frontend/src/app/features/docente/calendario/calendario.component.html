@@ -1,0 +1,120 @@
+<h2 class="ttl">Calendario</h2>
+    <div class="cal-container">
+      
+      <!-- Calendario principal -->
+      <div class="cal">
+        <div class="hdr">
+          <div class="nav-left">
+            <button class="btn sm" (click)="goToday()">Hoy</button>
+            <button class="btn sm" (click)="prevMonth()">◀</button>
+            <button class="btn sm" (click)="nextMonth()">▶</button>
+          </div>
+          <div class="mes-titulo">{{ mes() }}</div>
+          <div class="nav-right">
+            <button class="btn sm">Resumen de reuniones</button>
+            <button class="btn sm">Agendar reunión continua</button>
+            <button class="btn sm">Agendar reunión</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="dow" *ngFor="let d of diasSemana">{{ d }}</div>
+          <div class="cell empty" *ngFor="let h of [].constructor(startDay())"></div>
+          <div class="cell" *ngFor="let d of days()"
+               [class.today]="d===today.getDate() && month()===today.getMonth() && year()===today.getFullYear()"
+               [class.selected]="d === selectedDay()">
+            {{ d }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini calendario -->
+      <div class="mini-cal">
+        <div class="mini-header">
+          <button class="btn sm" (click)="prevMiniMonth()">◀</button>
+          <span class="mini-title" (click)="toggleMiniPicker()">
+            {{ nombresMeses[tempMiniMonth] }} {{ tempMiniYear }}
+          </span>
+          <button class="btn sm" (click)="nextMiniMonth()">▶</button>
+        </div>
+
+        <!-- Panel selector mes/año -->
+        <div *ngIf="showMiniPicker" class="mini-year-picker">
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            
+            <!-- Mes -->
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label>Mes:</label>
+              <select [(ngModel)]="tempMiniMonth">
+                <option *ngFor="let m of nombresMeses; let i = index" [value]="i">{{ m }}</option>
+              </select>
+            </div>
+
+            <!-- Año -->
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label>Año:</label>
+              <div class="year-panel">
+                <!-- Año visible -->
+                <span class="current-year" (click)="toggleYearSelector()">
+                  {{ tempMiniYear }}
+                </span>
+
+                <!-- Selector de años -->
+                <div *ngIf="showYearRanges" class="year-selector">
+
+                  <!-- Vista de años individuales -->
+                  <div *ngIf="!showRangeView" class="year-list">
+                    <div class="year-nav" style="display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:2px;">
+                      <button (click)="prevYearsBlock()">◀</button>
+                      <button (click)="showRangeView = true">Rangos ▾</button>
+                      <button (click)="nextYearsBlock()">▶</button>
+                    </div>
+                    <div class="years-grid">
+                      <span *ngFor="let y of yearsInRange"
+                            (click)="selectYear(y)"
+                            [class.selected]="y === tempMiniYear"
+                            class="year-option">
+                        {{ y }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Vista de rangos -->
+                  <div *ngIf="showRangeView" class="range-grid">
+                    <div class="range-nav" style="display:flex; justify-content:center; align-items:center; gap:18px; margin-bottom:2px;">
+                      <button (click)="prevRange()">◀</button>
+                      <button (click)="showRangeView = false">▶ Años ◀</button>
+                      <button (click)="nextRange()">▶</button>
+                    </div>
+                    <div class="ranges">
+                      <span *ngFor="let r of yearRanges"
+                            (click)="selectRange(r.start)"
+                            class="range-option">
+                        {{ r.start }}-{{ r.end }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botones aplicar/cancelar -->
+            <div style="margin-top:4px; display:flex; justify-content:flex-end; gap:4px;">
+              <button class="btn sm" (click)="applyMiniPicker()">Aceptar</button>
+              <button class="btn sm" (click)="cancelMiniPicker()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="dow" *ngFor="let d of ['L','M','M','J','V','S','D']">{{ d }}</div>
+          <div class="cell empty" *ngFor="let h of [].constructor(miniStartDay())"></div>
+          <div class="cell small" *ngFor="let d of miniDays()"
+               [class.today]="d===today.getDate() && miniMonth()===today.getMonth() && miniYear()===today.getFullYear()"
+               [class.selected]="d === selectedDay()"
+               (click)="selectDay(d)">
+            {{ d }}
+          </div>
+        </div>
+      </div>
+    </div>

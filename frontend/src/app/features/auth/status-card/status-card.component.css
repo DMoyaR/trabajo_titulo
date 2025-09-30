@@ -1,0 +1,6 @@
+.card{background:var(--utem-card);border:1px solid var(--utem-border);border-radius:var(--radius-xl);box-shadow:0 10px 35px var(--utem-shadow);padding:var(--spacing);width:100%;max-width:520px;margin:auto;}
+.logo{display:grid;place-items:center;margin:8px 0 6px;}
+.title{text-align:center;font-weight:800;color:#2164AF;font-size:1.25rem;margin:6px 0 4px;}
+.subtitle{text-align:center;color:var(--utem-muted);margin:0 0 18px;}
+.btn{width:100%;height:var(--field-h);border:0;border-radius:var(--radius-lg);background:var(--utem-blue);color:#fff;font-weight:800;cursor:pointer;}
+.btn:hover{filter:brightness(.97);}

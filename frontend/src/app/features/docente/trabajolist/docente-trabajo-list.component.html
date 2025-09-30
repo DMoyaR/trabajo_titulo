@@ -1,0 +1,24 @@
+<div class="card">
+  <h2 class="ttl">Trabajo de Título</h2>
+
+  <div class="tabs">
+    <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
+    <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+  </div>
+
+  <p class="subtitle">Sus grupos asignados</p>
+
+  <ul class="list">
+    <li *ngFor="let g of grupos()">
+      <div class="grupo-info">
+        <div class="grupo-nombre">
+          {{ g.nombre }}
+          <span *ngIf="g.alert" class="alert-icon">{{ g.alert }}</span>
+          <span *ngIf="g.status === 'check'" class="status-icon">✓</span>
+        </div>
+        <div class="grupo-alumnos">{{ g.alumnos }}</div>
+      </div>
+      <button class="btn sm">Ver</button>
+    </li>
+  </ul>
+</div>

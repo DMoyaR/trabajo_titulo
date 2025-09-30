@@ -1,0 +1,26 @@
+<div class="shell">
+  <aside class="side">
+    <h2 class="brand">UTEM</h2>
+    <nav class="nav">
+      <a routerLink="/alumno/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/alumno/calendar" routerLinkActive="active">Calendario</a>
+      <a routerLink="/alumno/notifications" routerLinkActive="active">Notificaciones</a>
+      <a routerLink="/alumno/entrega" routerLinkActive="active">Entrega</a>
+      <a routerLink="/alumno/evaluations" routerLinkActive="active">Evaluaciones</a>
+      <a routerLink="/alumno/practica" routerLinkActive="active">Práctica</a>
+      <a routerLink="/alumno/trabajo" routerLinkActive="active">Trabajo</a>
+      <a routerLink="/alumno/docs" routerLinkActive="active">Documentos</a>
+      <a routerLink="/alumno/viewer" routerLinkActive="active">Visor</a>
+      <a routerLink="/alumno/perfil" routerLinkActive="active">Perfil</a>
+      <a routerLink="/alumno/reuniones" routerLinkActive="active">Reuniones</a>
+      <a routerLink="/alumno/bandeja" routerLinkActive="active">Bandeja</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hdr"><h1>Alumno</h1></header>
+    <section class="content">
+      <router-outlet></router-outlet>
+    </section>
+  </main>
+</div>

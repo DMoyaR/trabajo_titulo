@@ -1,0 +1,114 @@
+/* =======================
+   NOTIFICACIONES
+   ======================= */
+.ttl {
+  color: #1a3e6a;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.filters {
+  margin: 10px 0 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.filter-group select {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.9rem;
+  min-width: 120px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.filter-group select:hover {
+  border-color: #9ca3af;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.notis {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.notis li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--utem-border, #dfe5ee);
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 24px var(--utem-shadow, rgba(0, 0, 0, 0.05));
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notis li:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.ic {
+  font-size: 18px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.noti-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tx {
+  color: #111827;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.tm {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.mark {
+  display: inline-block;
+  margin-top: 16px;
+  color: #1976d2;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.mark:hover {
+  color: #1565c0;
+  text-decoration: underline;
+}

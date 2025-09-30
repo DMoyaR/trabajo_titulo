@@ -1,1 +1,26 @@
-/* You can add global styles to this file, and also import other style files */
+:root{
+  --utem-blue:#1976D2; 
+  --utem-blue-dark:#0F5DB8; 
+  --utem-teal:#26A69A;
+  --utem-bg:#f5f7fb; 
+  --utem-card:#fff; 
+  --utem-border:#e9eef6;
+  --utem-text:#0f172a; 
+  --utem-muted:#5f6b7a; 
+  --utem-shadow:rgba(0,0,0,.08);
+  --success:#16a34a; 
+  --error:#b91c1c; 
+  --warn:#d97706;
+  --radius-xl:18px; 
+  --radius-lg:12px; 
+  --spacing:28px; 
+  --field-h:44px;
+}
+
+/* Reset sencillo y tipografía base */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--utem-bg);
+  color: var(--utem-text);
+}

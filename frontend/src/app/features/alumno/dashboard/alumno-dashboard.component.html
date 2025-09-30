@@ -1,0 +1,31 @@
+<h2 class="ttl">¡Hola, Bastian!</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Práctica Profesional en Curso</h3>
+    <p>Etapas: Inicio → Entrega → Evaluación</p>
+  </div>
+
+  <div class="card">
+    <h3>Trabajo de Título en Curso</h3>
+    <p>Etapas: Inicio → Entrega → Evaluación</p>
+  </div>
+
+  <div class="card">
+    <h3>Retroalimentación</h3>
+    <p>Buena redacción y análisis, sigue así.</p>
+  </div>
+
+  <div class="card">
+    <h3>Próxima Reunión</h3>
+    <p>30 de Abril, 11:00</p>
+  </div>
+
+  <div class="card">
+    <h3>Entregas recientes</h3>
+    <ul>
+      <li *ngFor="let e of entregas()">{{e.nombre}} — {{e.estado}} ({{e.fecha}})</li>
+    </ul>
+  </div>
+</div>
+
