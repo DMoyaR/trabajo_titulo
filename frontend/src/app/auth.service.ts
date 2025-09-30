@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 interface LoginResponse {
   status: string;
@@ -25,5 +26,14 @@ export class AuthService {
   reset(data: { email: string }): Observable<void> {
     // Replace this with a real HTTP request if available
     return of(void 0);
+  }
+
+  logout(): Observable<void> {
+    sessionStorage.removeItem('rol');
+    sessionStorage.removeItem('usuario');
+
+    return this.http.post<void>(`${this.base}/logout`, {}).pipe(
+      catchError(() => of(void 0)),
+    );
   }
 }

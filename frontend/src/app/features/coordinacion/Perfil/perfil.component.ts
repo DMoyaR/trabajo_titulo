@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 interface UserProfile {
   nombre: string;
@@ -34,6 +36,8 @@ export class CoordinacionPerfilComponent implements OnInit {
   editableProfile: UserProfile = { ...this.userProfile };
   isLoading = false;
   isSaving = false;
+
+  constructor(private readonly authService: AuthService, private readonly router: Router) {}
 
   ngOnInit(): void {
     this.loadUserProfile();
@@ -100,10 +104,14 @@ export class CoordinacionPerfilComponent implements OnInit {
   }
 
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
+     if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
     }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
   closeSession(): void {

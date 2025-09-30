@@ -25,17 +25,19 @@ export class AlumnoLayoutComponent implements OnDestroy {
   menuOpen = true;
 
   readonly navItems: AlumnoNavItem[] = [
-    { route: 'dashboard', label: 'Panel Alumno', icon: 'assets/Inicio.png', alt: 'Panel alumno' },
-    { route: 'calendar', label: 'Calendario', icon: 'assets/Calendario.png', alt: 'Calendario' },
     { route: 'notifications', label: 'Notificaciones', icon: 'assets/Notificaciones.png', alt: 'Notificaciones' },
+    { route: 'bandeja', label: 'Bandeja Entrada', icon: 'assets/Bandeja_entrada.png', alt: 'Bandeja de entrada' },
+    { route: 'dashboard', label: 'Inicio', icon: 'assets/Inicio.png', alt: 'Panel alumno' },
+    { route: 'calendar', label: 'Calendario', icon: 'assets/Calendario.png', alt: 'Calendario' },
+    { route: 'reuniones', label: 'Reuniones', icon: 'assets/Calendario.png', alt: 'Reuniones' },
     { route: 'entrega', label: 'Entregas', icon: 'assets/Bandeja_entrada.png', alt: 'Entregas' },
     { route: 'evaluations', label: 'Evaluaciones', icon: 'assets/Evaluaciones.png', alt: 'Evaluaciones' },
     { route: 'trabajo', label: 'Trabajo de Título', icon: 'assets/Procesos.png', alt: 'Trabajo de título' },
-    { route: 'practica', label: 'Práctica', icon: 'assets/Docentes.png', alt: 'Práctica' },
+    { route: 'practica', label: 'Práctica profesional', icon: 'assets/Docentes.png', alt: 'Práctica' },
+
     { route: 'docs', label: 'Documentos', icon: 'assets/Reportes.png', alt: 'Documentos' },
     { route: 'viewer', label: 'Visor', icon: 'assets/LogoUTEM.png', alt: 'Visor de documentos' },
-    { route: 'reuniones', label: 'Reuniones', icon: 'assets/Calendario.png', alt: 'Reuniones' },
-    { route: 'bandeja', label: 'Bandeja de Entrada', icon: 'assets/Bandeja_entrada.png', alt: 'Bandeja de entrada' },
+        
     { route: 'perfil', label: 'Perfil', icon: 'assets/Perfil.png', alt: 'Perfil' },
   ];
 

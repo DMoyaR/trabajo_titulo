@@ -6,9 +6,9 @@
   background-color: #f5f7fb;
 }
 
-.sidebar {
+.sidebar {      /* Barra lateral */
   width: 110px;
-  background: linear-gradient(180deg, #143a4e 0%, #0b2431 100%);
+  background: linear-gradient(180deg, #143a4e 0%, #1c5a7c 100%);
   color: #ffffff;
   padding: 0;
   display: flex;

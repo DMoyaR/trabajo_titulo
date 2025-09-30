@@ -2,6 +2,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 // Interfaces
 interface Estudiante {
@@ -30,7 +32,7 @@ interface Carrera {
   templateUrl: './estudiantes.component.html',
   styleUrls: ['./estudiantes.component.css']
 })
-export class EstudiantesComponent implements OnInit {
+export class CoordinacionEstudiantesComponent implements OnInit {
   // Estado del menú
   menuOpen = true;
 
@@ -132,7 +134,9 @@ export class EstudiantesComponent implements OnInit {
       fechaIngreso: '2020-03-05'
     }
   ];
+ constructor(private readonly authService: AuthService, private readonly router: Router) {}
 
+  // Inicialización del componente
   ngOnInit(): void {
     this.loadEstudiantes();
   }
@@ -444,11 +448,14 @@ export class EstudiantesComponent implements OnInit {
   }
 
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-      // TODO: Implementar logout real
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
     }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
   // ===== HELPERS =====
