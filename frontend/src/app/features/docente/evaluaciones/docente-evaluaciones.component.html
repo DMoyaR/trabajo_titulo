@@ -7,10 +7,21 @@
 </div>
 
 <table class="tbl">
-  <thead><tr><th>Estudiante</th><th>Sección</th><th>Proceso</th><th>Estado</th><th></th></tr></thead>
+  <thead>
+    <tr>
+      <th>Estudiante</th>
+      <th>Sección</th>
+      <th>Proceso</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
     <tr *ngFor="let r of rows()">
-      <td>{{r.estudiante}}</td><td>{{r.seccion}}</td><td>{{r.proy}}</td><td>{{r.estado}}</td>
+      <td>{{ r.estudiante }}</td>
+      <td>{{ r.seccion }}</td>
+      <td>{{ r.proy }}</td>
+      <td>{{ r.estado }}</td>
       <td><button class="btn sm">Valorar</button></td>
     </tr>
   </tbody>

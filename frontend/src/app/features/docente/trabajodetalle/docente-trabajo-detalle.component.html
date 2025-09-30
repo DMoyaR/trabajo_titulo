@@ -5,9 +5,11 @@
     <h3>Indicadores de Avance</h3>
     <ul class="list">
       <li *ngFor="let i of indicadores()">
-        <b>{{i.estudiante}}</b>
-        <div class="prog"><div class="bar" [style.width.%]="i.avance"></div></div>
-        <small [class.ok]="i.estado==='ok'" [class.warn]="i.estado!=='ok'">{{i.estado}}</small>
+        <b>{{ i.estudiante }}</b>
+        <div class="prog">
+          <div class="bar" [style.width.%]="i.avance"></div>
+        </div>
+        <small [class.ok]="i.estado === 'ok'" [class.warn]="i.estado !== 'ok'">{{ i.estado }}</small>
       </li>
     </ul>
   </div>
@@ -16,7 +18,7 @@
     <h3>Repositorio de Documentos Oficiales</h3>
     <ul class="files">
       <li *ngFor="let d of repo()">
-        <span>📄 {{d.nombre}}</span><small>{{d.fecha}}</small>
+        <span>📄 {{ d.nombre }}</span><small>{{ d.fecha }}</small>
         <button class="btn sm">Descargar</button>
       </li>
     </ul>
@@ -24,4 +26,8 @@
   </div>
 </div>
 
-<docente-upload-dialog *ngIf="showUpload()" (close)="showUpload.set(false)" (confirm)="showUpload.set(false)"></docente-upload-dialog>
+<docente-upload-dialog
+  *ngIf="showUpload()"
+  (close)="showUpload.set(false)"
+  (confirm)="showUpload.set(false)"
+></docente-upload-dialog>

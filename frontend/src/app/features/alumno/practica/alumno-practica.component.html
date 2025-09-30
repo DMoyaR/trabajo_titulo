@@ -1,6 +1,7 @@
 <h2 class="ttl">Práctica Profesional</h2>
 
 <div class="grid">
+  <!-- Progreso -->
   <div class="card">
     <h3>Progreso</h3>
     <ul class="list">
@@ -12,18 +13,93 @@
     </ul>
   </div>
 
+  <!-- Subida de entregas -->
   <div class="card">
     <h3>Subir Entrega</h3>
     <div class="drop">📥 Bitácoras, informes, anexos</div>
   </div>
 </div>
 
+<!-- Documentos oficiales -->
 <div class="card">
-  <h3>Documentos oficiales</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h3>Documentos oficiales</h3>
+    <!-- Botón para abrir el modal -->
+    <button class="btn sm" (click)="toggleCartaModal(true)">+ Generar carta</button>
+  </div>
+
   <ul class="files">
     <li *ngFor="let d of documentos()">
-      <span>📄 {{ d.nombre }}</span><small>{{ d.tipo }}</small>
+      <span>📄 {{ d.nombre }}</span>
+      <small>{{ d.tipo }}</small>
       <button class="btn sm">Descargar</button>
     </li>
   </ul>
+</div>
+
+<!-- Modal Carta -->
+<div class="backdrop" *ngIf="showCartaModal" (click)="toggleCartaModal(false)"></div>
+<div class="modal" *ngIf="showCartaModal" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h3 class="ttl">Generar carta de presentación</h3>
+    <button class="icon" (click)="toggleCartaModal(false)">✕</button>
+  </div>
+
+  <form [formGroup]="cartaForm" (ngSubmit)="generarCartaPDF()" class="grid" novalidate>
+    <!-- Alumno -->
+    <div class="field full">
+      <label>Alumno</label>
+      <div class="readonly">{{ alumno.nombres }} {{ alumno.apellidos }}</div>
+      <div class="muted">{{ alumno.carrera }}</div>
+    </div>
+
+    <!-- Empresa -->
+    <div class="field">
+      <label for="empresaNombre">Empresa *</label>
+      <input id="empresaNombre" type="text" formControlName="empresaNombre" />
+    </div>
+    <div class="field">
+      <label for="empresaCorreo">Correo *</label>
+      <input id="empresaCorreo" type="email" formControlName="empresaCorreo" />
+    </div>
+    <div class="field">
+      <label for="encargado">Encargado *</label>
+      <input id="encargado" type="text" formControlName="encargado" />
+    </div>
+    <div class="field">
+      <label for="jefeDirecto">Jefe directo *</label>
+      <input id="jefeDirecto" type="text" formControlName="jefeDirecto" />
+    </div>
+    <div class="field">
+      <label for="cargoAlumno">Cargo *</label>
+      <input id="cargoAlumno" type="text" formControlName="cargoAlumno" />
+    </div>
+    <div class="field">
+      <label for="fechaInicio">Fecha inicio *</label>
+      <input id="fechaInicio" type="date" formControlName="fechaInicio" />
+    </div>
+
+    <!-- Destinatario -->
+    <div class="field">
+      <label for="destNombre">Nombre destinatario *</label>
+      <input id="destNombre" type="text" formControlName="destNombre" />
+    </div>
+    <div class="field">
+      <label for="destApellidos">Apellidos *</label>
+      <input id="destApellidos" type="text" formControlName="destApellidos" />
+    </div>
+    <div class="field">
+      <label for="destCargo">Cargo *</label>
+      <input id="destCargo" type="text" formControlName="destCargo" />
+    </div>
+    <div class="field">
+      <label for="destEmpresa">Empresa *</label>
+      <input id="destEmpresa" type="text" formControlName="destEmpresa" />
+    </div>
+
+    <div class="actions full">
+      <button type="button" class="btn light" (click)="toggleCartaModal(false)">Cancelar</button>
+      <button type="submit" class="btn sm">Generar PDF</button>
+    </div>
+  </form>
 </div>

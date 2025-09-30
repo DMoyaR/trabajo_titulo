@@ -1,19 +1,59 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
 
 @Component({
-  selector: 'docente-dashboard',
+  selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './docente-dashboard.component.html',
-  styleUrls: ['./docente-dashboard.component.css'],
+  styleUrls: ['./docente-dashboard.component.css']
 })
 export class DocenteDashboardComponent {
-  rows = signal([
-    { estudiante:'Ana Gómez', correo:'ana@utem.cl', tipo:'TT', estado:'Público', avance:80 },
-    { estudiante:'Carlos Peña', correo:'carlos@utem.cl', tipo:'Práctica', estado:'Privado', avance:40 },
-    { estudiante:'José Riquelme', correo:'jose@utem.cl', tipo:'TT', estado:'Revisión', avance:55 },
-    { estudiante:'Daniela Torres', correo:'dani@utem.cl', tipo:'TT', estado:'En curso', avance:25 },
-  ]);
-  obs = signal(''); obs2 = signal('');
+  rows = [
+    { 
+      estudiante: 'Ana López', 
+      carrera: 'Ingeniería en Sistemas', 
+      tipo: 'Tesis', 
+      estado: 'Entregado',
+      statusIcon: '✓',
+      avance: 85 
+    },
+    { 
+      estudiante: 'Carlos Díaz', 
+      carrera: 'Administración', 
+      tipo: 'Prácticas', 
+      estado: 'Pendiente',
+      statusIcon: '⚠',
+      avance: 40 
+    },
+    { 
+      estudiante: 'Valeria Molina', 
+      carrera: 'Ingeniería Industrial', 
+      tipo: 'Proyecto', 
+      estado: 'En-plazo',
+      statusIcon: '→',
+      avance: 60 
+    },
+    { 
+      estudiante: 'David Reyes', 
+      carrera: 'Ingeniería en Sistemas', 
+      tipo: 'Tesis', 
+      estado: 'En-plazo',
+      statusIcon: '→',
+      avance: 75 
+    },
+    { 
+      estudiante: 'María González', 
+      carrera: 'Administración', 
+      tipo: 'Prácticas', 
+      estado: 'Entregado',
+      statusIcon: '✓',
+      avance: 100 
+    }
+  ];
+
+  obs: string = '';
+  obs2: string = '';
 }

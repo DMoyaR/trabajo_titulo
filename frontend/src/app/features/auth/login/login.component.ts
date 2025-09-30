@@ -1,32 +1,66 @@
-
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 
-/** Login screen (email + password) with UTEM styling; frontend-only */
+interface LoginResponse {
+  status: string;
+  rol: string;
+  redirect_url: string;
+  nombre: string;
+  correo: string;
+}
+
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.css'],
+  styleUrls: ['./login.component.css']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
   private router = inject(Router);
 
-  form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
-  });
-
+  form!: FormGroup;
   loading = signal(false);
   error = signal<string | null>(null);
 
-  onSubmit(){
-    if (this.form.invalid) { this.router.navigateByUrl('/auth/status/missing-fields'); return; }
-    this.loading.set(true); this.error.set(null);
-    setTimeout(() => { this.loading.set(false); this.router.navigateByUrl('/auth/status/login-success'); }, 700);
+  ngOnInit(): void {
+    this.form = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+    });
+  }
+
+  onSubmit(): void {
+    if (this.form.invalid) return;
+    this.loading.set(true);
+    this.error.set(null);
+
+    const { email, password } = this.form.value;
+    this.http.post<LoginResponse>('http://localhost:8000/api/login', { email, password })
+      .subscribe({
+        next: (res) => {
+          console.log('login OK:', res);
+          localStorage.setItem('rol', res.rol);
+          localStorage.setItem('usuario', res.nombre);
+          
+          if (res.rol === 'alumno') {
+            this.router.navigateByUrl('/alumno/dashboard');
+          } else if (res.rol === 'docente') {
+            this.router.navigateByUrl('/docente/dashboard');
+          } else if (res.rol === 'coordinador') {
+            this.router.navigateByUrl('/coordinacion/inicio');
+          }
+},
+        error: () => {
+          console.log('Problemas de login'); // Error
+          this.error.set('Credenciales inválidas');
+        }
+      }).add(() => this.loading.set(false));
+      
   }
 }

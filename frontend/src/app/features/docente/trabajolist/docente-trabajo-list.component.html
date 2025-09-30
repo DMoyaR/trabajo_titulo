@@ -1,15 +1,17 @@
-<h2 class="ttl">Trabajo de Título</h2>
+<div class="card">
+  <h2 class="ttl">Trabajo de Título</h2>
 
-<div class="tabs">
-  <button [class.active]="tab()==='i'" (click)="tab.set('i')">T. Título I</button>
-  <button [class.active]="tab()==='ii'" (click)="tab.set('ii')">T. Título II</button>
+  <div class="tabs">
+    <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
+    <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+  </div>
+
+  <ul class="list">
+    <li *ngFor="let g of grupos()">
+      <span class="dot" [class.warn]="g.alert">●</span>
+      <b>{{ g.nombre }}</b>
+      <small>{{ g.estado }}</small>
+      <button class="btn sm">Ver</button>
+    </li>
+  </ul>
 </div>
-
-<ul class="list">
-  <li *ngFor="let g of grupos()">
-    <span class="dot" [class.warn]="g.alert">●</span>
-    <b>{{g.nombre}}</b>
-    <small>{{g.estado}}</small>
-    <button class="btn sm">Ver</button>
-  </li>
-</ul>

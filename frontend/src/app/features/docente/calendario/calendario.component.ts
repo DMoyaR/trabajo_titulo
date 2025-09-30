@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+
 @Component({
   selector: 'app-calendario',
   standalone: true,
@@ -11,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 })
 export class CalendarioComponent {
   today = new Date();
-  menuOpen = true;
+
 
   // Calendario grande
   year = signal(this.today.getFullYear());
@@ -100,8 +101,4 @@ export class CalendarioComponent {
     this.year.set(this.miniYear());
     this.generarCalendario(this.month(), this.year());
   }
-
-  toggleMenu(): void { this.menuOpen = !this.menuOpen; }
-  navigateTo(section: string): void { console.log(`Navegando a: ${section}`); }
-  logout(): void { if(confirm('¿Estás seguro de que quieres cerrar sesión?')) console.log('Cerrando sesión...'); }
 }

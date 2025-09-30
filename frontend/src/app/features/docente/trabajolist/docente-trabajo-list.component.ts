@@ -9,10 +9,11 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./docente-trabajo-list.component.css'],
 })
 export class DocenteTrabajoListComponent {
-  tab = signal<'i'|'ii'>('i');
+  //Lógica de Código 2 (Trabajo de Título)
+  tab = signal<'i' | 'ii'>('i');
   grupos = signal([
-    { nombre:'Proyecto del primer grupo', estado:'en curso', alert:'' },
-    { nombre:'Proyecto del segundo grupo', estado:'en riesgo', alert:'⚠️' },
-    { nombre:'Proyecto del tercer grupo', estado:'pendiente', alert:'' },
+    { nombre: 'Proyecto del primer grupo', estado: 'en curso', alert: '' },
+    { nombre: 'Proyecto del segundo grupo', estado: 'en riesgo', alert: '⚠️' },
+    { nombre: 'Proyecto del tercer grupo', estado: 'pendiente', alert: '' },
   ]);
 }

@@ -9,6 +9,7 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./docente-bandeja.component.css'],
 })
 export class DocenteBandejaComponent {
+  // Bandeja de mensajes
   selected = signal(0);
   chats = signal([
     { nombre:'Gabriel Ruiz', asunto:'Informe final', mensajes:[
