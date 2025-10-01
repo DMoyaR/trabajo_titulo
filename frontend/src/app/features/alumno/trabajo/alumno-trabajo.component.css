@@ -131,3 +131,66 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* ----- Contenedor de cada apartado ----- */
+.card {
+  background: #fff;                  /* Fondo blanco */
+  border-radius: 12px;               /* Esquinas suaves */
+  border: 1px solid #e5e7eb;         /* Borde sutil */
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06); /* Sombra ligera */
+  padding: 16px 20px;                /* Espaciado interno */
+  margin-bottom: 18px;               /* Separación entre cards */
+}
+
+/* Títulos */
+.ttl { 
+  color: #0f3660;
+  margin: 0 0 10px;
+}
+
+/* Texto secundario debajo del título */
+.muted { 
+  color: #6b7280; 
+  margin: 6px 0 2px;
+}
+
+/* Lista dentro de la card */
+.list { 
+  margin: 10px 0 0; 
+  padding-left: 18px; 
+}
+
+/* Chips de estado */
+.chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+.chip.ok {
+  border-color: #34d399;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+/* Zona de arrastre/carga */
+.drop {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 18px;
+  background: #fff;
+  color: #475569;
+  text-align: center;
+}
+
+/* Alineación de acciones a ancho completo dentro del grid del formulario */
+.actions.full { 
+  grid-column: 1 / -1; 
+}
+
+/* Margen superior entre elementos dentro de una card */
+.card > * + * { 
+  margin-top: 10px; 
+}

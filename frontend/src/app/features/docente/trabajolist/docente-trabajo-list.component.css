@@ -121,3 +121,41 @@
 .btn.sm:hover {
   background: #1a3e6a;
 }
+
+/* --- Extras para pestaña "Temas" --- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a3e6a;
+  background: #e8f2ff;
+  border: 1px solid #cfe2ff;
+  border-radius: 999px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+}
+
+.chip.ghost {
+  background: #fff;
+  border-style: dashed;
+}
+
+/* Opcional: espaciar un poquito los ítems de "Temas" */
+.list.topics li {
+  align-items: flex-start;
+}

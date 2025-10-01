@@ -4,21 +4,56 @@
   <div class="tabs">
     <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
     <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+    <button [class.active]="tab() === 'temas'" (click)="tab.set('temas')">Temas</button>
   </div>
 
-  <p class="subtitle">Sus grupos asignados</p>
+  <!-- GRUPOS (TT I / TT II) -->
+  <ng-container *ngIf="tab() !== 'temas'; else temasTpl">
+    <p class="subtitle">Sus grupos asignados</p>
 
-  <ul class="list">
-    <li *ngFor="let g of grupos()">
-      <div class="grupo-info">
-        <div class="grupo-nombre">
-          {{ g.nombre }}
-          <span *ngIf="g.alert" class="alert-icon">{{ g.alert }}</span>
-          <span *ngIf="g.status === 'check'" class="status-icon">✓</span>
+    <ul class="list">
+      <li *ngFor="let g of grupos()">
+        <div class="grupo-info">
+          <div class="grupo-nombre">
+            {{ g.nombre }}
+            <span *ngIf="g.alert" class="alert-icon">{{ g.alert }}</span>
+            <span *ngIf="g.status === 'check'" class="status-icon" aria-label="OK">✓</span>
+          </div>
+          <div class="grupo-alumnos">{{ g.alumnos }}</div>
         </div>
-        <div class="grupo-alumnos">{{ g.alumnos }}</div>
-      </div>
-      <button class="btn sm">Ver</button>
-    </li>
-  </ul>
+
+        <!-- Navegación al detalle -->
+        <a
+          class="btn sm"
+          [routerLink]="['/docente/trabajodetalle']"
+          [queryParams]="{ nivel: tab(), grupo: g.id }"
+          >Ver</a
+        >
+      </li>
+    </ul>
+  </ng-container>
+
+  <!-- TEMAS -->
+  <ng-template #temasTpl>
+    <p class="subtitle">Temas propuestos por usted</p>
+
+    <ul class="list topics">
+      <li *ngFor="let t of temas()">
+        <div class="grupo-info">
+          <div class="grupo-nombre">
+            {{ t.titulo }}
+            <span class="badge">{{ t.carrera }}</span>
+          </div>
+          <div class="grupo-alumnos">{{ t.descripcion }}</div>
+
+          <div class="chips">
+            <span class="chip" *ngFor="let r of t.requisitos">{{ r }}</span>
+            <span class="chip ghost">Cupos: {{ t.cupos }}</span>
+          </div>
+        </div>
+
+        <button class="btn sm" type="button">Publicar</button>
+      </li>
+    </ul>
+  </ng-template>
 </div>
