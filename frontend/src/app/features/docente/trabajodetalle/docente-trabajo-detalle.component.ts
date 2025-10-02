@@ -16,7 +16,7 @@ interface UserProfile {
 @Component({
   selector: 'docente-trabajo-detalle',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UploadDialogComponent],
   templateUrl: './docente-trabajo-detalle.component.html',
   styleUrls: ['./docente-trabajo-detalle.component.css'],
 })
@@ -25,7 +25,9 @@ export class DocenteTrabajoDetalleComponent {
 
   searchTerm = signal('');
   
-    constructor(private readonly router: Router) {}
+  isUploadDialogOpen = signal(false);
+
+  constructor(private readonly router: Router) {}
 
   irAEvaluaciones(): void {
     this.router.navigate(['/docente/evaluaciones']);
@@ -77,7 +79,15 @@ export class DocenteTrabajoDetalleComponent {
     }
     return avance;
   }
-  irASubirArchivo(): void {
-    this.router.navigate(['/docente/subirarchivo']);
+  openUploadDialog(): void {
+    this.isUploadDialogOpen.set(true);
+  }
+
+  closeUploadDialog(): void {
+    this.isUploadDialogOpen.set(false);
+}
+
+  handleUploadConfirm(payload: unknown): void {
+    this.closeUploadDialog();
   }
 }

@@ -3,11 +3,17 @@
     <h2 class="ttl">Trabajo de Título</h2>
     <p class="subtitle">Grupo 3</p>
   </div>
-  <button class="btn-upload" (click)="irASubirArchivo()">
+<button class="btn-upload" (click)="openUploadDialog()">
     <span>📤</span>
     Subir archivo
   </button>
 </div>
+
+<docente-upload-dialog
+  *ngIf="isUploadDialogOpen()"
+  (close)="closeUploadDialog()"
+  (confirm)="handleUploadConfirm($event)"
+></docente-upload-dialog>
 
 <div class="grid">
   <!-- Indicadores de Avance -->
