@@ -5,34 +5,48 @@
   background: #fff;
   border: 1px solid #dfe5ee;
   border-radius: 12px;
-  padding: 16px;
+  padding: 24px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
 }
 
 .ttl {
   color: #1a3e6a;
-  margin-bottom: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
 
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #dfe5ee;
 }
 
 .tabs button {
-  border: 1px solid #dfe5ee;
-  background: #fff;
-  border-radius: 10px;
-  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-bottom: 3px solid transparent;
+  padding: 12px 24px;
   cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .tabs button.active {
-  background: #1976d2;
-  color: #fff;
-  font-weight: 800;
-  border-color: #1976d2;
+  background: transparent;
+  color: #00bcd4;
+  font-weight: 600;
+  border-bottom: 3px solid #00bcd4;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+  font-weight: 400;
 }
 
 .list {
@@ -40,35 +54,108 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .list li {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   background: #fff;
-  border: 1px solid var(--utem-border, #dfe5ee);
-  border-radius: 10px;
-  padding: 8px 10px;
-  box-shadow: 0 6px 24px var(--utem-shadow, rgba(0, 0, 0, 0.05));
-  gap: 10px;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  gap: 16px;
 }
 
-.dot {
-  color: #16a34a;
+.list li:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.dot.warn {
+.grupo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grupo-nombre {
+  color: #1a3e6a;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grupo-alumnos {
+  color: #999;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.alert-icon {
   color: #d97706;
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+.status-icon {
+  color: #4caf50;
+  font-size: 16px;
+  margin-left: 4px;
 }
 
 .btn.sm {
   border: 0;
-  border-radius: 8px;
-  background: #1976d2;
+  border-radius: 6px;
+  background: #333;
   color: #fff;
-  font-weight: 800;
-  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn.sm:hover {
+  background: #1a3e6a;
+}
+
+/* --- Extras para pestaña "Temas" --- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a3e6a;
+  background: #e8f2ff;
+  border: 1px solid #cfe2ff;
+  border-radius: 999px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+}
+
+.chip.ghost {
+  background: #fff;
+  border-style: dashed;
+}
+
+/* Opcional: espaciar un poquito los ítems de "Temas" */
+.list.topics li {
+  align-items: flex-start;
 }

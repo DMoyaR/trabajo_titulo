@@ -1,6 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 interface UserProfile {
   nombre: string;
@@ -33,6 +35,9 @@ export class CoordinacionBandejaComponent {
   ]);
   get chat(){ return this.chats()[this.selected()]; }
 
+  constructor(private readonly authService: AuthService, private readonly router: Router) {}
+
+
   toggleMenu(): void {
     this.menuOpen = !this.menuOpen;
   }
@@ -42,7 +47,13 @@ export class CoordinacionBandejaComponent {
   }
 
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) console.log('Cerrando sesión...');
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
+    }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 }

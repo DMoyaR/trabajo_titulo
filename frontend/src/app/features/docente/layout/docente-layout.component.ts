@@ -3,6 +3,7 @@ import { Component, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, takeUntil } from 'rxjs/operators';
 import { Subject } from 'rxjs';
+import { AuthService } from '../../../auth.service';
 
 interface DocenteNavItem {
   route: string;
@@ -39,7 +40,7 @@ export class DocenteLayoutComponent implements OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private activeSection = 'dashboard';
 
-  constructor(private readonly router: Router) {
+    constructor(private readonly router: Router, private readonly authService: AuthService) {
     this.activeSection = this.extractSection(this.router.url);
 
     this.router.events
@@ -71,10 +72,14 @@ export class DocenteLayoutComponent implements OnDestroy {
   }
 
   logout(): void {
-    const confirmed = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmed) {
-      console.log('Cerrando sesión...');
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
     }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
   private extractSection(url: string): string {

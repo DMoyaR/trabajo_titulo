@@ -32,7 +32,7 @@
     <li *ngFor="let d of documentos()">
       <span>📄 {{ d.nombre }}</span>
       <small>{{ d.tipo }}</small>
-      <button class="btn sm">Descargar</button>
+      <button class="btn sm">Descargar .PDF</button>
     </li>
   </ul>
 </div>
@@ -63,15 +63,15 @@
       <input id="empresaCorreo" type="email" formControlName="empresaCorreo" />
     </div>
     <div class="field">
-      <label for="encargado">Encargado *</label>
+      <label for="encargado">Encargado de práctica *</label>
       <input id="encargado" type="text" formControlName="encargado" />
     </div>
     <div class="field">
-      <label for="jefeDirecto">Jefe directo *</label>
+      <label for="jefeDirecto">Jefe directo del encargado *</label>
       <input id="jefeDirecto" type="text" formControlName="jefeDirecto" />
     </div>
     <div class="field">
-      <label for="cargoAlumno">Cargo *</label>
+      <label for="cargoAlumno">Cargo del alumno *</label>
       <input id="cargoAlumno" type="text" formControlName="cargoAlumno" />
     </div>
     <div class="field">
@@ -89,13 +89,10 @@
       <input id="destApellidos" type="text" formControlName="destApellidos" />
     </div>
     <div class="field">
-      <label for="destCargo">Cargo *</label>
+      <label for="destCargo">Cargo del encargado *</label>
       <input id="destCargo" type="text" formControlName="destCargo" />
     </div>
-    <div class="field">
-      <label for="destEmpresa">Empresa *</label>
-      <input id="destEmpresa" type="text" formControlName="destEmpresa" />
-    </div>
+ 
 
     <div class="actions full">
       <button type="button" class="btn light" (click)="toggleCartaModal(false)">Cancelar</button>

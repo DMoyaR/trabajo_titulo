@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 interface Docente {
   id: number;
@@ -134,7 +136,9 @@ export class CoordinacionDocentesComponent implements OnInit {
       fechaCierre: '2024-09-20'
     }
   ];
+  constructor(private readonly authService: AuthService, private readonly router: Router) {}
 
+  // Inicialización del componente
   ngOnInit(): void {
     this.loadDocentes();
     // Establecer filtros por defecto según la imagen
@@ -222,11 +226,13 @@ export class CoordinacionDocentesComponent implements OnInit {
   }
 
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-      // Aquí implementarías la lógica de logout real
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
     }
+      this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
   // Método para obtener el número total de docentes filtrados

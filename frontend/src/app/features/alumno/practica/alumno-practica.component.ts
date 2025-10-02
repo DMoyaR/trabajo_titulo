@@ -19,8 +19,8 @@ export class AlumnoPracticaComponent {
   ]);
 
   documentos = signal([
-    { nombre: 'Certificado de práctica', tipo: 'PDF' },
-    { nombre: 'Certificado de cumplimiento', tipo: 'PDF' },
+    { nombre: 'Certificado de práctica', tipo: '' },
+    { nombre: 'Certificado de cumplimiento', tipo: '' },
   ]);
 
   // Estado modal
@@ -47,7 +47,6 @@ export class AlumnoPracticaComponent {
       destNombre: ['', Validators.required],
       destApellidos: ['', Validators.required],
       destCargo: ['', Validators.required],
-      destEmpresa: ['', Validators.required],
     });
   }
 
@@ -84,7 +83,7 @@ export class AlumnoPracticaComponent {
     // Destinatario
     doc.text(`Señor(a): ${v.destNombre} ${v.destApellidos}`, 20, 70);
     doc.text(`${v.destCargo}`, 20, 80);
-    doc.text(`${v.destEmpresa}`, 20, 90);
+    doc.text(`${v.empresaNombre}`, 20, 90);
     doc.text('Presente', 20, 100);
 
     // Cuerpo

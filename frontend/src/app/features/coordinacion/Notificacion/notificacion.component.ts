@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 @Component({
   selector: 'app-notificacion',
@@ -64,9 +66,17 @@ export class CoordinacionNotificacionComponent {
     }
   }
 
+   constructor(private readonly authService: AuthService, private readonly router: Router) {}
+
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) console.log('Cerrando sesión...');
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
+    }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
   marcarComoLeido(): void {
