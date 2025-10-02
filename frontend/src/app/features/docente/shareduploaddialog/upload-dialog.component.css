@@ -1,4 +1,24 @@
 :host {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.6);
+  box-sizing: border-box;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  pointer-events: none;
+}
+
+.dialog {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(900px, 92vw);
@@ -10,6 +30,8 @@
   overflow: hidden;
 }
 
-:host > docente-subirarchivo {
+.dialog > docente-subirarchivo {
   flex: 1 1 auto;
+  display: block;
+  overflow: auto;
 }
