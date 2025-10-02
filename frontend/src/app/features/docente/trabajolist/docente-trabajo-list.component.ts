@@ -145,7 +145,13 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   eliminarTema(tema: TemaDisponible) {
     this.eliminarTemaError.set(null);
+      const confirmado = confirm(
+      `¿Está seguro de eliminar el tema "${tema.titulo}"? Esta acción no se puede deshacer.`
+    );
 
+    if (!confirmado) {
+      return;
+    }
     this.temaService.eliminarTema(tema.id).subscribe({
       next: () => {
         this.temas.update((temas) => temas.filter((t) => t.id !== tema.id));
