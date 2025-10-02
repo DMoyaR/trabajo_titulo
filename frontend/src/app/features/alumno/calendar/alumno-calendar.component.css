@@ -1,15 +1,179 @@
-.ttl { color:#1a3e6a; margin-bottom:8px; }
-.cal { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:14px; }
-.hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-.month { font-weight:900; font-size:18px; }
-.tbl { width:100%; border-collapse:collapse; text-align:center; }
-th,td { padding:8px; border:1px solid #f0f2f8; }
-.actions { margin-top:10px; display:flex; justify-content:flex-end; }
-.btn { background:#1976d2; color:#fff; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; }
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:grid; place-items:center; }
-.modal { background:#fff; border-radius:12px; padding:16px; width:min(420px,90vw); }
-header { display:flex; justify-content:space-between; margin-bottom:10px; }
-.x { border:0; background:transparent; cursor:pointer; font-size:18px; }
-.body { display:grid; gap:10px; margin-bottom:10px; }
-footer { display:flex; justify-content:flex-end; gap:8px; }
-.btn.muted { background:#e5e7eb; color:#1f2a37; }
+/* ---------- Título ---------- */
+.ttl{
+  color:#6a6a6a;
+  font-size:42px;
+  font-weight:700;
+  margin:0 0 8px 0;
+}
+
+/* ---------- Layout principal ---------- */
+.wrap{ display:flex; gap:18px; align-items:flex-start; }
+
+/* ---------- Panel principal (calendario grande) ---------- */
+.panel{
+  flex:1 1 auto;
+  min-width:980px; /* 7 columnas */
+  background:#fff;
+  border:2px solid #b7cff0;
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(13,45,87,.08);
+  padding:10px 10px 16px;
+}
+
+/* Toolbar */
+.toolbar{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px; }
+.left,.right{ display:flex; gap:10px; align-items:center; }
+.title{ text-align:center; font-weight:900; color:#1f2a37; font-size:22px; }
+.pill{
+  border:0; background:#e9f1ff; color:#1f2a37;
+  padding:8px 14px; font-weight:800; border-radius:20px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px #cfe3ff;
+}
+.pill:hover{ background:#deebff; }
+.pill.muted{ background:#eef2f7; box-shadow:inset 0 0 0 1px #d9e2ef; }
+.pill.primary{ background:#1e66c9; color:#fff; box-shadow:0 6px 16px rgba(30,102,201,.25); }
+.pill.ranges{ padding:6px 12px; }
+
+/* Divider */
+.divider{ height:2px; background:#d6e5ff; margin:8px 0 10px; border-radius:2px; }
+
+/* ---------- Calendario grande (aislado) ---------- */
+.cal-grid{
+  display:grid !important;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  grid-auto-rows: 110px;
+  gap:10px;
+  width:100%;
+}
+.cal-dow{
+  text-align:center; font-weight:800; color:#4b5563; height:auto; line-height:1.2;
+}
+.cal-cell{
+  border:1px solid #dfe7f5; border-radius:12px; background:#f6f9ff;
+  position:relative; padding:6px; cursor:pointer; transition:background .15s;
+}
+.cal-cell:hover{ background:#eef5ff; }
+.cal-cell.empty{ background:transparent; border-color:transparent; pointer-events:none; }
+.cal-cell .num{ position:absolute; top:6px; left:8px; font-weight:800; color:#374151; }
+.cal-cell.is-today{ outline:3px solid #93c5fd; outline-offset:-3px; }
+.cal-cell.is-selected{ background:#1e66c9; border-color:#1453a5; color:#fff; }
+.cal-cell.is-selected .num{ color:#fff; }
+.footer-space{ height:18px; }
+
+/* Badge contador */
+.badge{
+  position:absolute; right:6px; bottom:6px;
+  background:#1e66c9; color:#fff; border-radius:999px;
+  padding:2px 6px; font-size:10px; font-weight:800;
+}
+
+/* ---------- Mini calendario ---------- */
+.mini{
+  width:300px; background:#fff; border:2px solid #b7cff0; border-radius:12px;
+  padding:10px; box-shadow:0 8px 24px rgba(13,45,87,.08); position:relative; overflow:hidden;
+}
+.mini-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; color:#1f2a37; }
+.mini-title{ cursor:pointer; }
+.mini-nav{
+  border:0; background:#e9f1ff; box-shadow:inset 0 0 0 1px #cfe3ff; color:#1f2a37;
+  padding:4px 8px; border-radius:10px; cursor:pointer;
+}
+
+/* Picker avanzado */
+.mini-picker{
+  border:2px solid #b7cff0; border-radius:12px; padding:10px; margin-bottom:8px; background:#f9fbff; max-width:100%;
+}
+.mini-picker .row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
+.mini-picker select{
+  border:1px solid #dfe7f5; border-radius:8px; padding:6px 10px; background:#fff; min-width:160px;
+}
+.year-box{ display:flex; flex-direction:column; gap:8px; width:100%; }
+.year-head{ display:flex; align-items:center; justify-content:center; gap:10px; }
+.years{
+  display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:6px 8px; text-align:center; padding:2px 4px;
+}
+.year{ padding:6px 0; border-radius:10px; cursor:pointer; line-height:1; user-select:none; }
+.year:hover{ background:#eef5ff; }
+.year.sel{ background:#1e66c9; color:#fff; box-shadow: inset 0 0 0 1px #1453a5; }
+.ranges-list{
+  display:grid; grid-template-columns:repeat(2,1fr); gap:8px; text-align:center; padding:2px 4px;
+}
+.range{
+  border:1px solid #dfe7f5; border-radius:10px; padding:6px 6px; cursor:pointer; background:#fff;
+}
+.range:hover{ background:#eef5ff; }
+.mini-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+.pill.ok{ background:#c7e3ff; box-shadow:inset 0 0 0 1px #9cc7f5; }
+
+/* Mini grid */
+.mini-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.mini-dow{ text-align:center; font-weight:800; color:#4b5563; font-size:12px; }
+.mini-day{
+  height:30px; border:1px solid #dfe7f5; border-radius:8px; background:#f6f9ff;
+  font-size:12px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.mini-day.empty{ background:transparent; border-color:transparent; cursor:default; }
+.mini-day.is-today{ outline:2px solid #93c5fd; outline-offset:-2px; }
+.mini-day.is-selected{ background:#1e66c9; border-color:#1453a5; color:#fff; }
+
+/* ---------- Modales (Alumno) ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.35);
+  display:grid; place-items:center; z-index:100;
+}
+.modal{
+  width:min(680px, 92vw);
+  background:#fff; border:2px solid #b7cff0;
+  border-radius:14px; box-shadow:0 18px 48px rgba(0,0,0,.25);
+  overflow:hidden;
+}
+.modal header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px; border-bottom:1px solid #e6eefc;
+}
+.modal h3{ margin:0; color:#1a3e6a; font-weight:800; }
+.x{ border:0; background:transparent; cursor:pointer; font-size:18px; }
+.modal-body{ padding:12px 14px; display:grid; gap:8px; }
+
+/* Lista de eventos y estados */
+.event{
+  border:1px solid #e6eefc; background:#f7fbff; border-radius:10px; padding:8px 10px; display:grid; gap:3px;
+}
+.event.empty{ background:#fff; border-style:dashed; color:#6b7280; }
+.ev-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.state{ border-radius:999px; padding:2px 8px; font-size:12px; font-weight:800; border:1px solid #cfe3ff; background:#e9f1ff; color:#1f2a37; }
+.state.ok{ background:#e7f9ef; border-color:#c3f0d7; color:#0a7a3a; }
+.state.pending{ background:#fff6e5; border-color:#ffe0a6; color:#a06200; }
+.ev-sub{ font-size:12px; color:#374151; }
+.ev-desc{ font-size:12px; color:#596375; }
+
+.modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
+
+/* Formularios */
+.ev-form .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:8px; }
+.ev-form label{ display:flex; flex-direction:column; gap:4px; font-weight:600; color:#1f2a37; }
+.ev-form input, .ev-form textarea{
+  border:1px solid #dfe7f5; border-radius:8px; padding:8px 10px; font-size:14px; background:#fff;
+}
+.ev-form textarea{ resize:vertical; }
+.muted{ color:#6b7280; }
+
+.summary-day{
+  border:1px solid #e6eefc; border-radius:12px; background:#f7fbff;
+  padding:10px; display:grid; gap:8px;
+}
+.summary-head{ display:flex; justify-content:space-between; align-items:center; font-weight:800; color:#1a3e6a; }
+.summary-count{
+  background:#e9f1ff; border:1px solid #cfe3ff; border-radius:999px; padding:2px 8px; font-size:12px; color:#1f2a37;
+}
+.summary-items{ display:grid; gap:6px; }
+.summary-item{
+  display:grid; grid-template-columns: 70px 1fr 110px; gap:10px; align-items:center;
+  background:#fff; border:1px solid #e6eefc; border-radius:10px; padding:6px 8px;
+}
+.summary-item .ttl{ font-weight:700; color:#1f2a37; }
+.summary-item .sub{ color:#596375; font-size:12px; }
+
+@media (max-width: 720px){
+  .ev-form .row{ grid-template-columns:1fr; }
+}
