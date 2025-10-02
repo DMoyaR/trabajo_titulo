@@ -19,7 +19,7 @@ export type CrearTemaPayload = Omit<TemaDisponible, 'id' | 'created_at' | 'creat
 
 @Injectable({ providedIn: 'root' })
 export class TemaService {
-  private readonly baseUrl = '/api/temas/';
+  private readonly baseUrl = 'http://localhost:8000/api/temas/';
 
   constructor(private http: HttpClient) {}
 
