@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 /* =======================
    FORMULARIO CON EDITOR
    ======================= */
@@ -8,6 +13,40 @@
   padding: 40px 20px;
   background: #f5f5f5;
   min-height: 100vh;
+}
+
+.container.dialog {
+  max-width: none;
+  margin: 0;
+  padding: 24px;
+  background: #fff;
+  min-height: auto;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.container.dialog .titulo-section,
+.container.dialog .editor-menu,
+.container.dialog .editor-section,
+.container.dialog .archivo-section,
+.container.dialog .opciones-section,
+.container.dialog .actions-footer {
+  max-width: 100%;
+}
+
+.container.dialog .opciones-section,
+.container.dialog .archivo-section {
+  border-radius: 12px;
+}
+
+.container.dialog .actions-footer {
+  background: #fff;
+  margin: 24px -24px 0;
+  padding: 16px 24px 16px;
+  border-top: 1px solid #e0e0e0;
+  position: sticky;
+  bottom: 0;
 }
 
 /* Título del tema */

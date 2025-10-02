@@ -1,24 +1,5 @@
-<div class="overlay">
-  <div class="modal">
-    <header>
-      <h3>Subir recurso/retro</h3>
-      <button class="x" (click)="close.emit()">✕</button>
-    </header>
-
-    <div class="body">
-      <label class="lab">Fecha</label>
-      <input class="inp" type="date" [(ngModel)]="fecha" />
-
-      <label class="lab">Archivo</label>
-      <input class="inp" type="file" (change)="onFile($event)" />
-
-      <label class="lab">Comentario (opcional)</label>
-      <textarea class="inp" rows="3" [(ngModel)]="comentario"></textarea>
-    </div>
-
-    <footer>
-      <button class="btn muted" (click)="close.emit()">Cerrar</button>
-      <button class="btn" (click)="doConfirm()">Publicar</button>
-    </footer>
-  </div>
-</div>
+<docente-subirarchivo
+  [variant]="'dialog'"
+  (cancelar)="close.emit()"
+  (publicar)="confirm.emit($event)"
+></docente-subirarchivo>
