@@ -160,6 +160,11 @@
   align-items: flex-start;
 }
 
+.topic-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ----- Modal de temas ----- */
 .btn {
   border-radius: 10px;
@@ -189,6 +194,18 @@
 .btn.light:hover {
   background: #f9fafb;
 }
+
+.btn.danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.btn.danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
 
 .row-head {
   display: flex;

@@ -56,6 +56,7 @@ export class DocenteTrabajoListComponent implements OnInit {
   temasError = signal<string | null>(null);
   enviarTema = signal(false);
   enviarTemaError = signal<string | null>(null);
+  eliminarTemaError = signal<string | null>(null);
 
   // Lista mostrada según pestaña
   grupos = computed<Grupo[]>(() => (this.tab() === 'i' ? this.gruposI() : this.gruposII()));
@@ -140,4 +141,19 @@ export class DocenteTrabajoListComponent implements OnInit {
     const ctrl = this.temaForm.get(control);
     return !!(ctrl && ctrl.touched && ctrl.hasError(error));
   }
+
+
+  eliminarTema(tema: TemaDisponible) {
+    this.eliminarTemaError.set(null);
+
+    this.temaService.eliminarTema(tema.id).subscribe({
+      next: () => {
+        this.temas.update((temas) => temas.filter((t) => t.id !== tema.id));
+      },
+      error: () => {
+        this.eliminarTemaError.set('No se pudo eliminar el tema. Inténtalo nuevamente.');
+      },
+    });
+  }
+
 }

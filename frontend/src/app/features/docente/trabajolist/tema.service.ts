@@ -30,4 +30,8 @@ export class TemaService {
   crearTema(payload: CrearTemaPayload): Observable<TemaDisponible> {
     return this.http.post<TemaDisponible>(this.baseUrl, payload);
   }
+
+  eliminarTema(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}${id}/`);
+  }
 }

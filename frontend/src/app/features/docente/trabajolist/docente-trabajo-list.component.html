@@ -116,6 +116,7 @@
       </ng-template>
 
       <ng-template #temasLista>
+        <div class="err" *ngIf="eliminarTemaError()">{{ eliminarTemaError() }}</div>
         <ul class="list topics" *ngIf="temas().length; else sinTemas">
           <li *ngFor="let t of temas()">
             <div class="grupo-info">
@@ -131,7 +132,12 @@
               </div>
             </div>
 
-            <button class="btn sm" type="button">Publicar</button>
+              <div class="topic-actions">
+              <button class="btn sm" type="button">Publicar</button>
+              <button class="btn sm danger" type="button" (click)="eliminarTema(t)">
+                Eliminar
+              </button>
+            </div>
           </li>
         </ul>
       </ng-template>
