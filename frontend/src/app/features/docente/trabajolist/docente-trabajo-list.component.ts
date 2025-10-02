@@ -1,7 +1,10 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { finalize } from 'rxjs';
+import { TemaService, TemaDisponible } from './tema.service';
+
 
 type Grupo = {
   id: number;
@@ -11,13 +14,6 @@ type Grupo = {
   status?: 'check' | 'pending';
 };
 
-type Tema = {
-  titulo: string;
-  carrera: string;
-  descripcion: string;
-  requisitos: string[];
-  cupos: number;
-};
 
 @Component({
   selector: 'docente-trabajo-list',
@@ -26,7 +22,7 @@ type Tema = {
   templateUrl: './docente-trabajo-list.component.html',
   styleUrls: ['./docente-trabajo-list.component.css'],
 })
-export class DocenteTrabajoListComponent {
+export class DocenteTrabajoListComponent implements OnInit {
   // pestaña activa: 'i' | 'ii' | 'temas'
   tab = signal<'i' | 'ii' | 'temas'>('i');
 
@@ -54,35 +50,17 @@ export class DocenteTrabajoListComponent {
     { id: 102, nombre: 'Grupo B – TT II', alumnos: 'Marcela / Jorge' },
   ]);
 
-  // Temas de ejemplo
-  temas = signal<Tema[]>([
-    {
-      titulo: 'Predicción de demanda de buses con BI',
-      carrera: 'Computación',
-      descripcion: 'Modelo de pronóstico + dashboard (ETL, KPIs, Power BI).',
-      requisitos: ['Python', 'ETL', 'Power BI'],
-      cupos: 2,
-    },
-    {
-      titulo: 'Clasificación de vinos con ML',
-      carrera: 'Computación',
-      descripcion: 'Regresión logística / árboles, comparación de métricas.',
-      requisitos: ['Pandas', 'Scikit-learn'],
-      cupos: 1,
-    },
-    {
-      titulo: 'Plataforma de titulación (Django + Angular)',
-      carrera: 'Computación',
-      descripcion: 'Roles (alumno/docente/coordinador), flujo y repositorio de entregas.',
-      requisitos: ['Django', 'Angular', 'PostgreSQL'],
-      cupos: 2,
-    },
-  ]);
+  // Temas 
+  temas = signal<TemaDisponible[]>([]);
+  temasCargando = signal(false);
+  temasError = signal<string | null>(null);
+  enviarTema = signal(false);
+  enviarTemaError = signal<string | null>(null);
 
   // Lista mostrada según pestaña
   grupos = computed<Grupo[]>(() => (this.tab() === 'i' ? this.gruposI() : this.gruposII()));
 
-   constructor(private fb: FormBuilder) {
+  constructor(private fb: FormBuilder, private temaService: TemaService) {
     this.temaForm = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(160)]],
       objetivo: ['', [Validators.required, Validators.maxLength(300)]],
@@ -91,10 +69,38 @@ export class DocenteTrabajoListComponent {
     });
   }
 
+  ngOnInit(): void {
+    this.cargarTemas();
+  }
+
+  private cargarTemas(): void {
+    this.temasCargando.set(true);
+    this.temasError.set(null);
+
+    this.temaService
+      .getTemas()
+      .pipe(finalize(() => this.temasCargando.set(false)))
+      .subscribe({
+        next: (temas) => {
+          this.temas.set(temas);
+        },
+        error: () => {
+          this.temasError.set('No fue posible cargar los temas disponibles.');
+        },
+      });
+  }
+
+
   toggleTemaModal(open: boolean) {
     this.showTemaModal.set(open);
+        if (open) {
+      this.enviarTemaError.set(null);
+    }
+
     if (!open) {
       this.temaForm.reset();
+      this.enviarTema.set(false);
+      this.enviarTemaError.set(null);
     }
   }
 
@@ -105,7 +111,7 @@ export class DocenteTrabajoListComponent {
     }
 
     const { titulo, objetivo, descripcion, rama } = this.temaForm.value;
-    const nuevoTema: Tema = {
+    const payload = {
       titulo: (titulo as string).trim(),
       carrera: rama as string,
       descripcion: (descripcion as string).trim(),
@@ -113,9 +119,21 @@ export class DocenteTrabajoListComponent {
       cupos: 1,
     };
 
-    this.temas.update((temas) => [nuevoTema, ...temas]);
+    this.enviarTema.set(true);
+    this.enviarTemaError.set(null);
 
-    this.toggleTemaModal(false);
+    this.temaService
+      .crearTema(payload)
+      .pipe(finalize(() => this.enviarTema.set(false)))
+      .subscribe({
+        next: (tema) => {
+          this.temas.update((temas) => [tema, ...temas]);
+          this.toggleTemaModal(false);
+        },
+        error: () => {
+          this.enviarTemaError.set('No se pudo guardar el tema. Inténtalo nuevamente.');
+        },
+      });
   }
 
   hasTemaError(control: string, error: string) {

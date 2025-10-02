@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Usuario
+from .models import Usuario, TemaDisponible
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -19,3 +19,21 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["usuario"] = usuario
         return attrs
+
+
+class TemaDisponibleSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = TemaDisponible
+        fields = [
+            "id",
+            "titulo",
+            "carrera",
+            "descripcion",
+            "requisitos",
+            "cupos",
+            "created_at",
+            "created_by",
+        ]
+        read_only_fields = ["id", "created_at", "created_by"]

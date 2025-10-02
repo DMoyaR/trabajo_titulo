@@ -1,8 +1,9 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
-from .serializers import LoginSerializer
+from rest_framework import status, generics
+from .serializers import LoginSerializer, TemaDisponibleSerializer
+from .models import TemaDisponible, Usuario
 
 REDIRECTS = {
     "alumno": "http://localhost:4200/alumno/dashboard",
@@ -27,3 +28,16 @@ def login_view(request):
         "nombre": usuario.nombre_completo,
         "correo": usuario.correo,
     }, status=status.HTTP_200_OK)
+
+
+class TemaDisponibleListCreateView(generics.ListCreateAPIView):
+    queryset = TemaDisponible.objects.all()
+    serializer_class = TemaDisponibleSerializer
+    permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, "user", None)
+        if isinstance(user, Usuario):
+            serializer.save(created_by=user)
+        else:
+            serializer.save()

@@ -43,3 +43,26 @@ class Usuario(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nombre_completo} ({self.rol})"
+
+
+class TemaDisponible(models.Model):
+    titulo = models.CharField(max_length=160)
+    carrera = models.CharField(max_length=100)
+    descripcion = models.TextField()
+    requisitos = models.JSONField(default=list, blank=True)
+    cupos = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temas_disponibles",
+    )
+
+    class Meta:
+        db_table = "temas_disponibles"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.titulo
