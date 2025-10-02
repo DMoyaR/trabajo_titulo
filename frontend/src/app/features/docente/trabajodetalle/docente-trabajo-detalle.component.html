@@ -3,7 +3,7 @@
     <h2 class="ttl">Trabajo de Título</h2>
     <p class="subtitle">Grupo 3</p>
   </div>
-  <button class="btn-upload">
+  <button class="btn-upload" (click)="irASubirArchivo()">
     <span>📤</span>
     Subir archivo
   </button>
@@ -52,7 +52,7 @@
   <div class="card revisar-card">
     <div class="revisar-icon">📤</div>
     <p class="revisar-text">Bitácoras, informes, anexos</p>
-    <button class="btn" (click)="showUpload.set(true)">Revisar entregas</button>
+    <button class="btn" (click)="irAEvaluaciones()">Revisar entregas</button>
   </div>
 </div>
 
@@ -93,9 +93,3 @@
   </h3>
   <p class="observaciones-text">Buen trabajo en general.</p>
 </div>
-
-<docente-upload-dialog
-  *ngIf="showUpload()"
-  (close)="showUpload.set(false)"
-  (confirm)="showUpload.set(false)"
-></docente-upload-dialog>

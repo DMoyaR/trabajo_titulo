@@ -48,6 +48,11 @@ export const routes: Routes = [
           import('./features/docente/trabajodetalle/docente-trabajo-detalle.component')
             .then((m) => m.DocenteTrabajoDetalleComponent), },
 
+        { path: 'subirarchivo',
+        loadComponent: () =>
+          import('./features/docente/subirarchivo/subirarchivo.component')
+            .then((m) => m.SubirArchivoComponent), },
+
         { path: 'evaluaciones',
         loadComponent: () =>
           import('./features/docente/evaluaciones/docente-evaluaciones.component')

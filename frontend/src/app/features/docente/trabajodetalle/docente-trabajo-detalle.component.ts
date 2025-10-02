@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UploadDialogComponent } from '../shareduploaddialog/upload-dialog.component';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 interface UserProfile {
   nombre: string;
@@ -15,15 +16,21 @@ interface UserProfile {
 @Component({
   selector: 'docente-trabajo-detalle',
   standalone: true,
-  imports: [CommonModule, FormsModule, UploadDialogComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './docente-trabajo-detalle.component.html',
   styleUrls: ['./docente-trabajo-detalle.component.css'],
 })
 export class DocenteTrabajoDetalleComponent {
   // Contenido de Código 2
-  showUpload = signal(false);
+
   searchTerm = signal('');
   
+    constructor(private readonly router: Router) {}
+
+  irAEvaluaciones(): void {
+    this.router.navigate(['/docente/evaluaciones']);
+  }
+
   indicadores = signal([
     { 
       estudiante: 'Ana González', 
@@ -69,5 +76,8 @@ export class DocenteTrabajoDetalleComponent {
       return (avance / 5) * 100;
     }
     return avance;
+  }
+  irASubirArchivo(): void {
+    this.router.navigate(['/docente/subirarchivo']);
   }
 }
