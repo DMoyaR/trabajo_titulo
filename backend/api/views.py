@@ -41,3 +41,9 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             serializer.save(created_by=user)
         else:
             serializer.save()
+
+
+class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    queryset = TemaDisponible.objects.all()
+    serializer_class = TemaDisponibleSerializer
+    permission_classes = [AllowAny]
