@@ -1,6 +1,7 @@
 import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 type Grupo = {
   id: number;
@@ -21,13 +22,25 @@ type Tema = {
 @Component({
   selector: 'docente-trabajo-list',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule],
   templateUrl: './docente-trabajo-list.component.html',
   styleUrls: ['./docente-trabajo-list.component.css'],
 })
 export class DocenteTrabajoListComponent {
   // pestaña activa: 'i' | 'ii' | 'temas'
   tab = signal<'i' | 'ii' | 'temas'>('i');
+
+  showTemaModal = signal(false);
+  ramas: string[] = [
+    'Desarrollo de Software',
+    'Sistemas de Información',
+    'Inteligencia de Negocios',
+    'Ciencia de Datos',
+    'Redes y Seguridad',
+    'Otra',
+  ];
+
+  temaForm: FormGroup;
 
   // Datos de ejemplo (TT I)
   private gruposI = signal<Grupo[]>([
@@ -68,4 +81,45 @@ export class DocenteTrabajoListComponent {
 
   // Lista mostrada según pestaña
   grupos = computed<Grupo[]>(() => (this.tab() === 'i' ? this.gruposI() : this.gruposII()));
+
+   constructor(private fb: FormBuilder) {
+    this.temaForm = this.fb.group({
+      titulo: ['', [Validators.required, Validators.maxLength(160)]],
+      objetivo: ['', [Validators.required, Validators.maxLength(300)]],
+      descripcion: ['', [Validators.required, Validators.maxLength(1200)]],
+      rama: ['', Validators.required],
+    });
+  }
+
+  toggleTemaModal(open: boolean) {
+    this.showTemaModal.set(open);
+    if (!open) {
+      this.temaForm.reset();
+    }
+  }
+
+  submitTema() {
+    if (this.temaForm.invalid) {
+      this.temaForm.markAllAsTouched();
+      return;
+    }
+
+    const { titulo, objetivo, descripcion, rama } = this.temaForm.value;
+    const nuevoTema: Tema = {
+      titulo: (titulo as string).trim(),
+      carrera: rama as string,
+      descripcion: (descripcion as string).trim(),
+      requisitos: objetivo ? [(objetivo as string).trim()] : [],
+      cupos: 1,
+    };
+
+    this.temas.update((temas) => [nuevoTema, ...temas]);
+
+    this.toggleTemaModal(false);
+  }
+
+  hasTemaError(control: string, error: string) {
+    const ctrl = this.temaForm.get(control);
+    return !!(ctrl && ctrl.touched && ctrl.hasError(error));
+  }
 }
