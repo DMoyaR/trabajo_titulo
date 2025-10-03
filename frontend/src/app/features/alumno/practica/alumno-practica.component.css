@@ -60,6 +60,20 @@
   background: #1459a6;
 }
 
+.btn.smcarta {
+  border: 0;
+  border-radius: 8px;
+  background: #478a2d;
+  color: #fff;
+  font-weight: 800;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.btn.smcarta:hover {
+  background: #68c942;
+}
+
+
 /* ====== Extensiones para modal y formulario ====== */
 .backdrop {
   position: fixed;
