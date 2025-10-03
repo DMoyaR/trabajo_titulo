@@ -1,6 +1,24 @@
-import { Component, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+
+export type VarianteSubirArchivo = 'page' | 'dialog';
+
+export interface OpcionesPublicacion {
+  atrasarPublicacion: boolean;
+  fechaPublicacion: string;
+  horaPublicacion: string;
+  permitirComentarios: boolean;
+  publicarAntesRespuestas: boolean;
+  activarFeedPodcast: boolean;
+  permitirMeGusta: boolean;
+}
+
+export interface DatosPublicacion {
+  titulo: string;
+  contenido: string;
+  opciones: OpcionesPublicacion;
+}
 
 @Component({
   selector: 'docente-subirarchivo',
@@ -10,9 +28,17 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./subirarchivo.component.css'],
 })
 export class SubirArchivoComponent {
+  @Input() variant: VarianteSubirArchivo = 'page';
+  @Output() cancelar = new EventEmitter<void>();
+  @Output() publicar = new EventEmitter<DatosPublicacion>();
+
+  @ViewChild('editorContent') editorContent?: ElementRef<HTMLElement>;
+
   // Datos del formulario
   tituloTema = signal('');
   contenidoEditor = signal('');
+
+  
   
   // Estados del editor
   fontSize = signal('12pt');
@@ -25,7 +51,7 @@ export class SubirArchivoComponent {
   // Secciones publicar - ELIMINADO
   
   // Opciones
-  opciones = signal({
+  opciones = signal<OpcionesPublicacion>({
     atrasarPublicacion: false,
     fechaPublicacion: '',
     horaPublicacion: '',
@@ -89,12 +115,13 @@ export class SubirArchivoComponent {
   }
 
   actualizarContadoresManual() {
-    const editor = document.querySelector('.editor-content');
-    if (editor) {
-      const texto = editor.textContent || '';
-      const palabrasArray = texto.trim().split(/\s+/).filter(p => p.length > 0);
-      this.palabras.set(palabrasArray.length);
+    const editor = this.editorContent?.nativeElement;
+    if (!editor) {
+      return;
     }
+    const texto = editor.textContent || '';
+    const palabrasArray = texto.trim().split(/\s+/).filter(p => p.length > 0);
+    this.palabras.set(palabrasArray.length);
   }
 
   // Gestión de secciones - ELIMINADO
@@ -146,17 +173,18 @@ export class SubirArchivoComponent {
   }
 
   // Publicar
-  publicar() {
-    const editor = document.querySelector('.editor-content');
-    const contenido = editor?.innerHTML || '';
-    
-    console.log('Publicando formulario...');
-    console.log('Título:', this.tituloTema());
-    console.log('Contenido:', contenido);
-    console.log('Opciones:', this.opciones());
+  onPublicar() {
+    const editor = this.editorContent?.nativeElement;
+    const contenido = (editor?.innerHTML || '').trim();
+
+    this.publicar.emit({
+      titulo: this.tituloTema(),
+      contenido,
+      opciones: { ...this.opciones() },
+    });
   }
 
-  cancelar() {
-    console.log('Cancelar publicación');
+  onCancelar() {
+    this.cancelar.emit();
   }
 }

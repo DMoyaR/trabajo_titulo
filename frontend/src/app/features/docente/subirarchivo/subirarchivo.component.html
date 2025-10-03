@@ -1,12 +1,13 @@
-<div class="container">
+<div class="container" [ngClass]="variant">
   <!-- Título del tema -->
   <div class="titulo-section">
     <label class="titulo-label">Título del tema</label>
-    <input 
-      type="text" 
-      class="form-title-input" 
+    <input
+      type="text"
+      class="form-title-input"
       placeholder="Título del tema"
-      [(ngModel)]="tituloTema"
+      [ngModel]="tituloTema()"
+      (ngModelChange)="tituloTema.set($event)"
     />
   </div>
 
@@ -141,8 +142,9 @@
     </div>
 
     <!-- Área de contenido editable -->
-    <div 
-      class="editor-content" 
+    <div
+      #editorContent
+      class="editor-content"
       contenteditable="true"
       (input)="actualizarContadores($event)"
       data-placeholder=""
@@ -275,7 +277,7 @@
 
   <!-- Botones de acción -->
   <div class="actions-footer">
-    <button class="btn-cancelar" (click)="cancelar()">Cancelar</button>
-    <button class="btn-publicar" (click)="publicar()">Publicar</button>
+    <button class="btn-cancelar" (click)="onCancelar()">Cancelar</button>
+    <button class="btn-publicar" (click)="onPublicar()">Publicar</button>
   </div>
 </div>

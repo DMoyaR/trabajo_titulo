@@ -1,48 +1,147 @@
-<h2 class="ttl">Entrega</h2>
+<h2 class="ttl">{{ titulo }}</h2>
 
-<!-- Encabezado (avance y fechas mock) -->
-<div class="meta">
-  <div>
-    <b>avance_2</b>
-    <div class="small">Fecha de entrega: 29 de junio de 2025 23:59</div>
+<!-- Evaluaciones -->
+<section class="card">
+  <h3>Evaluaciones</h3>
+
+  <div class="split">
+    <!-- Pendientes -->
+    <div>
+      <h4 class="sec">Pendientes</h4>
+      <div class="grid" *ngIf="pendientes().length; else noPend">
+        <article class="item" *ngFor="let e of pendientes()" (click)="seleccionar(e)">
+          <div class="top">
+            <b class="title">{{ e.titulo }}</b>
+            <span [ngClass]="estadoClase(e.estado)">{{ e.estado }}</span>
+          </div>
+          <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
+          <div class="meta">
+            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+          </div>
+        </article>
+      </div>
+      <ng-template #noPend><p class="muted">No tienes evaluaciones pendientes.</p></ng-template>
+    </div>
+
+    <!-- Completadas -->
+    <div>
+      <h4 class="sec">Completadas</h4>
+      <div class="grid" *ngIf="completadas().length; else noComp">
+        <article class="item" *ngFor="let e of completadas()" (click)="seleccionar(e)">
+          <div class="top">
+            <b class="title">{{ e.titulo }}</b>
+            <span [ngClass]="estadoClase(e.estado)">{{ e.estado }}</span>
+          </div>
+          <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
+          <div class="meta">
+            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+            <span *ngIf="e.ultimaEntrega?.nota">• Nota: <b>{{ e.ultimaEntrega?.nota }}</b></span>
+          </div>
+        </article>
+      </div>
+      <ng-template #noComp><p class="muted">Aún no tienes entregas registradas.</p></ng-template>
+    </div>
   </div>
-  <div class="pill green">Entregas confirmadas. Se notificará al docente.</div>
-</div>
-
-<!-- Instrucciones (texto de referencia del mock) -->
-<section class="box">
-  <h3 class="h3">Instrucciones</h3>
-  <p class="p">
-    Se permite la reentrega ilimitada. Recuerde que solo serán válidas las entregas dentro de
-    la ventana definida por los encargados de la evaluación.
-  </p>
 </section>
 
-<!-- Selección de tipo de presentación -->
-<section class="box">
-  <h3 class="h3">Elige un tipo de presentación</h3>
-
-  <div class="types">
-    <button class="type" [class.active]="selected()==='url'" (click)="selected.set('url')">
-      <span class="ic">🔗</span> URL web
-    </button>
-    <label class="type" [class.active]="selected()==='archivo'">
-      <span class="ic">⤴️</span> Cargar archivo
-      <input type="file" hidden (change)="onFile($event); selected.set('archivo')" />
-    </label>
-    <button class="type" [class.active]="selected()==='mas'" (click)="selected.set('mas')">
-      <span class="ic">➕</span> Más
-    </button>
+<!-- Panel detalle -->
+<section class="card" *ngIf="seleccionada() as ev">
+  <div class="detail-head">
+    <h3>Detalle — {{ ev.titulo }}</h3>
+    <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
   </div>
 
-  <!-- Resultado de selección (mock) -->
-  <div class="result" *ngIf="selected()==='archivo' && archivoNombre()">
-    Archivo seleccionado: <b>{{ archivoNombre() }}</b>
+  <!-- Instrucciones dinámicas por tipo -->
+  <div class="instrucciones detail">
+    <div class="ins-head">
+      <b>Instrucciones</b>
+      <span class="tag">Para: {{ ev.tipo | titlecase }}</span>
+    </div>
+    <ul class="ins-list">
+      <li *ngFor="let i of getInstrucciones(ev)">{{ i }}</li>
+    </ul>
   </div>
-  <div class="result" *ngIf="selected()==='url'">Ingresa la URL en el campo que agregaremos al integrar la API.</div>
+
+  <p class="muted" *ngIf="ev.descripcion">{{ ev.descripcion }}</p>
+  <div class="info-row">
+    <span class="chip" [ngClass]="estadoClase(ev.estado)">{{ ev.estado }}</span>
+    <span class="muted">Fecha límite: {{ ev.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+  </div>
+
+  <!-- Si pendiente -> botón subir -->
+  <div *ngIf="canUpload(); else vistaEntrega">
+    <p class="muted">Esta evaluación está pendiente. Debes subir tu archivo para completar la entrega.</p>
+    <button class="btn primary" (click)="openUpload()">Subir archivo</button>
+  </div>
+
+  <!-- Entregada / Calificada -->
+  <ng-template #vistaEntrega>
+    <div *ngIf="ev.ultimaEntrega; else sinEntrega" class="entrega">
+      <div class="row"><div><b>Título:</b></div><div>{{ ev.ultimaEntrega?.titulo }}</div></div>
+      <div class="row" *ngIf="ev.ultimaEntrega?.comentario">
+        <div><b>Comentario:</b></div><div>{{ ev.ultimaEntrega?.comentario }}</div>
+      </div>
+      <div class="row">
+        <div><b>Archivo:</b></div>
+        <div>📄 {{ ev.ultimaEntrega?.archivoNombre }}
+          <small class="muted">({{ ev.ultimaEntrega?.archivoTipo }})</small>
+        </div>
+      </div>
+      <div class="row"><div><b>Fecha envío:</b></div><div>{{ ev.ultimaEntrega?.fecha | date:'d MMM y, HH:mm' }}</div></div>
+      <div class="row" *ngIf="ev.ultimaEntrega?.nota !== undefined">
+        <div><b>Nota:</b></div><div><span class="nota">{{ ev.ultimaEntrega?.nota }}</span></div>
+      </div>
+    </div>
+    <ng-template #sinEntrega><p class="muted">Aún no existe registro de entrega.</p></ng-template>
+  </ng-template>
 </section>
 
-<!-- Botón de enviar (no hace nada aún) -->
-<div class="actions">
-  <button class="btn">Enviar</button>
+<!-- Modal subir archivo (igual que antes) -->
+<div class="overlay" *ngIf="showUpload()">
+  <div class="modal">
+    <header>
+      <h3>Subir archivo</h3>
+      <button class="x" (click)="closeUpload()">✕</button>
+    </header>
+
+    <form class="form" (ngSubmit)="submitUpload()">
+      <label class="field">
+        <span class="lbl">Título del envío</span>
+        <input type="text" [(ngModel)]="upload.titulo" name="titulo" placeholder="Ej: Informe de avance #2"/>
+      </label>
+
+      <label class="field">
+        <span class="lbl">Comentario (opcional)</span>
+        <textarea rows="4" [(ngModel)]="upload.comentario" name="comentario" placeholder="Notas para el docente..."></textarea>
+      </label>
+
+      <div class="drop" [class.dragging]="isDragging()"
+           (drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave()">
+        <div class="icon">📤</div>
+        <div><b>Arrastra y suelta</b> tu archivo aquí</div>
+        <div class="muted">o</div>
+        <label class="picker">
+          <input type="file" (change)="onFilePick($event)"/>
+          Seleccionar archivo
+        </label>
+        <div class="small">Formatos: PDF, DOC/DOCX, PPT/PPTX, ZIP (máx. {{ maxMB }} MB)</div>
+      </div>
+
+      <div class="file-info" *ngIf="archivoInfo() as f">
+        <div class="name">📄 {{ f.name }}</div>
+        <div class="meta">{{ f.type }} — {{ f.sizeMB }} MB</div>
+      </div>
+
+      <div class="error" *ngIf="errorMsg()">{{ errorMsg() }}</div>
+
+      <div class="progress" *ngIf="sending()">
+        <div class="bar" [style.width.%]="progress()"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" (click)="closeUpload()" [disabled]="sending()">Cancelar</button>
+        <button type="submit" class="btn primary" [disabled]="sending()">Subir archivo</button>
+      </div>
+    </form>
+  </div>
 </div>

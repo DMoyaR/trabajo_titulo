@@ -1,4 +1,3 @@
-/* ====== Estilos base que ya definiste ====== */
 .ttl { color: #1a3e6a; margin-bottom: 8px; }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
