@@ -74,6 +74,12 @@
 .btn.primary:hover {
   background: #174bb8;
 }
+
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
 .btn.light {
   background: #fff;
   color: #1f2937;
@@ -201,6 +207,12 @@
   color: #0369a1;
 }
 
+.list.topics li {
+  grid-template-columns: 1fr auto;
+  align-items: flex-start;
+}
+
+
 .metrics {
   display: flex;
   flex-wrap: wrap;
@@ -217,18 +229,45 @@
 }
 
 .upload-card h3 {
-  margin: 0 0 12px;
+  margin: 0;
   color: #1a3e6a;
   font-size: 16px;
 }
 
-.drop {
-  border: 2px dashed #cbd5e1;
-  border-radius: 10px;
-  padding: 18px;
-  background: #fff;
-  color: #475569;
-  text-align: center;
+.upload-card.empty {
+  border-style: dashed;
+}
+
+.upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.upload-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.upload-actions {
+  margin-top: 16px;
+}
+
+.btn.link {
+  background: transparent;
+  color: #1a56db;
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.btn.link:hover {
+  background: transparent;
+  text-decoration: underline;
 }
 
 .muted {

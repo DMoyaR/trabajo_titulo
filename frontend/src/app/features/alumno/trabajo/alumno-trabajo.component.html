@@ -24,13 +24,44 @@
 </ng-container>
       
 
-    <div class="upload-card">
-      <h3>Subir entrega</h3>
-      <div class="drop">📥 Arrastra aquí tus bitácoras, informes o anexos</div>
-      <p class="muted">Tus archivos quedarán disponibles para tu profesor guía.</p>
+        <div class="upload-card" *ngIf="entregaDestacada() as destacada; else sinDestacada">
+      <div class="upload-header">
+        <h3>{{ destacada.encabezado }}</h3>
+        <span class="badge" [ngClass]="destacada.estado">{{ destacada.estadoEtiqueta }}</span>
+      </div>
+      <p class="upload-title">{{ destacada.nombre }}</p>
+      <p class="muted">{{ destacada.descripcion }}</p>
+      <div class="chips">
+        <span class="chip">{{ destacada.fecha }}</span>
+        <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
+      </div>
+      <div class="upload-actions">
+        <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas </button>
+      </div>
     </div>
 
-    <h3 class="section-title">Entregas y hitos recientes</h3>
+    <ng-template #sinDestacada>
+      <div class="upload-card empty">
+        <h3>Sin entregas destacadas</h3>
+        <p class="muted">Cuando registres avances verás aquí un resumen de tu próxima acción.</p>
+        <div class="upload-actions">
+          <a class="btn link" routerLink="/alumno/entrega">Ir a entregas</a>
+        </div>
+      </div>
+    </ng-template>
+ 
+
+    <ng-template #sinDestacada>
+      <div class="upload-card empty">
+        <h3>Sin entregas destacadas</h3>
+        <p class="muted">Cuando registres avances verás aquí un resumen de tu próxima acción.</p>
+        <div class="upload-actions">
+          <a class="btn link" routerLink="/alumno/entrega">Ir a entregas</a>
+        </div>
+      </div>
+    </ng-template>
+
+    <h3 class="section-title">Entregas e hitos recientes</h3>
 
     <ng-container *ngIf="entregasPorNivel().length; else sinEntregas">
       <ul class="list">
@@ -66,6 +97,38 @@
           </button>
         </div>
         <p class="muted">Completa el formulario para solicitar o proponer un tema.</p>
+
+        <ng-container *ngIf="temasCargando(); else temasContenido">
+          <p class="muted" style="margin-top: 1rem">Cargando temas disponibles...</p>
+        </ng-container>
+
+        <ng-template #temasContenido>
+          <div class="err" *ngIf="temasError(); else temasLista">{{ temasError() }}</div>
+        </ng-template>
+
+        <ng-template #sinTemas>
+          <p class="muted" style="margin-top: 1rem">Aún no hay temas disponibles.</p>
+        </ng-template>
+
+        <ng-template #temasLista>
+          <ul class="list topics" *ngIf="temas().length; else sinTemas">
+            <li *ngFor="let tema of temas()">
+              <div class="grupo-info">
+                <div class="grupo-nombre">
+                  {{ tema.titulo }}
+                  <span class="badge">{{ tema.carrera }}</span>
+                </div>
+                <div class="grupo-alumnos">{{ tema.descripcion }}</div>
+                <div class="chips">
+                  <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
+                </div>
+              </div>
+              <button type="button" class="btn primary sm">Pedir tema</button>
+            </li>
+          </ul>
+        </ng-template>
+
+
 
       <!-- CORREGIDO: usa getter o bracket notation -->
     <div class="backdrop" *ngIf="showPostulacion()" (click)="togglePostulacion(false)"></div>

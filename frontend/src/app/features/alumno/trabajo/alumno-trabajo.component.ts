@@ -1,6 +1,9 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+
+import { TemaService, TemaDisponible } from '../../docente/trabajolist/tema.service';
 
 type RamaCarrera =
   | 'Desarrollo de Software' | 'Sistemas de Información'
@@ -22,6 +25,12 @@ interface EntregaAlumno {
   alerta?: string;
 }
 
+interface EntregaDestacada extends EntregaAlumno {
+  estadoEtiqueta: string;
+  encabezado: string;
+}
+
+
 interface ResumenNivel {
   avance: number;
   aprobadas: number;
@@ -37,10 +46,12 @@ interface Profesor {
   ramas: RamaCarrera[];
 }
 
+
+
 @Component({
   selector: 'alumno-trabajo',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './alumno-trabajo.component.html',
   styleUrls: ['./alumno-trabajo.component.css']
 })
@@ -152,12 +163,34 @@ export class AlumnoTrabajoComponent {
     return nivel ? this.entregas()[nivel] : [];
   });
 
+  entregaDestacada = computed<EntregaDestacada | null>(() => {
+    const entregas = this.entregasPorNivel();
+    if (!entregas.length) {
+      return null;
+    }
+
+    const pendiente = entregas.find((entrega) => entrega.estado === 'pendiente');
+    const seleccionada = pendiente ?? entregas[entregas.length - 1];
+    const encabezado = pendiente ? 'Entrega pendiente' : 'Actividad más reciente';
+
+    return {
+      ...seleccionada,
+      estadoEtiqueta: this.estadoTexto[seleccionada.estado],
+      encabezado,
+    };
+  });
+
+
   nivelTitulo = computed(() => {
     const nivel = this.nivelActual();
     if (!nivel) return '';
     return nivel === 'i' ? 'T. Título I' : 'T. Título II';
   });
 
+  temas = signal<TemaDisponible[]>([]);
+  temasCargando = signal(false);
+  temasError = signal<string | null>(null);
+  private temasCargados = false;
 
   // Estado modal
   showPostulacion = signal(false);
@@ -178,7 +211,7 @@ export class AlumnoTrabajoComponent {
 
   postulacionForm: FormGroup;
 
-  constructor(private fb: FormBuilder) {
+  constructor(private fb: FormBuilder, private temaService: TemaService) {
     this.postulacionForm = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(160)]],
       objetivo: ['', [Validators.required, Validators.maxLength(300)]],
@@ -188,6 +221,12 @@ export class AlumnoTrabajoComponent {
       prof2: [''],
       prof3: ['']
     }, { validators: this.profesoresDistintosValidator });
+
+      effect(() => {
+      if (this.tab() === 'temas') {
+        this.intentarCargarTemas();
+      }
+    });
   }
 
   // Getter para usar en template y evitar TS4111
@@ -206,6 +245,27 @@ export class AlumnoTrabajoComponent {
     this.showPostulacion.set(open);
     if (!open) this.postulacionForm.reset();
   }
+
+  private intentarCargarTemas() {
+    if (this.temasCargados || this.temasCargando()) {
+      return;
+    }
+    this.temasCargando.set(true);
+    this.temasError.set(null);
+    this.temaService.getTemas().subscribe({
+      next: temas => {
+        this.temas.set(temas);
+        this.temasCargados = true;
+        this.temasCargando.set(false);
+      },
+      error: err => {
+        console.error('Error al cargar temas disponibles', err);
+        this.temasError.set('No fue posible cargar los temas disponibles. Intenta nuevamente más tarde.');
+        this.temasCargando.set(false);
+      },
+    });
+  }
+
 
   private profesoresDistintosValidator = (group: FormGroup) => {
     const p1 = group.get('prof1')?.value;
