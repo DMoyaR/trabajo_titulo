@@ -15,6 +15,33 @@ class Usuario(models.Model):
         ("Mecánica", "Mecánica"),
     ]
 
+    # Agregar más carreras según sea necesario
+    """
+    
+    CARRERA_CHOICES = [
+        ("Química y Farmacia", "Química y Farmacia"),
+        ("Ingeniería Civil Biomédica", "Ingeniería Civil Biomédica"),
+        ("Ingeniería Civil Química", "Ingeniería Civil Química"),
+        ("Ingeniería Civil Matemática", "Ingeniería Civil Matemática"),
+        ("Bachillerato en Ciencias de la Ingeniería", "Bachillerato en Ciencias de la Ingeniería"),
+        ("Dibujante Proyectista", "Dibujante Proyectista"),
+        ("Ingeniería Civil en Ciencia de Datos", "Ingeniería Civil en Ciencia de Datos"),
+        ("Ingeniería Civil en Computación mención Informática", "Ingeniería Civil en Computación mención Informática"),
+        ("Ingeniería Civil Electrónica", "Ingeniería Civil Electrónica"),
+        ("Ingeniería Civil en Mecánica", "Ingeniería Civil en Mecánica"),
+        ("Ingeniería Civil Industrial", "Ingeniería Civil Industrial"),
+        ("Ingeniería en Biotecnología", "Ingeniería en Biotecnología"),
+        ("Ingeniería en Geomensura", "Ingeniería en Geomensura"),
+        ("Ingeniería en Alimentos", "Ingeniería en Alimentos"),
+        ("Ingeniería en Informática", "Ingeniería en Informática"),
+        ("Ingeniería Industrial", "Ingeniería Industrial"),
+        ("Química Industrial", "Química Industrial"),
+        ("Ingeniería Electrónica", "Ingeniería Electrónica"),
+    ] 
+
+    """
+
+
     nombre_completo = models.CharField(max_length=100)
     correo = models.EmailField(unique=True, max_length=100)
     carrera = models.CharField(max_length=50, choices=CARRERA_CHOICES, blank=True, null=True)
