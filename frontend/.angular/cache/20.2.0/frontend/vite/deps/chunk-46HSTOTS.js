@@ -1,13 +1,13 @@
 import {
+  withHttpTransferCache
+} from "./chunk-CUCT5M75.js";
+import {
   CommonModule,
   DomAdapter,
   PLATFORM_BROWSER_ID,
   getDOM,
   setRootDomAdapter
-} from "./chunk-MW6U2S3L.js";
-import {
-  withHttpTransferCache
-} from "./chunk-6PD4U5E4.js";
+} from "./chunk-SNRFCBKM.js";
 import {
   XhrFactory,
   parseCookieValue
@@ -19,15 +19,9 @@ import {
   ApplicationRef,
   CSP_NONCE,
   Console,
-  DOCUMENT,
-  ENVIRONMENT_INITIALIZER,
-  ErrorHandler,
-  INJECTOR_SCOPE,
   IS_ENABLED_BLOCKING_INITIAL_NAVIGATION,
   Inject,
   Injectable,
-  InjectionToken,
-  Injector,
   MAX_ANIMATION_TIMEOUT,
   NgModule,
   NgZone,
@@ -36,7 +30,6 @@ import {
   PLATFORM_INITIALIZER,
   RendererFactory2,
   RendererStyleFlags2,
-  RuntimeError,
   SecurityContext,
   TESTABILITY,
   TESTABILITY_GETTER,
@@ -45,9 +38,6 @@ import {
   TracingService,
   Version,
   ViewEncapsulation,
-  XSS_SECURITY_URL,
-  ZONELESS_ENABLED,
-  _global,
   _sanitizeHtml,
   _sanitizeUrl,
   allowSanitizationBypassAndThrow,
@@ -57,12 +47,7 @@ import {
   bypassSanitizationTrustStyle,
   bypassSanitizationTrustUrl,
   createPlatformFactory,
-  formatRuntimeError,
-  forwardRef,
-  getAnimationElementRemovalRegistry,
-  inject,
   internalCreateApplication,
-  makeEnvironmentProviders,
   platformCore,
   resolveComponentResources,
   setClassMetadata,
@@ -72,11 +57,28 @@ import {
   withEventReplay,
   withI18nSupport,
   withIncrementalHydration,
+  ɵɵdefineNgModule
+} from "./chunk-ZP7COVE4.js";
+import {
+  DOCUMENT,
+  ENVIRONMENT_INITIALIZER,
+  ErrorHandler,
+  INJECTOR_SCOPE,
+  InjectionToken,
+  Injector,
+  RuntimeError,
+  XSS_SECURITY_URL,
+  ZONELESS_ENABLED,
+  _global,
+  formatRuntimeError,
+  forwardRef,
+  getAnimationElementRemovalRegistry,
+  inject,
+  makeEnvironmentProviders,
   ɵɵdefineInjectable,
   ɵɵdefineInjector,
-  ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-A65RJXNE.js";
+} from "./chunk-4J4TX23W.js";
 import {
   __spreadValues
 } from "./chunk-TXDUYLVM.js";
@@ -2074,4 +2076,4 @@ export {
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-WFJOXY7W.js.map
+//# sourceMappingURL=chunk-46HSTOTS.js.map
