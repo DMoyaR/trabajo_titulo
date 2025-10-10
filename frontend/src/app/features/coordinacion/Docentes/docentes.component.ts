@@ -1,8 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { AuthService } from '../../../auth.service';
 
 interface Docente {
   id: number;
@@ -26,8 +24,6 @@ interface Docente {
   styleUrls: ['./docentes.component.css']
 })
 export class CoordinacionDocentesComponent implements OnInit {
-  // Estado del menú
-  menuOpen = true;
 
   // Filtros
   cohortes: string[] = ['2019', '2020', '2021', '2022', '2023'];
@@ -136,8 +132,6 @@ export class CoordinacionDocentesComponent implements OnInit {
       fechaCierre: '2024-09-20'
     }
   ];
-  constructor(private readonly authService: AuthService, private readonly router: Router) {}
-
   // Inicialización del componente
   ngOnInit(): void {
     this.loadDocentes();
@@ -213,26 +207,6 @@ export class CoordinacionDocentesComponent implements OnInit {
   exportPDF(): void {
     console.log('Exportando datos de feedback docente a PDF...');
     alert('Exportando reporte de encuestas de feedback docente a PDF');
-  }
-
-  // ===== Métodos del Sidebar =====
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a sección: ${section}`);
-    // Aquí implementarías la navegación real usando Router
-  }
-
-  logout(): void {
-    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      return;
-    }
-      this.authService.logout().subscribe({
-      next: () => this.router.navigateByUrl('/auth/login'),
-      error: () => this.router.navigateByUrl('/auth/login'),
-    });
   }
 
   // Método para obtener el número total de docentes filtrados

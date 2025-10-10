@@ -24,7 +24,37 @@ export class CoordinacionLayoutComponent implements OnDestroy {
 
   readonly navItems: CoordinacionNavItem[] = [
     { route: 'inicio', label: 'Inicio', icon: 'assets/Inicio.png', alt: 'Inicio' },
-    { route: 'practicas', label: 'Prácticas', icon: 'assets/Procesos.png', alt: 'Gestión de prácticas' },
+    {
+      route: 'notificaciones',
+      label: 'Notificaciones',
+      icon: 'assets/Notificaciones.png',
+      alt: 'Notificaciones',
+    },
+    {
+      route: 'bandeja',
+      label: 'Bandeja de Entrada',
+      icon: 'assets/Bandeja_entrada.png',
+      alt: 'Bandeja de entrada',
+    },
+    {
+      route: 'estudiantes',
+      label: 'Estudiantes',
+      icon: 'assets/Estudiantes.png',
+      alt: 'Gestión de estudiantes',
+    },
+    {
+      route: 'docentes',
+      label: 'Docentes',
+      icon: 'assets/Docentes.png',
+      alt: 'Gestión de docentes',
+    },
+    {
+      route: 'practicas',
+      label: 'Prácticas',
+      icon: 'assets/Procesos.png',
+      alt: 'Gestión de prácticas',
+    },
+    { route: 'perfil', label: 'Perfil', icon: 'assets/Perfil.png', alt: 'Perfil de coordinación' },
   ];
 
   private readonly destroy$ = new Subject<void>();

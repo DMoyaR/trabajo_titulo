@@ -1,298 +1,237 @@
-<!-- FRONTEND DE DOCENTES - PANEL DE FEEDBACK ESTUDIANTIL -->
-<div class="dashboard">
-  <!-- Sidebar -->
-  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
-    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
-      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
-      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
+<section class="docentes-page">
+  <div class="page-header">
+    <div class="title-section">
+      <h1 class="title">Panel del Coordinador</h1>
+      <p class="subtitle">Sistema de Feedback Estudiantil - Evaluación Docente</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" type="button" (click)="exportExcel()">
+        <i class="icon">📊</i>
+        Exportar Excel
+      </button>
+      <button class="btn btn-secondary" type="button" (click)="exportPDF()">
+        <i class="icon">📄</i>
+        Exportar PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-section">
+    <div class="filter-group">
+      <label for="cohorte">Cohorte</label>
+      <select
+        id="cohorte"
+        class="filter-select"
+        [(ngModel)]="selectedCohorte"
+        (change)="applyFilters()"
+      >
+        <option value="">Seleccionar cohorte</option>
+        <option *ngFor="let cohorte of cohortes" [value]="cohorte">{{ cohorte }}</option>
+      </select>
     </div>
 
-    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
-      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
+    <div class="filter-group">
+      <label for="semestre">Semestre</label>
+      <select
+        id="semestre"
+        class="filter-select"
+        [(ngModel)]="selectedSemestre"
+        (change)="applyFilters()"
+      >
+        <option value="">Seleccionar semestre</option>
+        <option *ngFor="let semestre of semestres" [value]="semestre">{{ semestre }}</option>
+      </select>
     </div>
 
-    <nav class="navigation">
-      <ul>
-        <li class="nav-item" (click)="navigateTo('notificaciones')">
-          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('bandeja')">
-          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('inicio')">
-          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('estudiantes')">
-          <img src="assets/Estudiantes.png" alt="Estudiantes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Estudiantes</span>
-        </li>
-        <li class="nav-item active" (click)="navigateTo('docentes')">
-          <img src="assets/Docentes.png" alt="Docentes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Docentes</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('procesos')">
-          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Procesos</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('evaluaciones')">
-          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('reportes')">
-          <img src="assets/Reportes.png" alt="Reportes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Reportes</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('perfil')">
-          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
-        </li>
-        <li class="nav-item logout" (click)="logout()">
-          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
-        </li>
-      </ul>
-    </nav>
-  </aside>
-
-  <!-- Contenido Principal -->
-  <main class="content" [style.margin-left.px]="menuOpen ? 110 : 65">
-    <!-- Header -->
-    <div class="page-header">
-      <div class="title-section">
-        <h1 class="title">Panel del Coordinador</h1>
-        <p class="subtitle">Sistema de Feedback Estudiantil - Evaluación Docente</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-secondary" (click)="exportExcel()">
-          <i class="icon">📊</i>
-          Exportar Excel
-        </button>
-        <button class="btn btn-secondary" (click)="exportPDF()">
-          <i class="icon">📄</i>
-          Exportar PDF
-        </button>
-      </div>
+    <div class="filter-group">
+      <label for="proceso">Tipo de proceso</label>
+      <select
+        id="proceso"
+        class="filter-select"
+        [(ngModel)]="selectedProceso"
+        (change)="applyFilters()"
+      >
+        <option value="">Seleccionar proceso</option>
+        <option *ngFor="let proceso of procesos" [value]="proceso">{{ proceso }}</option>
+      </select>
     </div>
 
-    <!-- Filtros -->
-    <div class="filters-section">
-      <div class="filter-group">
-        <label for="cohorte">Cohorte</label>
-        <select 
-          id="cohorte"
-          class="filter-select" 
-          [(ngModel)]="selectedCohorte" 
-          (change)="applyFilters()">
-          <option value="">Seleccionar cohorte</option>
-          <option *ngFor="let cohorte of cohortes" [value]="cohorte">{{ cohorte }}</option>
-        </select>
-      </div>
+    <div class="results-counter">
+      <span>{{ filteredDocentes.length }} docentes encontrados</span>
+    </div>
+  </div>
 
-      <div class="filter-group">
-        <label for="semestre">Semestre</label>
-        <select 
-          id="semestre"
-          class="filter-select" 
-          [(ngModel)]="selectedSemestre" 
-          (change)="applyFilters()">
-          <option value="">Seleccionar semestre</option>
-          <option *ngFor="let semestre of semestres" [value]="semestre">{{ semestre }}</option>
-        </select>
+  <div class="stats-section">
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-info">
+        <h3>{{ getEstadisticasEncuestas().totalEstudiantes }}</h3>
+        <p>Total Estudiantes</p>
       </div>
-
-      <div class="filter-group">
-        <label for="proceso">Tipo de proceso</label>
-        <select 
-          id="proceso"
-          class="filter-select" 
-          [(ngModel)]="selectedProceso" 
-          (change)="applyFilters()">
-          <option value="">Seleccionar proceso</option>
-          <option *ngFor="let proceso of procesos" [value]="proceso">{{ proceso }}</option>
-        </select>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info">
+        <h3>{{ getEstadisticasEncuestas().totalEncuestasCompletadas }}</h3>
+        <p>Encuestas Completadas</p>
       </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-info">
+        <h3>{{ getEstadisticasEncuestas().promedioCompletado }}%</h3>
+        <p>Promedio Completado</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🎯</div>
+      <div class="stat-info">
+        <h3>{{ getEstadisticasEncuestas().completadas }}</h3>
+        <p>Procesos Terminados</p>
+      </div>
+    </div>
+  </div>
 
-      <div class="results-counter">
-        <span>{{ filteredDocentes.length }} docentes encontrados</span>
+  <div class="table-container">
+    <div class="table-header">
+      <h2>Gestión de Feedback Docente</h2>
+      <div class="table-stats">
+        <span class="stat-item">Total: {{ getTotalDocentes() }}</span>
+        <span class="stat-item">Completadas: {{ getEstadisticasEncuestas().completadas }}</span>
+        <span class="stat-item">En Progreso: {{ getEstadisticasEncuestas().enProgreso }}</span>
       </div>
     </div>
 
-    <!-- Estadísticas Generales -->
-    <div class="stats-section">
-      <div class="stat-card">
-        <div class="stat-icon">👥</div>
-        <div class="stat-info">
-          <h3>{{ getEstadisticasEncuestas().totalEstudiantes }}</h3>
-          <p>Total Estudiantes</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-          <h3>{{ getEstadisticasEncuestas().totalEncuestasCompletadas }}</h3>
-          <p>Encuestas Completadas</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-          <h3>{{ getEstadisticasEncuestas().promedioCompletado }}%</h3>
-          <p>Promedio Completado</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🎯</div>
-        <div class="stat-info">
-          <h3>{{ getEstadisticasEncuestas().completadas }}</h3>
-          <p>Procesos Terminados</p>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable">
+              <span>Docente</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th class="sortable">
+              <span>Número de estudiantes</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th class="sortable">
+              <span>Inicio</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th class="sortable">
+              <span>Encuestas Completadas</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th class="sortable">
+              <span>Entrega Final</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th class="sortable">
+              <span>Cierre</span>
+              <i class="sort-icon">↕</i>
+            </th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let docente of filteredDocentes; trackBy: trackByDocenteId"
+            class="table-row"
+            [class.high-completion]="docente.porcentajeCompletado >= 70"
+            [class.low-completion]="docente.porcentajeCompletado < 40"
+          >
+            <td class="docente-cell">
+              <div class="docente-info">
+                <span class="docente-name">{{ docente.nombre }}</span>
+                <small class="docente-details">{{ docente.cohorte }} - {{ docente.semestre }}</small>
+              </div>
+            </td>
+            <td class="students-cell">
+              <div class="students-count">
+                <span class="count-number">{{ docente.numeroEstudiantes }}</span>
+                <span class="count-label">estudiantes</span>
+              </div>
+            </td>
+            <td class="date-cell">
+              <div class="date-info">
+                <span class="date-text">{{ formatDate(docente.fechaInicio) }}</span>
+              </div>
+            </td>
+            <td class="progress-cell">
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill"
+                    [style.width.%]="docente.porcentajeCompletado"
+                    [class]="getProgressStatus(docente.porcentajeCompletado)"
+                  ></div>
+                </div>
+                <div class="progress-text">
+                  <span class="completion-count">{{ docente.encuestasCompletadas }}/{{ docente.numeroEstudiantes }}</span>
+                  <span class="completion-percentage">({{ docente.porcentajeCompletado }}%)</span>
+                </div>
+              </div>
+            </td>
+            <td class="date-cell">
+              <div
+                class="date-info"
+                [class.date-warning]="isDateNearDeadline(docente.fechaEntregaFinal)"
+                [class.date-overdue]="isDateOverdue(docente.fechaEntregaFinal)"
+              >
+                <span class="date-text">{{ formatDate(docente.fechaEntregaFinal) }}</span>
+                <span *ngIf="isDateNearDeadline(docente.fechaEntregaFinal)" class="date-badge warning">Próximo</span>
+                <span *ngIf="isDateOverdue(docente.fechaEntregaFinal)" class="date-badge overdue">Vencido</span>
+              </div>
+            </td>
+            <td class="date-cell">
+              <div class="date-info">
+                <span class="date-text">{{ formatDate(docente.fechaCierre) }}</span>
+              </div>
+            </td>
+            <td class="actions-cell">
+              <div class="action-buttons">
+                <button
+                  class="btn btn-primary btn-sm action-btn"
+                  type="button"
+                  (click)="verDetallesRespuestas(docente)"
+                  [title]="'Ver detalles de feedback de ' + docente.nombre"
+                >
+                  <i class="icon">👁</i>
+                  Ver Detalles
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm action-btn"
+                  type="button"
+                  *ngIf="docente.porcentajeCompletado < 100"
+                  (click)="enviarRecordatorio(docente)"
+                  [title]="'Enviar recordatorio a estudiantes'"
+                >
+                  <i class="icon">📧</i>
+                  Recordatorio
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div *ngIf="filteredDocentes.length === 0" class="no-data-message">
+        <div class="no-data-content">
+          <i class="no-data-icon">👨‍🏫</i>
+          <h3>No se encontraron docentes</h3>
+          <p>Intenta cambiar los filtros para ver más resultados</p>
         </div>
       </div>
     </div>
 
-    <!-- Tabla -->
-    <div class="table-container">
-      <div class="table-header">
-        <h2>Gestión de Feedback Docente</h2>
-        <div class="table-stats">
-          <span class="stat-item">Total: {{ getTotalDocentes() }}</span>
-          <span class="stat-item">Completadas: {{ getEstadisticasEncuestas().completadas }}</span>
-          <span class="stat-item">En Progreso: {{ getEstadisticasEncuestas().enProgreso }}</span>
-        </div>
+    <div class="table-footer" *ngIf="filteredDocentes.length > 0">
+      <div class="pagination-info">
+        Mostrando {{ filteredDocentes.length }} de {{ docentes.length }} docentes
       </div>
-
-      <div class="table-wrapper">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="sortable">
-                <span>Docente</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th class="sortable">
-                <span>Número de estudiantes</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th class="sortable">
-                <span>Inicio</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th class="sortable">
-                <span>Encuestas Completadas</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th class="sortable">
-                <span>Entrega Final</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th class="sortable">
-                <span>Cierre</span>
-                <i class="sort-icon">↕</i>
-              </th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let docente of filteredDocentes; trackBy: trackByDocenteId" 
-                class="table-row"
-                [class.high-completion]="docente.porcentajeCompletado >= 70"
-                [class.low-completion]="docente.porcentajeCompletado < 40">
-              
-              <td class="docente-cell">
-                <div class="docente-info">
-                  <span class="docente-name">{{ docente.nombre }}</span>
-                  <small class="docente-details">{{ docente.cohorte }} - {{ docente.semestre }}</small>
-                </div>
-              </td>
-
-              <td class="students-cell">
-                <div class="students-count">
-                  <span class="count-number">{{ docente.numeroEstudiantes }}</span>
-                  <span class="count-label">estudiantes</span>
-                </div>
-              </td>
-
-              <td class="date-cell">
-                <div class="date-info">
-                  <span class="date-text">{{ formatDate(docente.fechaInicio) }}</span>
-                </div>
-              </td>
-
-              <td class="progress-cell">
-                <div class="progress-container">
-                  <div class="progress-bar">
-                    <div class="progress-fill" 
-                         [style.width.%]="docente.porcentajeCompletado"
-                         [class]="getProgressStatus(docente.porcentajeCompletado)"></div>
-                  </div>
-                  <div class="progress-text">
-                    <span class="completion-count">{{ docente.encuestasCompletadas }}/{{ docente.numeroEstudiantes }}</span>
-                    <span class="completion-percentage">({{ docente.porcentajeCompletado }}%)</span>
-                  </div>
-                </div>
-              </td>
-
-              <td class="date-cell">
-                <div class="date-info" 
-                     [class.date-warning]="isDateNearDeadline(docente.fechaEntregaFinal)"
-                     [class.date-overdue]="isDateOverdue(docente.fechaEntregaFinal)">
-                  <span class="date-text">{{ formatDate(docente.fechaEntregaFinal) }}</span>
-                  <span *ngIf="isDateNearDeadline(docente.fechaEntregaFinal)" class="date-badge warning">Próximo</span>
-                  <span *ngIf="isDateOverdue(docente.fechaEntregaFinal)" class="date-badge overdue">Vencido</span>
-                </div>
-              </td>
-
-              <td class="date-cell">
-                <div class="date-info">
-                  <span class="date-text">{{ formatDate(docente.fechaCierre) }}</span>
-                </div>
-              </td>
-
-              <td class="actions-cell">
-                <div class="action-buttons">
-                  <button 
-                    class="btn btn-primary btn-sm action-btn"
-                    (click)="verDetallesRespuestas(docente)"
-                    [title]="'Ver detalles de feedback de ' + docente.nombre">
-                    <i class="icon">👁</i>
-                    Ver Detalles
-                  </button>
-                  <button 
-                    class="btn btn-secondary btn-sm action-btn"
-                    *ngIf="docente.porcentajeCompletado < 100"
-                    (click)="enviarRecordatorio(docente)"
-                    [title]="'Enviar recordatorio a estudiantes'">
-                    <i class="icon">📧</i>
-                    Recordatorio
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Mensaje cuando no hay datos -->
-        <div *ngIf="filteredDocentes.length === 0" class="no-data-message">
-          <div class="no-data-content">
-            <i class="no-data-icon">👨‍🏫</i>
-            <h3>No se encontraron docentes</h3>
-            <p>Intenta cambiar los filtros para ver más resultados</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Paginación -->
-      <div class="table-footer" *ngIf="filteredDocentes.length > 0">
-        <div class="pagination-info">
-          Mostrando {{ filteredDocentes.length }} de {{ docentes.length }} docentes
-        </div>
-        <button class="btn btn-secondary btn-sm" (click)="resetFilters()">
-          <i class="icon">🔄</i>
-          Limpiar Filtros
-        </button>
-      </div>
+      <button class="btn btn-secondary btn-sm" type="button" (click)="resetFilters()">
+        <i class="icon">🔄</i>
+        Limpiar Filtros
+      </button>
     </div>
-  </main>
-</div>
+  </div>
+</section>
