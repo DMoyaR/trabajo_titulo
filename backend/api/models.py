@@ -7,37 +7,40 @@ class Usuario(models.Model):
         ("docente", "Docente"),
         ("coordinador", "Coordinador"),
     ]
+
     CARRERA_CHOICES = [
+        ("Química y Farmacia", "Química y Farmacia"),
+        ("Ing. Civil Biomédica", "Ing. Civil Biomédica"),
+        ("Ing. Civil Química", "Ing. Civil Química"),
+        ("Ing. Civil Matemática", "Ing. Civil Matemática"),
+        ("Bachillerato en Ciencias de la Ing.", "Bachillerato en Ciencias de la Ing."),
+        ("Dibujante Proyectista", "Dibujante Proyectista"),
+        ("Ing. Civil en Ciencia de Datos", "Ing. Civil en Ciencia de Datos"),
+        ("Ing. Civil en Computación mención Informática", "Ing. Civil en Computación mención Informática"),
+        ("Ing. Civil Electrónica", "Ing. Civil Electrónica"),
+        ("Ing. Civil en Mecánica", "Ing. Civil en Mecánica"),
+        ("Ing. Civil Industrial", "Ing. Civil Industrial"),
+        ("Ing. en Biotecnología", "Ing. en Biotecnología"),
+        ("Ing. en Geomensura", "Ing. en Geomensura"),
+        ("Ing. en Alimentos", "Ing. en Alimentos"),
+        ("Ing. en Informática", "Ing. en Informática"),
+        ("Ing. Industrial", "Ing. Industrial"),
+        ("Química Industrial", "Química Industrial"),
+        ("Ing. Electrónica", "Ing. Electrónica"),
+    ] 
+
+    # Agregar más carreras según sea necesario
+    """
+    
+
+
+        CARRERA_CHOICES = [
         ("Computación", "Computación"),
         ("Informática", "Informática"),
         ("Industria", "Industria"),
         ("Trabajo Social", "Trabajo Social"),
         ("Mecánica", "Mecánica"),
     ]
-
-    # Agregar más carreras según sea necesario
-    """
-    
-    CARRERA_CHOICES = [
-        ("Química y Farmacia", "Química y Farmacia"),
-        ("Ingeniería Civil Biomédica", "Ingeniería Civil Biomédica"),
-        ("Ingeniería Civil Química", "Ingeniería Civil Química"),
-        ("Ingeniería Civil Matemática", "Ingeniería Civil Matemática"),
-        ("Bachillerato en Ciencias de la Ingeniería", "Bachillerato en Ciencias de la Ingeniería"),
-        ("Dibujante Proyectista", "Dibujante Proyectista"),
-        ("Ingeniería Civil en Ciencia de Datos", "Ingeniería Civil en Ciencia de Datos"),
-        ("Ingeniería Civil en Computación mención Informática", "Ingeniería Civil en Computación mención Informática"),
-        ("Ingeniería Civil Electrónica", "Ingeniería Civil Electrónica"),
-        ("Ingeniería Civil en Mecánica", "Ingeniería Civil en Mecánica"),
-        ("Ingeniería Civil Industrial", "Ingeniería Civil Industrial"),
-        ("Ingeniería en Biotecnología", "Ingeniería en Biotecnología"),
-        ("Ingeniería en Geomensura", "Ingeniería en Geomensura"),
-        ("Ingeniería en Alimentos", "Ingeniería en Alimentos"),
-        ("Ingeniería en Informática", "Ingeniería en Informática"),
-        ("Ingeniería Industrial", "Ingeniería Industrial"),
-        ("Química Industrial", "Química Industrial"),
-        ("Ingeniería Electrónica", "Ingeniería Electrónica"),
-    ] 
 
     """
 
