@@ -21,7 +21,7 @@
 <div class="card">
   <div class="card-head">
     <h3>Documentos oficiales</h3>
-    <button class="btn primary sm" (click)="openCarta()">+ Solicitar carta de práctica</button>
+   
   </div>
 
   <ul class="files">
@@ -42,8 +42,85 @@
       <small class="muted" *ngIf="d.detalle && d.estado === 'Rechazado'">Motivo: {{ d.detalle }}</small>
     </li>
   </ul>
+
+</div>
+
+<div class="card solicitudes-card">
+  <div class="card-head">
+    <h3>Solicitudes de práctica</h3>
+    <button class="btn primary sm" (click)="openCarta()">+ Solicitar carta de práctica</button>
+  </div>
+
   <p class="muted" *ngIf="solicitudesLoading()">Cargando solicitudes…</p>
   <div class="alert error" *ngIf="solicitudesError()">{{ solicitudesError() }}</div>
+
+<ng-container *ngIf="!solicitudesLoading() && !solicitudesError()">
+    <p class="muted solicitud-empty" *ngIf="!solicitudes().length">
+      Aún no registras solicitudes de carta de práctica.
+    </p>
+
+    <ul class="solicitudes-list" *ngIf="solicitudes().length">
+      <li class="solicitud-item" *ngFor="let solicitud of solicitudes()">
+        <div class="solicitud-header">
+          <div class="solicitud-meta">
+            <span>
+              <small class="label">Creada</small>
+              <strong>{{ formatFecha(solicitud.creadoEn) }}</strong>
+            </span>
+            <span>
+              <small class="label">Inicio práctica</small>
+              <strong>{{ formatFechaCorta(solicitud.practica.fechaInicio) }}</strong>
+            </span>
+            <span>
+              <small class="label">Estado</small>
+              <span class="chip" [ngClass]="estadoChipClase(solicitud.estado)">
+                {{ estadoEtiqueta(solicitud.estado) }}
+              </span>
+            </span>
+          </div>
+
+          <div class="solicitud-actions">
+            <a
+              class="btn sm"
+              *ngIf="solicitud.url; else pendienteDoc"
+              [href]="solicitud.url!"
+              target="_blank"
+              rel="noopener"
+            >
+              Descargar carta
+            </a>
+            <ng-template #pendienteDoc>
+              <button class="btn sm" disabled aria-disabled="true">Sin documento</button>
+            </ng-template>
+          </div>
+        </div>
+
+        <div class="solicitud-body">
+          <span>
+            <small class="label">Empresa</small>
+            <strong>{{ solicitud.destinatario.empresa }}</strong>
+            <small class="muted">{{ solicitud.destinatario.cargo }}</small>
+          </span>
+          <span>
+            <small class="label">Contacto</small>
+            <strong>{{ solicitud.destinatario.nombres }} {{ solicitud.destinatario.apellidos }}</strong>
+            <small class="muted">Jefe directo: {{ solicitud.practica.jefeDirecto }}</small>
+          </span>
+          <span>
+            <small class="label">Duración</small>
+            <strong>{{ solicitud.practica.duracionHoras }} horas</strong>
+            <small class="muted">Sector: {{ solicitud.practica.sectorEmpresa }}</small>
+          </span>
+        </div>
+
+        <div class="solicitud-detalle" *ngIf="solicitud.estado === 'rechazado' && solicitud.motivoRechazo">
+          Motivo del rechazo: {{ solicitud.motivoRechazo }}
+        </div>
+      </li>
+    </ul>
+  </ng-container>
+
+
 </div>
 
 <!-- ================== MODAL SOLICITUD CARTA (EMBEBIDO) ================== -->

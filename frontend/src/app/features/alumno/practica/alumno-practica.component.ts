@@ -447,6 +447,47 @@ export class AlumnoPracticaComponent implements OnInit {
     this.documentos.set([...this.baseDocumentos, ...extras]);
   }
 
+  estadoEtiqueta(estado: EstadoSolicitud): Documento['estado'] {
+    return this.estadoDocumento(estado);
+  }
+
+  estadoChipClase(estado: EstadoSolicitud): string {
+    const etiqueta = this.estadoDocumento(estado);
+    switch (etiqueta) {
+      case 'Aprobado':
+        return 'chip-ok';
+      case 'Rechazado':
+        return 'chip-bad';
+      default:
+        return 'chip-warn';
+    }
+  }
+
+  formatFecha(fechaIso: string | null | undefined): string {
+    if (!fechaIso) return '—';
+    const date = new Date(fechaIso);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  formatFechaCorta(fechaIso: string | null | undefined): string {
+    if (!fechaIso) return '—';
+    const date = new Date(fechaIso);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  }
+
+
   private estadoDocumento(estado: EstadoSolicitud): Documento['estado'] {
     switch (estado) {
       case 'aprobado':
