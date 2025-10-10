@@ -1,7 +1,8 @@
 import re
 import unicodedata
 
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -25,6 +26,7 @@ REDIRECTS = {
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
@@ -39,8 +41,10 @@ def login_view(request):
         "redirect_url": redirect_url,
         "nombre": usuario.nombre_completo,
         "correo": usuario.correo,
+        "rut": usuario.rut,
+        "carrera": usuario.carrera,
+        "id": usuario.id,
     }, status=status.HTTP_200_OK)
-
 
 class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     queryset = TemaDisponible.objects.all()
@@ -96,6 +100,12 @@ def _buscar_coordinador_por_carrera(carrera: str):
         .order_by("id")
         .first()
     )
+
+
+def _normalizar_rut(rut: str) -> str:
+    if not rut:
+        return ""
+    return re.sub(r"[^0-9Kk]", "", rut).upper()
 
 
 @api_view(["POST"])
@@ -165,6 +175,7 @@ def listar_solicitudes_carta_practica(request):
     except (TypeError, ValueError):
         size = 10
     coordinador_rut = request.query_params.get("coordinador_rut")
+    alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
 
     queryset = SolicitudCartaPractica.objects.all()
 
@@ -173,6 +184,20 @@ def listar_solicitudes_carta_practica(request):
 
     if coordinador_rut:
         queryset = queryset.filter(coordinador__rut__iexact=coordinador_rut)
+
+    if alumno_rut:
+        filtro = Q(alumno_rut__iexact=alumno_rut)
+        rut_limpio = _normalizar_rut(alumno_rut)
+        if rut_limpio:
+            queryset = queryset.annotate(
+                alumno_rut_limpio=Replace(
+                    Replace(Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")),
+                    Value(" "),
+                    Value(""),
+                )
+            )
+            filtro |= Q(alumno_rut_limpio__iexact=rut_limpio)
+        queryset = queryset.filter(filtro)
 
     if busqueda:
         queryset = queryset.filter(

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -20,6 +20,39 @@ interface Documento {
   tipo: 'PDF' | 'Carta';
   estado?: 'En revisión' | 'Aprobado' | 'Rechazado';
   url?: string | null;
+    detalle?: string | null;
+}
+
+type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
+
+interface SolicitudCarta {
+  id: string;
+  creadoEn: string;
+  estado: EstadoSolicitud;
+  url: string | null;
+  motivoRechazo?: string | null;
+  alumno: {
+    rut: string;
+    nombres: string;
+    apellidos: string;
+    carrera: string;
+  };
+  practica: {
+    jefeDirecto: string;
+    cargoAlumno: string;
+    fechaInicio: string;
+    empresaRut: string;
+    sectorEmpresa: string;
+    duracionHoras: number;
+  };
+  destinatario: {
+    nombres: string;
+    apellidos: string;
+    cargo: string;
+    empresa: string;
+  };
+  escuela: Escuela;
+  meta?: Record<string, unknown>;
 }
 
 function monthNameES(m: number): string {
@@ -82,7 +115,7 @@ function rutValidator(): ValidatorFn {
   templateUrl: './alumno-practica.component.html',
   styleUrls: ['./alumno-practica.component.css'],
 })
-export class AlumnoPracticaComponent {
+export class AlumnoPracticaComponent implements OnInit {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
 
@@ -99,10 +132,17 @@ export class AlumnoPracticaComponent {
     { etapa: 'Cierre', pct: 10 },
   ]);
 
-  documentos = signal<Documento[]>([
+  private readonly baseDocumentos: Documento[] = [
     { nombre: 'Certificado de práctica', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-practica.pdf' },
     { nombre: 'Certificado de cumplimiento', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-cumplimiento.pdf' },
-  ]);
+  ];
+  documentos = signal<Documento[]>([...this.baseDocumentos]);
+
+  solicitudes = signal<SolicitudCarta[]>([]);
+  solicitudesLoading = signal(false);
+  solicitudesError = signal<string | null>(null);
+
+  private alumnoRut: string | null = null;
 
   // ===== Modal incrustado =====
   showCarta = signal(false);
@@ -299,6 +339,25 @@ export class AlumnoPracticaComponent {
     });
   }
 
+  ngOnInit(): void {
+    const storedRut = localStorage.getItem('alumnoRut');
+    const storedCarrera = localStorage.getItem('alumnoCarrera');
+
+    if (storedRut) {
+      this.alumnoRut = storedRut;
+      this.cartaForm.get('alumnoRut')?.setValue(storedRut);
+      this.cargarSolicitudes();
+    }
+
+    if (storedCarrera) {
+      this.cartaForm.get('carrera')?.setValue(storedCarrera);
+      const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
+      if (escuelaMatch) {
+        this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
+      }
+    }
+  }
+
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
   fechaHoy = computed(() => formatCartaFecha(new Date()));
 
@@ -333,6 +392,72 @@ export class AlumnoPracticaComponent {
       'Elaborar informes técnicos con conclusiones basadas en evidencia.'
     ];
   });
+
+ private cargarSolicitudes(): void {
+    if (!this.alumnoRut) {
+      return;
+    }
+
+    this.solicitudesLoading.set(true);
+    this.solicitudesError.set(null);
+
+    const params: Record<string, string> = {
+      alumno_rut: this.alumnoRut,
+      page: '1',
+      size: '50',
+    };
+
+    this.http
+      .get<{ items: SolicitudCarta[]; total: number }>('/api/practicas/solicitudes-carta/listar', { params })
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          this.solicitudes.set(items);
+          this.actualizarDocumentosDesdeSolicitudes(items);
+          this.solicitudesLoading.set(false);
+        },
+        error: (err) => {
+          console.error('Error cargando solicitudes:', err);
+          this.solicitudes.set([]);
+          this.solicitudesError.set('No se pudieron cargar tus solicitudes de carta.');
+          this.documentos.set([...this.baseDocumentos]);
+          this.solicitudesLoading.set(false);
+        },
+      });
+  }
+
+  private actualizarDocumentosDesdeSolicitudes(solicitudes: SolicitudCarta[]): void {
+    const extras = solicitudes.map((solicitud) => {
+      const nombreAlumno = [solicitud.alumno?.nombres, solicitud.alumno?.apellidos]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      const detalle = solicitud.estado === 'rechazado' && solicitud.motivoRechazo
+        ? solicitud.motivoRechazo
+        : null;
+      return {
+        nombre: `Carta de práctica — ${nombreAlumno || solicitud.alumno?.rut || 'Alumno'}`,
+        tipo: 'Carta' as const,
+        estado: this.estadoDocumento(solicitud.estado),
+        url: solicitud.url ?? null,
+        detalle,
+      } satisfies Documento;
+    });
+
+    this.documentos.set([...this.baseDocumentos, ...extras]);
+  }
+
+  private estadoDocumento(estado: EstadoSolicitud): Documento['estado'] {
+    switch (estado) {
+      case 'aprobado':
+        return 'Aprobado';
+      case 'rechazado':
+        return 'Rechazado';
+      default:
+        return 'En revisión';
+    }
+  }
+
 
   // Sector resuelto (si eligen "Otro", usa el texto)
   sectorResuelto = computed(() => {
@@ -406,6 +531,12 @@ export class AlumnoPracticaComponent {
       meta: { tipo: 'carta-practica', creadoEn: new Date().toISOString() },
     };
 
+    this.alumnoRut = payload.alumno.rut;
+    localStorage.setItem('alumnoRut', payload.alumno.rut);
+    localStorage.setItem('alumnoCarrera', payload.alumno.carrera);
+    this.cartaForm.get('alumnoRut')?.setValue(payload.alumno.rut, { emitEvent: true });
+    this.cartaForm.get('carrera')?.setValue(payload.alumno.carrera, { emitEvent: true });
+
     this.isSubmitting.set(true);
 
     // ⚠️ Ajusta la URL a tu backend real si es distinta
@@ -413,15 +544,7 @@ export class AlumnoPracticaComponent {
       next: () => {
         this.submitOk.set('Solicitud enviada a Coordinación.');
 
-        // ➕ Agregar documento en "En revisión"
-        const nombreCarta = `Carta de práctica — ${payload.alumno.nombres} ${payload.alumno.apellidos}`;
-        const nuevo: Documento = {
-          nombre: nombreCarta,
-          tipo: 'Carta',
-          estado: 'En revisión',
-          url: null
-        };
-        this.documentos.set([...this.documentos(), nuevo]);
+        this.cargarSolicitudes();
 
         this.isSubmitting.set(false);
         this.closeCarta();

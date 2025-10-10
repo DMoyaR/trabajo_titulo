@@ -24,6 +24,11 @@ urlpatterns = [
         name="crear-solicitud-carta-practica",
     ),
     re_path(
+        r"^practicas/solicitudes-carta/listar/?$",
+        listar_solicitudes_carta_practica,
+        name="listar-solicitudes-carta-practica-alumno",
+    ),
+    re_path(
         r"^coordinacion/solicitudes-carta/?$",
         listar_solicitudes_carta_practica,
         name="listar-solicitudes-carta-practica",

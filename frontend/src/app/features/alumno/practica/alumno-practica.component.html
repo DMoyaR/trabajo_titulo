@@ -25,7 +25,7 @@
   </div>
 
   <ul class="files">
-    <li *ngFor="let d of documentos()">
+    <li *ngFor="let d of documentos()" [attr.title]="d.detalle || null">
       <span>📄 {{ d.nombre }}</span>
       <ng-container *ngIf="d.estado; else tipoSimple">
         <span class="chip" [class.chip-warn]="d.estado==='En revisión'"
@@ -39,8 +39,11 @@
       <button class="btn sm" [disabled]="!d.url" [attr.aria-disabled]="!d.url">
         {{ d.url ? 'Descargar' : 'Pendiente' }}
       </button>
+      <small class="muted" *ngIf="d.detalle && d.estado === 'Rechazado'">Motivo: {{ d.detalle }}</small>
     </li>
   </ul>
+  <p class="muted" *ngIf="solicitudesLoading()">Cargando solicitudes…</p>
+  <div class="alert error" *ngIf="solicitudesError()">{{ solicitudesError() }}</div>
 </div>
 
 <!-- ================== MODAL SOLICITUD CARTA (EMBEBIDO) ================== -->
