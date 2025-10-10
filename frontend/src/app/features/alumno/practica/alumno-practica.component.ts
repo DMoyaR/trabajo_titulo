@@ -342,21 +342,21 @@ export class AlumnoPracticaComponent implements OnInit {
   ngOnInit(): void {
     const storedRut = localStorage.getItem('alumnoRut');
     const storedCarrera = localStorage.getItem('alumnoCarrera');
-    this.cargarSolicitudes();
+     
     if (storedRut) {
       this.alumnoRut = storedRut;
       this.cartaForm.get('alumnoRut')?.setValue(storedRut);
-      this.cargarSolicitudes();
-    }
-
+      
+    }   
     if (storedCarrera) {
       this.cartaForm.get('carrera')?.setValue(storedCarrera);
       const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
       if (escuelaMatch) {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
-      }
+      }  
     }
-    this.cargarSolicitudes();
+    this.cargarSolicitudes(); 
+    
   }
 
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
