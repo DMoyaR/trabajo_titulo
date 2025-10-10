@@ -28,9 +28,7 @@
     <li *ngFor="let d of documentos()" [attr.title]="d.detalle || null">
       <span>📄 {{ d.nombre }}</span>
       <ng-container *ngIf="d.estado; else tipoSimple">
-        <span class="chip" [class.chip-warn]="d.estado==='En revisión'"
-                          [class.chip-ok]="d.estado==='Aprobado'"
-                          [class.chip-bad]="d.estado==='Rechazado'">{{ d.estado }}</span>
+
       </ng-container>
       <ng-template #tipoSimple>
         <small class="muted">{{ d.tipo }}</small>

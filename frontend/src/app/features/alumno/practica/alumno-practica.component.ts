@@ -356,7 +356,7 @@ export class AlumnoPracticaComponent implements OnInit {
       }  
     }
     this.cargarSolicitudes(); 
-    
+
   }
 
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
@@ -415,7 +415,7 @@ private cargarSolicitudes(): void {
         next: (res) => {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
-          this.actualizarDocumentosDesdeSolicitudes(items);
+          this.documentos.set([...this.baseDocumentos]);
             if (!this.alumnoRut) {
               const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
             if (firstRut) {
@@ -436,26 +436,6 @@ private cargarSolicitudes(): void {
       });
   }
 
-  private actualizarDocumentosDesdeSolicitudes(solicitudes: SolicitudCarta[]): void {
-    const extras = solicitudes.map((solicitud) => {
-      const nombreAlumno = [solicitud.alumno?.nombres, solicitud.alumno?.apellidos]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      const detalle = solicitud.estado === 'rechazado' && solicitud.motivoRechazo
-        ? solicitud.motivoRechazo
-        : null;
-      return {
-        nombre: `Carta de práctica — ${nombreAlumno || solicitud.alumno?.rut || 'Alumno'}`,
-        tipo: 'Carta' as const,
-        estado: this.estadoDocumento(solicitud.estado),
-        url: solicitud.url ?? null,
-        detalle,
-      } satisfies Documento;
-    });
-
-    this.documentos.set([...this.baseDocumentos, ...extras]);
-  }
 
   estadoEtiqueta(estado: EstadoSolicitud): Documento['estado'] {
     return this.estadoDocumento(estado);
