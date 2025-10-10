@@ -415,7 +415,32 @@ private cargarSolicitudes(): void {
         next: (res) => {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
-          this.documentos.set([...this.baseDocumentos]);
+          
+          const documentos: Documento[] = [...this.baseDocumentos];
+
+          items
+            .filter((solicitud) => solicitud.estado === 'aprobado' && !!solicitud.url)
+            .forEach((solicitud) => {
+              const fechaCreacion = this.formatFechaCorta(solicitud.creadoEn);
+              const nombreCarta =
+                fechaCreacion && fechaCreacion !== '—'
+                  ? `Carta de práctica aprobada — ${fechaCreacion}`
+                  : 'Carta de práctica aprobada';
+              const detalle = solicitud.destinatario.cargo
+                ? `Dirigida a ${solicitud.destinatario.empresa}. Cargo: ${solicitud.destinatario.cargo}.`
+                : `Dirigida a ${solicitud.destinatario.empresa}.`;
+
+              documentos.push({
+                nombre: nombreCarta,
+                tipo: 'Carta',
+                estado: 'Aprobado',
+                url: solicitud.url,
+                detalle,
+              });
+            });
+
+          this.documentos.set(documentos);
+          
             if (!this.alumnoRut) {
               const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
             if (firstRut) {

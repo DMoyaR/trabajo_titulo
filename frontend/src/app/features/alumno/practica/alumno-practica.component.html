@@ -34,10 +34,15 @@
         <small class="muted">{{ d.tipo }}</small>
       </ng-template>
 
-      <button class="btn sm" [disabled]="!d.url" [attr.aria-disabled]="!d.url">
-        {{ d.url ? 'Descargar' : 'Pendiente' }}
-      </button>
-      <small class="muted" *ngIf="d.detalle && d.estado === 'Rechazado'">Motivo: {{ d.detalle }}</small>
+      <ng-container *ngIf="d.url; else docPendiente">
+        <a class="btn sm" [href]="d.url" target="_blank" rel="noopener">Descargar</a>
+      </ng-container>
+      <ng-template #docPendiente>
+        <button class="btn sm" disabled aria-disabled="true">Pendiente</button>
+      </ng-template>
+      <small class="muted" *ngIf="d.detalle">
+        {{ d.estado === 'Rechazado' ? ('Motivo: ' + d.detalle) : d.detalle }}
+      </small>
     </li>
   </ul>
 
