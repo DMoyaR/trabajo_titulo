@@ -75,32 +75,27 @@ export const routes: Routes = [
     ],
   },
         
-/*   // --- COORDINACIÓN ---
+  // --- COORDINACIÓN ---
   {
     path: 'coordinacion',
     loadComponent: () =>
       import('./features/coordinacion/layout/coordinacion-layout.component')
         .then(m => m.CoordinacionLayoutComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-
-      { path: 'dashboard',
+      { path: '', pathMatch: 'full', redirectTo: 'inicio' },
+      {
+        path: 'inicio',
         loadComponent: () =>
-          import('./features/coordinacion/dashboard/coordinacion-dashboard.component')
-            .then(m => m.CoordinacionDashboardComponent) },
-
-      { path: 'panel',
+          import('./features/coordinacion/inicio/coordinacion.component')
+            .then(m => m.CoordinacionComponent),
+      },
+      {
+        path: 'practicas',
         loadComponent: () =>
-          import('./features/coordinacion/panel/coordinacion-panel.component')
-            .then(m => m.CoordinacionPanelComponent) },
+          import('./features/coordinacion/practicas/practicas.component')
+            .then(m => m.PracticasComponent),
+      },
     ],
-  },  */
-
-    {
-    path: 'coordinacion/inicio',
-    loadComponent: () =>
-      import('./features/coordinacion/inicio/coordinacion.component')
-        .then(m => m.CoordinacionComponent),
   },
 
     // --- REDIRECCIONES ---

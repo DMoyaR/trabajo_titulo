@@ -1,0 +1,91 @@
+import { CommonModule } from '@angular/common';
+import { Component, OnDestroy } from '@angular/core';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { Subject } from 'rxjs';
+import { filter, takeUntil } from 'rxjs/operators';
+import { AuthService } from '../../../auth.service';
+
+interface CoordinacionNavItem {
+  route: string;
+  label: string;
+  icon: string;
+  alt: string;
+}
+
+@Component({
+  selector: 'coordinacion-layout',
+  standalone: true,
+  imports: [CommonModule, RouterOutlet],
+  templateUrl: './coordinacion-layout.component.html',
+  styleUrls: ['./coordinacion-layout.component.css'],
+})
+export class CoordinacionLayoutComponent implements OnDestroy {
+  menuOpen = true;
+
+  readonly navItems: CoordinacionNavItem[] = [
+    { route: 'inicio', label: 'Inicio', icon: 'assets/Inicio.png', alt: 'Inicio' },
+    { route: 'practicas', label: 'Prácticas', icon: 'assets/Procesos.png', alt: 'Gestión de prácticas' },
+  ];
+
+  private readonly destroy$ = new Subject<void>();
+  private activeSection = 'inicio';
+
+  constructor(private readonly router: Router, private readonly authService: AuthService) {
+    this.activeSection = this.extractSection(this.router.url);
+
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(event => {
+        this.activeSection = this.extractSection(event.urlAfterRedirects);
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  navigateTo(section: string): void {
+    const destination = section || 'inicio';
+    this.router.navigate(['/coordinacion', destination]).then(() => {
+      if (window.innerWidth <= 768) {
+        this.menuOpen = false;
+      }
+    });
+  }
+
+  isActive(route: string): boolean {
+    return this.activeSection === route;
+  }
+
+  logout(): void {
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
+    }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
+  }
+
+  private extractSection(url: string): string {
+    const [cleanUrl] = url.split('?');
+    const segments = cleanUrl.split('/').filter(Boolean);
+    const coordinacionIndex = segments.indexOf('coordinacion');
+    if (coordinacionIndex >= 0) {
+      const next = segments[coordinacionIndex + 1];
+      if (next) {
+        return next;
+      }
+    }
+    return 'inicio';
+  }
+}
