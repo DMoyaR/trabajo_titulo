@@ -75,7 +75,7 @@ export const routes: Routes = [
     ],
   },
         
-  // --- COORDINACIÓN ---
+   // --- COORDINACIÓN ---
   {
     path: 'coordinacion',
     loadComponent: () =>
@@ -90,10 +90,40 @@ export const routes: Routes = [
             .then(m => m.CoordinacionComponent),
       },
       {
+        path: 'notificaciones',
+        loadComponent: () =>
+          import('./features/coordinacion/Notificacion/notificacion.component')
+            .then(m => m.CoordinacionNotificacionComponent),
+      },
+      {
+        path: 'bandeja',
+        loadComponent: () =>
+          import('./features/coordinacion/Bandeja/bandeja.component')
+            .then(m => m.CoordinacionBandejaComponent),
+      },
+      {
+        path: 'estudiantes',
+        loadComponent: () =>
+          import('./features/coordinacion/estudiantes/estudiantes.component')
+            .then(m => m.CoordinacionEstudiantesComponent),
+      },
+      {
+        path: 'docentes',
+        loadComponent: () =>
+          import('./features/coordinacion/Docentes/docentes.component')
+            .then(m => m.CoordinacionDocentesComponent),
+      },
+      {
         path: 'practicas',
         loadComponent: () =>
           import('./features/coordinacion/practicas/practicas.component')
             .then(m => m.PracticasComponent),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/coordinacion/Perfil/perfil.component')
+            .then(m => m.CoordinacionPerfilComponent),
       },
     ],
   },

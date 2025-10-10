@@ -21,7 +21,6 @@ interface UserProfile {
   styleUrls: ['./perfil.component.css'],
 })
 export class CoordinacionPerfilComponent implements OnInit {
-  menuOpen = true;
   isEditing = false;
 
   userProfile: UserProfile = {
@@ -95,16 +94,8 @@ export class CoordinacionPerfilComponent implements OnInit {
     this.isEditing = false;
   }
 
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a: ${section}`);
-  }
-
-  logout(): void {
-     if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+  closeSession(): void {
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
       return;
     }
 
@@ -112,10 +103,6 @@ export class CoordinacionPerfilComponent implements OnInit {
       next: () => this.router.navigateByUrl('/auth/login'),
       error: () => this.router.navigateByUrl('/auth/login'),
     });
-  }
-
-  closeSession(): void {
-    this.logout();
   }
 
   private showSuccessMessage(message: string): void {
