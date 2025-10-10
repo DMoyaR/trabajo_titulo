@@ -342,7 +342,7 @@ export class AlumnoPracticaComponent implements OnInit {
   ngOnInit(): void {
     const storedRut = localStorage.getItem('alumnoRut');
     const storedCarrera = localStorage.getItem('alumnoCarrera');
-
+    this.cargarSolicitudes();
     if (storedRut) {
       this.alumnoRut = storedRut;
       this.cartaForm.get('alumnoRut')?.setValue(storedRut);
@@ -356,6 +356,7 @@ export class AlumnoPracticaComponent implements OnInit {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
       }
     }
+    this.cargarSolicitudes();
   }
 
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
@@ -393,19 +394,20 @@ export class AlumnoPracticaComponent implements OnInit {
     ];
   });
 
- private cargarSolicitudes(): void {
-    if (!this.alumnoRut) {
-      return;
-    }
+private cargarSolicitudes(): void {
 
     this.solicitudesLoading.set(true);
     this.solicitudesError.set(null);
 
     const params: Record<string, string> = {
-      alumno_rut: this.alumnoRut,
+      
       page: '1',
       size: '50',
     };
+    if (this.alumnoRut) {
+      params['alumno_rut'] = this.alumnoRut;
+    }
+
 
     this.http
       .get<{ items: SolicitudCarta[]; total: number }>('/api/practicas/solicitudes-carta/listar', { params })
@@ -414,6 +416,14 @@ export class AlumnoPracticaComponent implements OnInit {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
           this.actualizarDocumentosDesdeSolicitudes(items);
+            if (!this.alumnoRut) {
+              const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
+            if (firstRut) {
+              this.alumnoRut = firstRut;
+              localStorage.setItem('alumnoRut', firstRut);
+              this.cartaForm.get('alumnoRut')?.setValue(firstRut, { emitEvent: false });
+            }
+          }
           this.solicitudesLoading.set(false);
         },
         error: (err) => {
