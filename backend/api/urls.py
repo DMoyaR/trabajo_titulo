@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 
 from .views import (
     login_view,
@@ -18,23 +18,23 @@ urlpatterns = [
         TemaDisponibleRetrieveDestroyView.as_view(),
         name="tema-detalle",
     ),
-    path(
-        "practicas/solicitudes-carta",
+    re_path(
+        r"^practicas/solicitudes-carta/?$",
         crear_solicitud_carta_practica,
         name="crear-solicitud-carta-practica",
     ),
-    path(
-        "coordinacion/solicitudes-carta",
+    re_path(
+        r"^coordinacion/solicitudes-carta/?$",
         listar_solicitudes_carta_practica,
         name="listar-solicitudes-carta-practica",
     ),
-    path(
-        "coordinacion/solicitudes-carta/<int:pk>/aprobar",
+    re_path(
+        r"^coordinacion/solicitudes-carta/(?P<pk>\d+)/aprobar/?$",
         aprobar_solicitud_carta_practica,
         name="aprobar-solicitud-carta-practica",
     ),
-    path(
-        "coordinacion/solicitudes-carta/<int:pk>/rechazar",
+    re_path(
+        r"^coordinacion/solicitudes-carta/(?P<pk>\d+)/rechazar/?$",
         rechazar_solicitud_carta_practica,
         name="rechazar-solicitud-carta-practica",
     ),
