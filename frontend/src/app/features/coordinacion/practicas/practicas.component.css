@@ -36,7 +36,38 @@
 
 .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9998; }
 
-.toast { position:fixed; bottom:20px; right:20px; background:#0a244d; color:#fff; padding:10px 14px; border-radius:8px; }
+.toast { 
+    position:fixed; 
+    bottom:20px; 
+    right:20px; 
+    background:#0a244d; 
+    color:#fff; 
+    padding:10px 14px; 
+    border-radius:8px; }
 
-.loading { padding:10px; color:#0a244d; }
-.alert.error { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; padding:8px; border-radius:8px; }
+
+.loading { 
+    padding:10px; 
+    color:#0a244d; }
+
+.alert.error { 
+    background:#fef2f2; 
+    color:#991b1b; 
+    border:1px solid #fecaca; 
+    padding:8px; 
+    border-radius:8px; }
+
+/* barra superior: tabs + buscador en una fila */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* tabs a la izquierda, buscador a la derecha */
+  gap: 12px;
+  flex-wrap: wrap; /* si la pantalla es chica, permite que baje a 2da línea */
+}
+
+/* (ya tienes .filters, lo dejamos igual; opcionalmente fija un ancho cómodo al input) */
+.toolbar .filters input {
+  width: 280px;       /* ajusta a gusto */
+  max-width: 40vw;    /* que no se pase en pantallas pequeñas */
+}

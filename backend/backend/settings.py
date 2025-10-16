@@ -17,7 +17,21 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv()  # lee tu .env
+
+# CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+    "http://127.0.0.1:4200",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+
+ALLOWED_HOSTS = ["*"]
 
 # Quick-start development settings - unsuitable for production
 load_dotenv()
@@ -88,9 +102,13 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),       # titulodb
+        "USER": os.getenv("DB_USER"),       # postgres
+        "PASSWORD": os.getenv("DB_PASSWORD"), # 123 (cámbiala en serio)
+        "HOST": os.getenv("DB_HOST"),       # localhost
+        "PORT": os.getenv("DB_PORT"),       # 5432
     }
 }
 

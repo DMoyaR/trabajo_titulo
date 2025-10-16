@@ -7,13 +7,43 @@ class Usuario(models.Model):
         ("docente", "Docente"),
         ("coordinador", "Coordinador"),
     ]
+
     CARRERA_CHOICES = [
+        ("Química y Farmacia", "Química y Farmacia"),
+        ("Ing. Civil Biomédica", "Ing. Civil Biomédica"),
+        ("Ing. Civil Química", "Ing. Civil Química"),
+        ("Ing. Civil Matemática", "Ing. Civil Matemática"),
+        ("Bachillerato en Ciencias de la Ing.", "Bachillerato en Ciencias de la Ing."),
+        ("Dibujante Proyectista", "Dibujante Proyectista"),
+        ("Ing. Civil en Ciencia de Datos", "Ing. Civil en Ciencia de Datos"),
+        ("Ing. Civil en Computación mención Informática", "Ing. Civil en Computación mención Informática"),
+        ("Ing. Civil Electrónica", "Ing. Civil Electrónica"),
+        ("Ing. Civil en Mecánica", "Ing. Civil en Mecánica"),
+        ("Ing. Civil Industrial", "Ing. Civil Industrial"),
+        ("Ing. en Biotecnología", "Ing. en Biotecnología"),
+        ("Ing. en Geomensura", "Ing. en Geomensura"),
+        ("Ing. en Alimentos", "Ing. en Alimentos"),
+        ("Ing. en Informática", "Ing. en Informática"),
+        ("Ing. Industrial", "Ing. Industrial"),
+        ("Química Industrial", "Química Industrial"),
+        ("Ing. Electrónica", "Ing. Electrónica"),
+    ] 
+
+    # Agregar más carreras según sea necesario
+    """
+    
+
+
+        CARRERA_CHOICES = [
         ("Computación", "Computación"),
         ("Informática", "Informática"),
         ("Industria", "Industria"),
         ("Trabajo Social", "Trabajo Social"),
         ("Mecánica", "Mecánica"),
     ]
+
+    """
+
 
     nombre_completo = models.CharField(max_length=100)
     correo = models.EmailField(unique=True, max_length=100)
@@ -43,3 +73,86 @@ class Usuario(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nombre_completo} ({self.rol})"
+
+
+class TemaDisponible(models.Model):
+    titulo = models.CharField(max_length=160)
+    carrera = models.CharField(max_length=100)
+    descripcion = models.TextField()
+    requisitos = models.JSONField(default=list, blank=True)
+    cupos = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temas_disponibles",
+    )
+
+    class Meta:
+        db_table = "temas_disponibles"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.titulo
+
+
+class SolicitudCartaPractica(models.Model):
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("aprobado", "Aprobado"),
+        ("rechazado", "Rechazado"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_carta",
+    )
+    coordinador = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_carta_asignadas",
+    )
+
+    alumno_rut = models.CharField(max_length=20)
+    alumno_nombres = models.CharField(max_length=120)
+    alumno_apellidos = models.CharField(max_length=120)
+    alumno_carrera = models.CharField(max_length=120)
+
+    practica_jefe_directo = models.CharField(max_length=120)
+    practica_cargo_alumno = models.CharField(max_length=120)
+    practica_fecha_inicio = models.DateField()
+    practica_empresa_rut = models.CharField(max_length=20)
+    practica_sector = models.CharField(max_length=160)
+    practica_duracion_horas = models.PositiveIntegerField()
+
+    dest_nombres = models.CharField(max_length=120)
+    dest_apellidos = models.CharField(max_length=120)
+    dest_cargo = models.CharField(max_length=150)
+    dest_empresa = models.CharField(max_length=180)
+
+    escuela_id = models.CharField(max_length=30)
+    escuela_nombre = models.CharField(max_length=180)
+    escuela_direccion = models.CharField(max_length=255)
+    escuela_telefono = models.CharField(max_length=60)
+
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    url_documento = models.URLField(blank=True, null=True)
+    motivo_rechazo = models.TextField(blank=True, null=True)
+    meta = models.JSONField(default=dict, blank=True)
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "solicitudes_carta_practica"
+        ordering = ["-creado_en"]
+
+    def __str__(self) -> str:
+        return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"

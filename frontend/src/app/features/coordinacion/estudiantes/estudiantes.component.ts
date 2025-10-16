@@ -2,8 +2,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { AuthService } from '../../../auth.service';
 
 // Interfaces
 interface Estudiante {
@@ -33,8 +31,6 @@ interface Carrera {
   styleUrls: ['./estudiantes.component.css']
 })
 export class CoordinacionEstudiantesComponent implements OnInit {
-  // Estado del menú
-  menuOpen = true;
 
   // Datos
   estudiantes: Estudiante[] = [];
@@ -134,8 +130,6 @@ export class CoordinacionEstudiantesComponent implements OnInit {
       fechaIngreso: '2020-03-05'
     }
   ];
- constructor(private readonly authService: AuthService, private readonly router: Router) {}
-
   // Inicialización del componente
   ngOnInit(): void {
     this.loadEstudiantes();
@@ -434,28 +428,6 @@ export class CoordinacionEstudiantesComponent implements OnInit {
 
   trackByEstudianteId(index: number, estudiante: Estudiante): number {
     return estudiante.id;
-  }
-
-  // ===== NAVEGACIÓN =====
-
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a: ${section}`);
-    // TODO: Implementar navegación real con Router
-  }
-
-  logout(): void {
-    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-      return;
-    }
-
-    this.authService.logout().subscribe({
-      next: () => this.router.navigateByUrl('/auth/login'),
-      error: () => this.router.navigateByUrl('/auth/login'),
-    });
   }
 
   // ===== HELPERS =====

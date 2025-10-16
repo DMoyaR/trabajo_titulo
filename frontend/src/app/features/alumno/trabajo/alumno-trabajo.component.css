@@ -1,3 +1,62 @@
+/* Card principal y títulos */
+.card {
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+}
+
+.ttl {
+  color: #1a3e6a;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  color: #1a3e6a;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 24px 0 16px;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #dfe5ee;
+}
+
+.tabs button {
+  border: none;
+  background: transparent;
+  border-bottom: 3px solid transparent;
+  padding: 12px 24px;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tabs button.active {
+  background: transparent;
+  color: #00bcd4;
+  font-weight: 600;
+  border-bottom: 3px solid #00bcd4;
+}
+
+
+
 /* Botones */
 .btn {
   border-radius: 10px;
@@ -15,6 +74,12 @@
 .btn.primary:hover {
   background: #174bb8;
 }
+
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
 .btn.light {
   background: #fff;
   color: #1f2937;
@@ -24,12 +89,201 @@
   background: #f9fafb;
 }
 
-/* Encabezado de card con botón */
+/* Listado de entregas */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  gap: 12px;
+}
+
+.list li:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.grupo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grupo-nombre {
+  color: #1a3e6a;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grupo-alumnos {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.alert-icon {
+  color: #d97706;
+  font-size: 13px;
+}
+
+.status-icon {
+  color: #4caf50;
+  font-size: 16px;
+}
+
+/* Chips y badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid #cfe2ff;
+  background: #e8f2ff;
+  color: #1a3e6a;
+}
+
+.badge.soft {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #4b5563;
+}
+
+.badge.aprobado {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.badge.enRevision {
+  background: #fff7ed;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.badge.pendiente {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #374151;
+}
+
+.chip.ghost {
+  background: #fff;
+  border-style: dashed;
+}
+
+.chip.highlight {
+  background: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.list.topics li {
+  grid-template-columns: 1fr auto;
+  align-items: flex-start;
+}
+
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+/* Zona de carga */
+.upload-card {
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.upload-card h3 {
+  margin: 0;
+  color: #1a3e6a;
+  font-size: 16px;
+}
+
+.upload-card.empty {
+  border-style: dashed;
+}
+
+.upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.upload-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.upload-actions {
+  margin-top: 16px;
+}
+
+.btn.link {
+  background: transparent;
+  color: #1a56db;
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.btn.link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+.muted {
+  color: #6b7280;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+/* Modal */
+
 .row-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 12px;
 }
 
 /* Modal */
@@ -87,10 +341,12 @@ label {
   color: #1a3e6a;
   margin-bottom: 6px;
 }
+
 .req {
   color: #ef4444;
 }
-input[type="text"],
+
+input[type='text'],
 textarea,
 select {
   border: 1px solid #e1e7f0;
@@ -99,6 +355,7 @@ select {
   font-size: 14px;
   background: #fff;
 }
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -125,72 +382,14 @@ textarea {
   gap: 10px;
 }
 
-/* Responsivo */
+.actions.full {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* ----- Contenedor de cada apartado ----- */
-.card {
-  background: #fff;                  /* Fondo blanco */
-  border-radius: 12px;               /* Esquinas suaves */
-  border: 1px solid #e5e7eb;         /* Borde sutil */
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06); /* Sombra ligera */
-  padding: 16px 20px;                /* Espaciado interno */
-  margin-bottom: 18px;               /* Separación entre cards */
-}
-
-/* Títulos */
-.ttl { 
-  color: #0f3660;
-  margin: 0 0 10px;
-}
-
-/* Texto secundario debajo del título */
-.muted { 
-  color: #6b7280; 
-  margin: 6px 0 2px;
-}
-
-/* Lista dentro de la card */
-.list { 
-  margin: 10px 0 0; 
-  padding-left: 18px; 
-}
-
-/* Chips de estado */
-.chip {
-  display: inline-block;
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-}
-.chip.ok {
-  border-color: #34d399;
-  background: #ecfdf5;
-  color: #065f46;
-}
-
-/* Zona de arrastre/carga */
-.drop {
-  border: 2px dashed #cbd5e1;
-  border-radius: 10px;
-  padding: 18px;
-  background: #fff;
-  color: #475569;
-  text-align: center;
-}
-
-/* Alineación de acciones a ancho completo dentro del grid del formulario */
-.actions.full { 
-  grid-column: 1 / -1; 
-}
-
-/* Margen superior entre elementos dentro de una card */
-.card > * + * { 
-  margin-top: 10px; 
-}
+/* Filtros y búsqueda */

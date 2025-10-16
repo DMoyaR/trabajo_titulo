@@ -9,7 +9,7 @@
       "rut": "20.184.752-3",
       "telefono": "+569 1234 5678",
       "rol": "alumno",
-      "contrasena": "pass123"
+      "contrasena": "pbkdf2_sha256$600000$demo$ZAg6+Do3q8F7Km5O6dD2eA=="
     }
   },
   {

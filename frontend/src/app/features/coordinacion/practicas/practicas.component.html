@@ -8,7 +8,9 @@
   </div>
 
   <div class="filters">
-    <input type="search" placeholder="Buscar por alumno o empresa..." [(ngModel)]="query()" (keyup.enter)="buscar()" />
+    
+    <input  type="search"  placeholder="Buscar por alumno o empresa..."  [ngModel]="query()"  (ngModelChange)="query.set($event)"  (keyup.enter)="buscar()" />
+
     <button class="btn" (click)="buscar()">Buscar</button>
   </div>
 </div>
