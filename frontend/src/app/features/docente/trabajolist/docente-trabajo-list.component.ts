@@ -172,7 +172,7 @@ export class DocenteTrabajoListComponent implements OnInit {
   toggleResumen(e: Entrega) { e.expanded = !e.expanded; }
 
   // ===== Temas (conectado a backend)
-  ramas = ['Informática', 'Industrial', 'Mecánica', 'Electrónica', 'Geomensura'];
+  ramas = ['Empresa', 'Desarrollo de software', 'Investigación', 'Artículo', 'I+D', 'Otro'];
 
   temas: TemaDisponible[] = [];
   temasCargando = false;

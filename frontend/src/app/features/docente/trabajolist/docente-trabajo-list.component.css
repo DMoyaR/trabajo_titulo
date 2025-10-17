@@ -21,7 +21,7 @@
 .btn.primary { background:#1a73e8; color:#fff; }
 .btn.outline { background:#eef5ff; color:#1a56db; border:1px solid #c7d8ff; }
 .btn.outline:hover { background:#dbe8ff; }
-.btn.danger { background:#d32f2f; color:#fff; }
+.btn.danger { background:#d32f2f; color:#fff; font-weight: bold; }
 .btn.light { background:#eef2f7; color:#1f2937; }
 .btn.sm { padding:4px 10px; font-size:.9rem; }
 
@@ -30,7 +30,19 @@
 .chip-ok { background:#e7f9ef; color:#0a7a3a; }
 .chip-bad { background:#fde8e8; color:#9a1b1b; }
 .chip-warn { background:#fff7ed; color:#9a3412; }
+.chip.ghost { background:#f4f7fb; color:#1a3e6a; border:1px solid #dbe3ee; }
 
+.badge {
+  display:inline-flex;
+  align-items:center;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#e8fff6;
+  border:1px solid #cfe2ff;
+  color:#1a3e6a;
+  font-weight:700;
+  font-size:.85rem;
+}
 /* ===== Modal base ===== */
 .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:900; }
 .modal {
@@ -188,3 +200,62 @@ select:focus {
   .entregas-grid { grid-template-columns:1fr; }
 }
 
+/* === Temas disponibles === */
+.temas-list {
+  list-style:none;
+  margin:16px 0 0;
+  padding:0;
+  display:grid;
+  gap:16px;
+}
+
+.temas-item {
+  background:#fff;
+  border:1px solid #e1e7f0;
+  border-radius:14px;
+  padding:18px 20px;
+  box-shadow:0 8px 24px rgba(15,23,42,.08);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+
+.temas-item__header {
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+}
+
+.temas-item__title {
+  margin:0;
+  color:#1a3e6a;
+  font-size:1.05rem;
+  font-weight:700;
+}
+
+.temas-item__objetivo {
+  margin:6px 0 0;
+  color:#4b5563;
+  line-height:1.45;
+}
+
+.temas-item__meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.temas-item__actions {
+  display:flex;
+  justify-content:flex-end;
+}
+
+.temas-item:hover { box-shadow:0 12px 28px rgba(15,23,42,.12); transform:translateY(-2px); }
+
+@media (max-width: 640px) {
+  .temas-item { padding:16px; }
+  .temas-item__header { flex-direction:column; align-items:flex-start; }
+  .temas-item__actions { justify-content:flex-start; }
+}
