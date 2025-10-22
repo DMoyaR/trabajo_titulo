@@ -1,12 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CurrentUserService, CurrentUserProfile } from '../../../shared/services/current-user.service';
 
-interface UserProfile {
-  nombre: string;
-  correo: string;
-  carrera: string;
-  telefono?: string;
+interface UserProfile extends CurrentUserProfile {
   ultimoAcceso?: string;
   contrasena?: string;
 }
@@ -19,14 +16,19 @@ interface UserProfile {
   templateUrl: './docente-perfil.component.html',
   styleUrls: ['./docente-perfil.component.css'],
 })
-export class DocentePerfilComponent {
+export class DocentePerfilComponent implements OnInit {
+  private readonly currentUserService = inject(CurrentUserService);
+
   isEditing = false;
 
   userProfile: UserProfile = {
+    id: null,
+    rol: '',
     nombre: '',
     correo: '',
-    carrera: '',
-    telefono: '',
+    rut: null,
+    carrera: null,
+    telefono: null,
     ultimoAcceso: '',
     contrasena: '',
   };
@@ -42,12 +44,14 @@ export class DocentePerfilComponent {
   async loadUserProfile(): Promise<void> {
     this.isLoading = true;
     try {
+      const profile = this.currentUserService.getProfile();
+      if (!profile) {
+        throw new Error('Perfil no disponible');
+      }
+
       this.userProfile = {
-        nombre: 'Juan Pérez',
-        correo: 'juan.perez@example.com',
-        carrera: 'Ingeniería Informática',
-        telefono: '+56912345678',
-        ultimoAcceso: '25 de abril de 2024',
+        ...this.userProfile,
+        ...profile,
       };
       this.editableProfile = { ...this.userProfile };
     } catch (error) {

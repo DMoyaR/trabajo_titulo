@@ -3,16 +3,18 @@
 <div class="grid">
   <div class="card">
     <h3>Información Personal</h3>
-    <div class="row"><b>Nombre</b><span>Juan Pérez</span></div>
-    <div class="row"><b>Correo</b><span>juan.perez@example.com</span></div>
-    <div class="row"><b>Carrera</b><span>Ingeniería Informática</span></div>
+    <div class="row"><b>Nombre</b><span>{{ userProfile?.nombre || 'Sin nombre' }}</span></div>
+    <div class="row"><b>Correo</b><span>{{ userProfile?.correo || 'Sin correo' }}</span></div>
+    <div class="row"><b>RUT</b><span>{{ userProfile?.rut || 'Sin registro' }}</span></div>
+    <div class="row"><b>Carrera</b><span>{{ userProfile?.carrera || 'Sin carrera asignada' }}</span></div>
+    <div class="row"><b>Teléfono</b><span>{{ tel || 'Sin teléfono registrado' }}</span></div>
   </div>
 
   <div class="card">
     <h3>Editar</h3>
     <div class="row">
       <b>Teléfono</b>
-      <input class="inp" type="tel" placeholder="Agregar número de teléfono" [(ngModel)]="tel" />
+           <input class="inp" type="tel" placeholder="Agregar número de teléfono" [(ngModel)]="tel"/>
     </div>
     <div class="row">
       <b>Contraseña</b>

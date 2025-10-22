@@ -29,8 +29,11 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
-    sessionStorage.removeItem('rol');
-    sessionStorage.removeItem('usuario');
+    const storageKeys = ['rol', 'usuario', 'userProfile', 'alumnoRut', 'alumnoCarrera'];
+    for (const key of storageKeys) {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    }
 
     return this.http.post<void>(`${this.base}/logout`, {}).pipe(
       catchError(() => of(void 0)),

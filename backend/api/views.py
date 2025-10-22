@@ -44,6 +44,7 @@ def login_view(request):
         "rut": usuario.rut,
         "carrera": usuario.carrera,
         "id": usuario.id,
+        "telefono": usuario.telefono,
     }, status=status.HTTP_200_OK)
 
 class TemaDisponibleListCreateView(generics.ListCreateAPIView):
