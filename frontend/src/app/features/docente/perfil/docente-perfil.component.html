@@ -3,9 +3,10 @@
 <div class="grid">
   <div class="card">
     <h3>Información Personal</h3>
-    <div class="row"><b>Nombre:</b><span>{{ userProfile.nombre || 'Juan Pérez' }}</span></div>
-    <div class="row"><b>Correo:</b><span>{{ userProfile.correo || 'juan.perez@example.com' }}</span></div>
-    <div class="row"><b>Carrera:</b><span>{{ userProfile.carrera || 'Ingeniería Informática' }}</span></div>
+    <div class="row"><b>Nombre:</b><span>{{ userProfile.nombre || 'Sin nombre' }}</span></div>
+    <div class="row"><b>Correo:</b><span>{{ userProfile.correo || 'Sin correo' }}</span></div>
+    <div class="row"><b>RUT:</b><span>{{ userProfile.rut || 'Sin registro' }}</span></div>
+    <div class="row"><b>Carrera:</b><span>{{ userProfile.carrera || 'Sin carrera asignada' }}</span></div>
   </div>
 
   <div class="card">
@@ -50,7 +51,7 @@
 <div class="card">
   <h3>Historial de Sesiones</h3>
   <ul class="list">
-    <li>Último acceso: {{ userProfile.ultimoAcceso || '25 de abril de 2024' }}</li>
+    <li>Último acceso: {{ userProfile.ultimoAcceso || 'N/A' }}</li>
   </ul>
   <div class="session-actions">
     <button class="btn-session" (click)="closeSession()">Cerrar sesión</button>

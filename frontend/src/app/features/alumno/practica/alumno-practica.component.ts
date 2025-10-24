@@ -3,6 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 interface Escuela {
   id: string;
@@ -118,6 +119,7 @@ function rutValidator(): ValidatorFn {
 export class AlumnoPracticaComponent implements OnInit {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
+  private readonly currentUserService = inject(CurrentUserService);
 
   // ===== Estado envío =====
   isSubmitting = signal(false);
@@ -340,14 +342,17 @@ export class AlumnoPracticaComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const storedRut = localStorage.getItem('alumnoRut');
+    const storedRutRaw = localStorage.getItem('alumnoRut');
     const storedCarrera = localStorage.getItem('alumnoCarrera');
      
-    if (storedRut) {
-      this.alumnoRut = storedRut;
-      this.cartaForm.get('alumnoRut')?.setValue(storedRut);
-      
-    }   
+
+    if (storedRutRaw) {
+      const rutFormateado = formatearRut(storedRutRaw);
+      this.alumnoRut = rutFormateado;
+      this.cartaForm.get('alumnoRut')?.setValue(rutFormateado);
+      localStorage.setItem('alumnoRut', rutFormateado);
+    }
+
     if (storedCarrera) {
       this.cartaForm.get('carrera')?.setValue(storedCarrera);
       const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
@@ -355,7 +360,8 @@ export class AlumnoPracticaComponent implements OnInit {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
       }  
     }
-    this.cargarSolicitudes(); 
+    this.cargarDatosAlumnoDesdePerfil();
+    this.cargarSolicitudes();
 
   }
 
@@ -394,7 +400,76 @@ export class AlumnoPracticaComponent implements OnInit {
     ];
   });
 
-private cargarSolicitudes(): void {
+  private cargarDatosAlumnoDesdePerfil(): void {
+    const profile = this.currentUserService.getProfile();
+    if (!profile || profile.rol !== 'alumno') {
+      return;
+    }
+
+    const patch: Record<string, unknown> = {};
+
+    if (profile.nombre) {
+      const { nombres, apellidos } = this.separarNombreCompleto(profile.nombre);
+      patch['alumnoNombres'] = nombres;
+      patch['alumnoApellidos'] = apellidos;
+    }
+
+    if (profile.rut) {
+      const rutFormateado = formatearRut(profile.rut);
+      if (rutFormateado) {
+        patch['alumnoRut'] = rutFormateado;
+        this.alumnoRut = rutFormateado;
+        localStorage.setItem('alumnoRut', rutFormateado);
+      }
+    }
+
+    if (profile.carrera) {
+      const carreraPerfil = profile.carrera.trim();
+      if (carreraPerfil) {
+        patch['carrera'] = carreraPerfil;
+        localStorage.setItem('alumnoCarrera', carreraPerfil);
+        const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) =>
+          carreras.includes(carreraPerfil)
+        );
+        if (escuelaMatch) {
+          patch['escuelaId'] = escuelaMatch[0];
+        }
+      }
+    }
+
+    const keys = Object.keys(patch);
+    if (!keys.length) {
+      return;
+    }
+
+    this.cartaForm.patchValue(patch);
+    keys.forEach((key) => {
+      const control = this.cartaForm.get(key);
+      control?.markAsPristine();
+      control?.markAsUntouched();
+      control?.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  private separarNombreCompleto(nombreCompleto: string | null | undefined): { nombres: string; apellidos: string } {
+    const limpio = (nombreCompleto ?? '').trim().replace(/\s+/g, ' ');
+    if (!limpio) {
+      return { nombres: '', apellidos: '' };
+    }
+    const partes = limpio.split(' ');
+    if (partes.length === 1) {
+      return { nombres: partes[0], apellidos: '' };
+    }
+    if (partes.length === 2) {
+      return { nombres: partes[0], apellidos: partes[1] };
+    }
+    return {
+      nombres: partes.slice(0, partes.length - 2).join(' '),
+      apellidos: partes.slice(-2).join(' '),
+    };
+  }
+
+  private cargarSolicitudes(): void {
 
     this.solicitudesLoading.set(true);
     this.solicitudesError.set(null);
@@ -441,12 +516,13 @@ private cargarSolicitudes(): void {
 
           this.documentos.set(documentos);
           
-            if (!this.alumnoRut) {
-              const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
+          if (!this.alumnoRut) {
+            const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
             if (firstRut) {
-              this.alumnoRut = firstRut;
-              localStorage.setItem('alumnoRut', firstRut);
-              this.cartaForm.get('alumnoRut')?.setValue(firstRut, { emitEvent: false });
+              const rutFormateado = formatearRut(firstRut);
+              this.alumnoRut = rutFormateado;
+              localStorage.setItem('alumnoRut', rutFormateado);
+              this.cartaForm.get('alumnoRut')?.setValue(rutFormateado, { emitEvent: false });
             }
           }
           this.solicitudesLoading.set(false);
