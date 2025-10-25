@@ -3,7 +3,7 @@ from django.urls import path, re_path
 from .views import (
     login_view,
     TemaDisponibleListCreateView,
-    TemaDisponibleRetrieveDestroyView,
+    tema_disponible_detalle,
     crear_solicitud_carta_practica,
     listar_solicitudes_carta_practica,
     aprobar_solicitud_carta_practica,
@@ -20,10 +20,10 @@ urlpatterns = [
     path("temas/", TemaDisponibleListCreateView.as_view(), name="temas-disponibles"),
     path(
         "temas/<int:pk>/",
-        TemaDisponibleRetrieveDestroyView.as_view(),
+        tema_disponible_detalle,
         name="tema-detalle",
     ),
-     path("docentes/", DocenteListView.as_view(), name="lista-docentes"),
+    path("docentes/", DocenteListView.as_view(), name="lista-docentes"),
     path("propuestas/", PropuestaTemaListCreateView.as_view(), name="propuestas"),
     path(
         "propuestas/<int:pk>/",

@@ -36,9 +36,14 @@ REDIRECTS = {
     "coordinador": "http://localhost:4200/coordinacion/inicio",
 }
 
+
+def _limpiar_rut(valor: str | None) -> str:
+    if not valor:
+        return ""
+    return re.sub(r"[^0-9kK]", "", valor)
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
-
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
@@ -75,6 +80,21 @@ class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
     serializer_class = TemaDisponibleSerializer
     permission_classes = [AllowAny]
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([AllowAny])
+def tema_disponible_detalle(request, pk: int):
+    """Permite obtener o eliminar un tema disponible concreto."""
+
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    if request.method == "DELETE":
+        tema.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    serializer = TemaDisponibleSerializer(tema)
+    return Response(serializer.data)
 
 
 class DocenteListView(generics.ListAPIView):
@@ -202,6 +222,141 @@ def marcar_notificacion_leida(request, pk: int):
     return Response(serializer.data)
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def crear_solicitud_carta_practica(request):
+    serializer = SolicitudCartaPracticaCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    alumno_data = data.get("alumno", {})
+    practica_data = data.get("practica", {})
+    destinatario_data = data.get("destinatario", {})
+    escuela_data = data.get("escuela", {})
+    meta = data.get("meta") or {}
+
+    alumno_rut = alumno_data.get("rut", "").strip()
+    alumno_rut_limpio = _limpiar_rut(alumno_rut)
+
+    alumno = None
+    if alumno_rut:
+        alumno = Usuario.objects.filter(rut__iexact=alumno_rut).first()
+        if not alumno and alumno_rut_limpio:
+            alumno = (
+                Usuario.objects.annotate(
+                    rut_sin_formato=Replace(
+                        Replace("rut", Value("."), Value("")), Value("-"), Value("")
+                    )
+                )
+                .filter(rut_sin_formato__iexact=alumno_rut_limpio)
+                .first()
+            )
+
+    coordinador = _buscar_coordinador_por_carrera(alumno_data.get("carrera"))
+
+    solicitud = SolicitudCartaPractica.objects.create(
+        alumno=alumno,
+        coordinador=coordinador,
+        alumno_rut=alumno_rut,
+        alumno_nombres=alumno_data.get("nombres", "").strip(),
+        alumno_apellidos=alumno_data.get("apellidos", "").strip(),
+        alumno_carrera=alumno_data.get("carrera", "").strip(),
+        practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
+        practica_fecha_inicio=practica_data.get("fechaInicio"),
+        practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
+        practica_sector=practica_data.get("sectorEmpresa", "").strip(),
+        practica_duracion_horas=practica_data.get("duracionHoras"),
+        dest_nombres=destinatario_data.get("nombres", "").strip(),
+        dest_apellidos=destinatario_data.get("apellidos", "").strip(),
+        dest_cargo=destinatario_data.get("cargo", "").strip(),
+        dest_empresa=destinatario_data.get("empresa", "").strip(),
+        escuela_id=str(escuela_data.get("id", "")).strip(),
+        escuela_nombre=escuela_data.get("nombre", "").strip(),
+        escuela_direccion=escuela_data.get("direccion", "").strip(),
+        escuela_telefono=escuela_data.get("telefono", "").strip(),
+        meta=meta,
+    )
+
+    output = SolicitudCartaPracticaSerializer(solicitud)
+    headers = {"Location": f"/api/practicas/solicitudes-carta/{solicitud.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def listar_solicitudes_carta_practica(request):
+    queryset = SolicitudCartaPractica.objects.all()
+
+    alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
+    if alumno_rut:
+        rut_limpio = _limpiar_rut(alumno_rut)
+        filtro_rut = Q(alumno_rut__iexact=alumno_rut)
+        if rut_limpio:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            ).filter(filtro_rut | Q(rut_sin_formato__iexact=rut_limpio))
+        else:
+            queryset = queryset.filter(filtro_rut)
+
+    estado = request.query_params.get("estado")
+    if estado in {"pendiente", "aprobado", "rechazado"}:
+        queryset = queryset.filter(estado=estado)
+
+    termino = (request.query_params.get("q") or "").strip()
+    if termino:
+        termino_normalizado = unicodedata.normalize("NFKD", termino)
+        termino_ascii = termino_normalizado.encode("ascii", "ignore").decode("ascii")
+        filtros = Q(alumno_nombres__icontains=termino) | Q(alumno_apellidos__icontains=termino)
+        filtros |= Q(alumno_carrera__icontains=termino) | Q(dest_empresa__icontains=termino)
+        filtros |= Q(dest_nombres__icontains=termino) | Q(dest_apellidos__icontains=termino)
+        filtros |= Q(practica_jefe_directo__icontains=termino) | Q(practica_empresa_rut__icontains=termino)
+        filtros |= Q(alumno_rut__icontains=termino)
+
+        if termino_ascii and termino_ascii != termino:
+            filtros |= Q(alumno_nombres__icontains=termino_ascii)
+            filtros |= Q(alumno_apellidos__icontains=termino_ascii)
+            filtros |= Q(alumno_carrera__icontains=termino_ascii)
+            filtros |= Q(dest_empresa__icontains=termino_ascii)
+            filtros |= Q(dest_nombres__icontains=termino_ascii)
+            filtros |= Q(dest_apellidos__icontains=termino_ascii)
+            filtros |= Q(practica_jefe_directo__icontains=termino_ascii)
+            filtros |= Q(practica_empresa_rut__icontains=termino_ascii)
+            filtros |= Q(alumno_rut__icontains=termino_ascii)
+
+        rut_termino = _limpiar_rut(termino)
+        if rut_termino:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            )
+            filtros |= Q(rut_sin_formato__icontains=rut_termino)
+
+        queryset = queryset.filter(filtros)
+
+    try:
+        page = int(request.query_params.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(page, 1)
+
+    try:
+        size = int(request.query_params.get("size", 20))
+    except (TypeError, ValueError):
+        size = 20
+    size = max(1, min(size, 200))
+
+    total = queryset.count()
+    offset = (page - 1) * size
+    items = queryset[offset : offset + size]
+
+    serializer = SolicitudCartaPracticaSerializer(items, many=True)
+    return Response({"items": serializer.data, "total": total})
+
+
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
     """Verifica si un docente aparece en el campo `preferencias_docentes`.
 
@@ -316,7 +471,7 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
 def _normalizar_carrera(nombre: str) -> str:
     if not nombre:
         return ""
-        texto = unicodedata.normalize("NFKD", nombre)
+    texto = unicodedata.normalize("NFKD", nombre)
     texto = texto.encode("ascii", "ignore").decode("ascii")
     texto = texto.lower()
     texto = texto.replace("ingenieria", "ing")
