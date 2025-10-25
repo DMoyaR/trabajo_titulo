@@ -36,9 +36,14 @@ REDIRECTS = {
     "coordinador": "http://localhost:4200/coordinacion/inicio",
 }
 
+
+def _limpiar_rut(valor: str | None) -> str:
+    if not valor:
+        return ""
+    return re.sub(r"[^0-9kK]", "", valor)
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
-
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
@@ -65,85 +70,19 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     permission_classes = [AllowAny]
 
     def perform_create(self, serializer):
-        user = getattr(self.request, "user", None)
-        if isinstance(user, Usuario):
-            serializer.save(created_by=user)
-        else:
-            serializer.save()
-
-class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
-    queryset = TemaDisponible.objects.all()
-    serializer_class = TemaDisponibleSerializer
-    permission_classes = [AllowAny]
-
-
-class DocenteListView(generics.ListAPIView):
-    serializer_class = UsuarioResumenSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        queryset = Usuario.objects.filter(rol="docente").order_by("nombre_completo")
-        carrera = self.request.query_params.get("carrera")
-        if carrera:
-            queryset = queryset.filter(carrera__icontains=carrera)
-        return queryset
-
+        serializer.save()
 
 class PropuestaTemaListCreateView(generics.ListCreateAPIView):
-    queryset = PropuestaTema.objects.select_related("alumno", "docente")
+    queryset = PropuestaTema.objects.all()
+    serializer_class = PropuestaTemaCreateSerializer
     permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            return PropuestaTemaCreateSerializer
-        return PropuestaTemaSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        docente_id = self.request.query_params.get("docente")
-        alumno_id = self.request.query_params.get("alumno")
-        estado = self.request.query_params.get("estado")
-
-        if docente_id:
-            try:
-                docente_id_int = int(docente_id)
-            except (TypeError, ValueError):
-                return queryset.none()
-
-            # Django's JSONField lookups are inconsistent across engines when
-            # checking if a simple value exists inside an array. To guarantee
-            # that docentes listed en "preferencias_docentes" también puedan
-            # ver la propuesta, primero filtramos por coincidencia directa y
-            # luego agregamos manualmente los ids cuyo arreglo contiene el
-            # docente buscado.
-            direct_ids = queryset.filter(docente_id=docente_id_int).values_list(
-                "id", flat=True
-            )
-
-            preferred_ids = [
-                pk
-                for pk, preferencias in queryset.values_list(
-                    "id", "preferencias_docentes"
-                )
-                if _docente_en_preferencias(docente_id_int, preferencias)
-            ]
-
-            queryset = queryset.filter(
-                id__in=set(direct_ids).union(preferred_ids)
-            )
-        if alumno_id:
-            queryset = queryset.filter(alumno_id=alumno_id)
-        if estado in {"pendiente", "aceptada", "rechazada"}:
-            queryset = queryset.filter(estado=estado)
-
-        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         propuesta = serializer.save()
+        headers = self.get_success_headers(serializer.data)
         output_serializer = PropuestaTemaSerializer(propuesta)
-        headers = self.get_success_headers(output_serializer.data)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
@@ -188,7 +127,6 @@ class NotificacionListView(generics.ListAPIView):
             valor = str(leida).lower()
             if valor in {"true", "1", "false", "0"}:
                 queryset = queryset.filter(leida=valor in {"true", "1"})
-
         return queryset
 
 
@@ -200,6 +138,141 @@ def marcar_notificacion_leida(request, pk: int):
     notificacion.save(update_fields=["leida"])
     serializer = NotificacionSerializer(notificacion)
     return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def crear_solicitud_carta_practica(request):
+    serializer = SolicitudCartaPracticaCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    alumno_data = data.get("alumno", {})
+    practica_data = data.get("practica", {})
+    destinatario_data = data.get("destinatario", {})
+    escuela_data = data.get("escuela", {})
+    meta = data.get("meta") or {}
+
+    alumno_rut = alumno_data.get("rut", "").strip()
+    alumno_rut_limpio = _limpiar_rut(alumno_rut)
+
+    alumno = None
+    if alumno_rut:
+        alumno = Usuario.objects.filter(rut__iexact=alumno_rut).first()
+        if not alumno and alumno_rut_limpio:
+            alumno = (
+                Usuario.objects.annotate(
+                    rut_sin_formato=Replace(
+                        Replace("rut", Value("."), Value("")), Value("-"), Value("")
+                    )
+                )
+                .filter(rut_sin_formato__iexact=alumno_rut_limpio)
+                .first()
+            )
+
+    coordinador = _buscar_coordinador_por_carrera(alumno_data.get("carrera"))
+
+    solicitud = SolicitudCartaPractica.objects.create(
+        alumno=alumno,
+        coordinador=coordinador,
+        alumno_rut=alumno_rut,
+        alumno_nombres=alumno_data.get("nombres", "").strip(),
+        alumno_apellidos=alumno_data.get("apellidos", "").strip(),
+        alumno_carrera=alumno_data.get("carrera", "").strip(),
+        practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
+        practica_fecha_inicio=practica_data.get("fechaInicio"),
+        practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
+        practica_sector=practica_data.get("sectorEmpresa", "").strip(),
+        practica_duracion_horas=practica_data.get("duracionHoras"),
+        dest_nombres=destinatario_data.get("nombres", "").strip(),
+        dest_apellidos=destinatario_data.get("apellidos", "").strip(),
+        dest_cargo=destinatario_data.get("cargo", "").strip(),
+        dest_empresa=destinatario_data.get("empresa", "").strip(),
+        escuela_id=str(escuela_data.get("id", "")).strip(),
+        escuela_nombre=escuela_data.get("nombre", "").strip(),
+        escuela_direccion=escuela_data.get("direccion", "").strip(),
+        escuela_telefono=escuela_data.get("telefono", "").strip(),
+        meta=meta,
+    )
+
+    output = SolicitudCartaPracticaSerializer(solicitud)
+    headers = {"Location": f"/api/practicas/solicitudes-carta/{solicitud.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def listar_solicitudes_carta_practica(request):
+    queryset = SolicitudCartaPractica.objects.all()
+
+    alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
+    if alumno_rut:
+        rut_limpio = _limpiar_rut(alumno_rut)
+        filtro_rut = Q(alumno_rut__iexact=alumno_rut)
+        if rut_limpio:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            ).filter(filtro_rut | Q(rut_sin_formato__iexact=rut_limpio))
+        else:
+            queryset = queryset.filter(filtro_rut)
+
+    estado = request.query_params.get("estado")
+    if estado in {"pendiente", "aprobado", "rechazado"}:
+        queryset = queryset.filter(estado=estado)
+
+    termino = (request.query_params.get("q") or "").strip()
+    if termino:
+        termino_normalizado = unicodedata.normalize("NFKD", termino)
+        termino_ascii = termino_normalizado.encode("ascii", "ignore").decode("ascii")
+        filtros = Q(alumno_nombres__icontains=termino) | Q(alumno_apellidos__icontains=termino)
+        filtros |= Q(alumno_carrera__icontains=termino) | Q(dest_empresa__icontains=termino)
+        filtros |= Q(dest_nombres__icontains=termino) | Q(dest_apellidos__icontains=termino)
+        filtros |= Q(practica_jefe_directo__icontains=termino) | Q(practica_empresa_rut__icontains=termino)
+        filtros |= Q(alumno_rut__icontains=termino)
+
+        if termino_ascii and termino_ascii != termino:
+            filtros |= Q(alumno_nombres__icontains=termino_ascii)
+            filtros |= Q(alumno_apellidos__icontains=termino_ascii)
+            filtros |= Q(alumno_carrera__icontains=termino_ascii)
+            filtros |= Q(dest_empresa__icontains=termino_ascii)
+            filtros |= Q(dest_nombres__icontains=termino_ascii)
+            filtros |= Q(dest_apellidos__icontains=termino_ascii)
+            filtros |= Q(practica_jefe_directo__icontains=termino_ascii)
+            filtros |= Q(practica_empresa_rut__icontains=termino_ascii)
+            filtros |= Q(alumno_rut__icontains=termino_ascii)
+
+        rut_termino = _limpiar_rut(termino)
+        if rut_termino:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            )
+            filtros |= Q(rut_sin_formato__icontains=rut_termino)
+
+        queryset = queryset.filter(filtros)
+
+    try:
+        page = int(request.query_params.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(page, 1)
+
+    try:
+        size = int(request.query_params.get("size", 20))
+    except (TypeError, ValueError):
+        size = 20
+    size = max(1, min(size, 200))
+
+    total = queryset.count()
+    offset = (page - 1) * size
+    items = queryset[offset : offset + size]
+
+    serializer = SolicitudCartaPracticaSerializer(items, many=True)
+    return Response({"items": serializer.data, "total": total})
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
@@ -226,62 +299,33 @@ def _extraer_ids_docentes(preferencias) -> set[int]:
     def agregar(valor):
         if valor in (None, ""):
             return
+        try:
+            encontrados.add(int(str(valor)))
+        except (TypeError, ValueError):
+            pass
 
-        if isinstance(valor, bool):
-            # Los booleanos son subclase de int; los descartamos explícitamente
-            # para evitar tratar True como id 1, por ejemplo.
-            return
+    if isinstance(preferencias, str):
+        try:
+            preferencias = json.loads(preferencias)
+        except json.JSONDecodeError:
+            preferencias = []
 
-        if isinstance(valor, int):
-            encontrados.add(valor)
-            return
-
-        if isinstance(valor, str):
-            texto = valor.strip()
-            if not texto:
-                return
-            try:
-                encontrados.add(int(texto))
-                return
-            except (TypeError, ValueError):
-                pass
-
-            try:
-                datos = json.loads(texto)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                return
-            agregar(datos)
-            return
-
-        if isinstance(valor, dict):
-            # Intentamos las claves más comunes para almacenar un identificador
-            # y luego recorremos recursivamente los valores anidados.
-            for clave in ("id", "pk", "docente", "docente_id", "value"):
-                if clave in valor:
-                    agregar(valor[clave])
-            for item in valor.values():
-                if isinstance(item, (list, tuple, set, dict)):
-                    agregar(item)
-            return
-
-        if isinstance(valor, (list, tuple, set)):
-            for item in valor:
+    if isinstance(preferencias, (list, tuple)):
+        for item in preferencias:
+            if isinstance(item, dict):
+                agregar(item.get("id"))
+            else:
                 agregar(item)
-            return
+    elif isinstance(preferencias, dict):
+        agregar(preferencias.get("id"))
+    else:
+        agregar(preferencias)
 
-    agregar(preferencias)
     return encontrados
-
-
 def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
-    if propuesta.estado not in {"aceptada", "rechazada"}:
-        return
-
     alumno = propuesta.alumno
-    if alumno is None:
-        return
 
-    if propuesta.estado == "aceptada":
+    if propuesta.estado == "aceptado":
         titulo = "Tu propuesta de tema fue aceptada"
         mensaje_base = (
             "El docente ha aceptado tu propuesta de tema "
@@ -316,7 +360,7 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
 def _normalizar_carrera(nombre: str) -> str:
     if not nombre:
         return ""
-        texto = unicodedata.normalize("NFKD", nombre)
+    texto = unicodedata.normalize("NFKD", nombre)
     texto = texto.encode("ascii", "ignore").decode("ascii")
     texto = texto.lower()
     texto = texto.replace("ingenieria", "ing")
@@ -348,26 +392,3 @@ def _buscar_coordinador_por_carrera(carrera: str):
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
-    url = request.data.get("url")
-    solicitud.url_documento = url or None
-    solicitud.motivo_rechazo = None
-    solicitud.estado = "aprobado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok"})
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def rechazar_solicitud_carta_practica(request, pk: int):
-    solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
-    motivo = (request.data.get("motivo") or "").strip()
-    if not motivo:
-        return Response(
-            {"motivo": "Este campo es obligatorio."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    solicitud.motivo_rechazo = motivo
-    solicitud.url_documento = None
-    solicitud.estado = "rechazado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok"})
