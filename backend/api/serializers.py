@@ -216,16 +216,22 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
             return None
 
         try:
-            usuario = Usuario.objects.get(id=usuario_id)
-        except Usuario.DoesNotExist as exc:
+            usuario_id_int = int(usuario_id)
+        except (TypeError, ValueError) as exc:
             raise serializers.ValidationError(
-                {field_name: f"No existe un usuario con id {usuario_id}."}
+                {field_name: f"El identificador {usuario_id!r} no es válido."}
             ) from exc
 
-        rol_normalizado = (usuario.rol or "").lower()
-        if rol_normalizado != rol.lower():
+        usuario = Usuario.objects.filter(id=usuario_id_int).first()
+        if not usuario:
             raise serializers.ValidationError(
-                {field_name: f"El usuario con id {usuario_id} no es un {rol}."}
+                {field_name: f"No existe un usuario con id {usuario_id_int}."}
+            )
+
+        rol_normalizado = (usuario.rol or "").strip().lower()
+        if rol_normalizado != rol.strip().lower():
+            raise serializers.ValidationError(
+                {field_name: f"El usuario con id {usuario_id_int} no es un {rol}."}
             )
 
         return usuario
