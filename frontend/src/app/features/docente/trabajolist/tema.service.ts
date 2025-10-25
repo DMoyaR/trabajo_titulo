@@ -11,9 +11,14 @@ export interface TemaDisponible {
   cupos: number;
   created_at: string;
   created_by: number | null;
+  creadoPor: {
+    nombre: string;
+    rol: string;
+    carrera: string | null;
+  } | null;
 }
 
-export type CrearTemaPayload = Omit<TemaDisponible, 'id' | 'created_at' | 'created_by'> & {
+export type CrearTemaPayload = Omit<TemaDisponible, 'id' | 'created_at' | 'created_by' | 'creadoPor'> & {
   created_by?: number | null;
 };
 
