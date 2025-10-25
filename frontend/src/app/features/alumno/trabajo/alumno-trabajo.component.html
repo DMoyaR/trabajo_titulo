@@ -98,6 +98,58 @@
         </div>
         <p class="muted">Completa el formulario para solicitar o proponer un tema.</p>
 
+        <section class="mis-propuestas">
+          <p class="muted" *ngIf="propuestasCargando()">Actualizando el estado de tus propuestas…</p>
+          <div class="err" *ngIf="!propuestasCargando() && propuestasError()">{{ propuestasError() }}</div>
+
+          <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
+            <div class="propuesta-highlight" *ngIf="propuestaAceptadaDestacada() as propuestaAprobada">
+              <div class="highlight-head">
+                <span class="chip success">Propuesta aceptada</span>
+                <span class="chip ghost">Actualizada {{ propuestaAprobada.updatedAt | date:'dd MMM yyyy' }}</span>
+              </div>
+              <h4>{{ propuestaAprobada.titulo }}</h4>
+              <p class="muted">{{ propuestaAprobada.descripcion }}</p>
+              <div class="chips">
+                <span class="chip">Rama: {{ propuestaAprobada.rama }}</span>
+                <span class="chip ghost" *ngIf="propuestaAprobada.docente">Docente guía: {{ propuestaAprobada.docente.nombre }}</span>
+              </div>
+              <p class="comentario" *ngIf="propuestaAprobada.comentarioDecision">
+                Comentario del docente:
+                <span>{{ propuestaAprobada.comentarioDecision }}</span>
+              </p>
+            </div>
+
+            <div class="propuestas-historial" *ngIf="propuestas().length; else sinPropuestas">
+              <h4>Mis propuestas enviadas</h4>
+              <ul class="list propuestas">
+                <li *ngFor="let propuesta of propuestas()">
+                  <div class="grupo-info">
+                    <div class="grupo-nombre">
+                      {{ propuesta.titulo }}
+                      <span class="badge propuesta" [ngClass]="estadoPropuestaClase(propuesta.estado)">
+                        {{ estadoPropuestaTexto[propuesta.estado] }}
+                      </span>
+                    </div>
+                    <div class="grupo-alumnos">{{ propuesta.objetivo }}</div>
+                    <p class="comentario" *ngIf="propuesta.comentarioDecision">
+                      Comentario: <span>{{ propuesta.comentarioDecision }}</span>
+                    </p>
+                    <div class="chips">
+                      <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
+                      <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <ng-template #sinPropuestas>
+              <p class="muted">Aún no envías propuestas personalizadas.</p>
+            </ng-template>
+          </ng-container>
+        </section>
+
         <ng-container *ngIf="temasCargando(); else temasContenido">
           <p class="muted" style="margin-top: 1rem">Cargando temas disponibles...</p>
         </ng-container>
@@ -139,6 +191,11 @@
       </div>
 
       <form [formGroup]="postulacionForm" (ngSubmit)="submitPostulacion()" class="grid" novalidate>
+        <div class="muted" *ngIf="profesoresCargando()">Cargando docentes disponibles...</div>
+        <div class="err" *ngIf="profesoresError()">{{ profesoresError() }}</div>
+        <div class="muted" *ngIf="!profesoresCargando() && !profesoresError() && !profesores().length">Por ahora no hay docentes disponibles en el listado.</div>
+        <div class="err" *ngIf="postulacionError()">{{ postulacionError() }}</div>
+
         <div class="field full">
           <label for="titulo">Nombre del tema <span class="req">*</span></label>
           <input id="titulo" type="text" formControlName="titulo" />
@@ -200,7 +257,9 @@
 
         <div class="actions full">
           <button type="button" class="btn light" (click)="togglePostulacion(false)">Cancelar</button>
-          <button type="submit" class="btn primary">Enviar postulación</button>
+         <button type="submit" class="btn primary" [disabled]="enviandoPropuesta()">
+            {{ enviandoPropuesta() ? 'Enviando…' : 'Enviar postulación' }}
+          </button>
         </div>
       </form>
     </div>

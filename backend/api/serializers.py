@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Usuario, TemaDisponible, SolicitudCartaPractica
+from .models import (
+    Usuario,
+    TemaDisponible,
+    SolicitudCartaPractica,
+    PropuestaTema,
+    Notificacion,
+)
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -23,6 +29,7 @@ class LoginSerializer(serializers.Serializer):
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    creado_por = serializers.SerializerMethodField()
 
     class Meta:
         model = TemaDisponible
@@ -35,9 +42,20 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "cupos",
             "created_at",
             "created_by",
+            "creado_por",
         ]
         read_only_fields = ["id", "created_at", "created_by"]
 
+    def get_creado_por(self, obj):
+        usuario = obj.created_by
+        if not usuario:
+            return None
+
+        return {
+            "nombre": usuario.nombre_completo,
+            "rol": usuario.rol,
+            "carrera": usuario.carrera,
+        }
 
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)
@@ -150,3 +168,149 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             },
             "meta": base.get("meta", {}),
         }
+
+
+class UsuarioResumenSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="nombre_completo")
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+
+
+class PropuestaTemaSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = PropuestaTema
+        fields = [
+            "id",
+            "titulo",
+            "objetivo",
+            "descripcion",
+            "rama",
+            "estado",
+            "comentario_decision",
+            "preferencias_docentes",
+            "alumno",
+            "docente",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class PropuestaTemaCreateSerializer(serializers.Serializer):
+    alumno_id = serializers.IntegerField(required=False, allow_null=True)
+    docente_id = serializers.IntegerField(required=False, allow_null=True)
+    titulo = serializers.CharField(max_length=160)
+    objetivo = serializers.CharField(max_length=300)
+    descripcion = serializers.CharField()
+    rama = serializers.CharField(max_length=120)
+    preferencias_docentes = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True
+    )
+
+    def _obtener_usuario(self, usuario_id, rol, field_name):
+        if usuario_id in (None, "", 0):
+            return None
+
+        try:
+            usuario_id_int = int(usuario_id)
+        except (TypeError, ValueError) as exc:
+            raise serializers.ValidationError(
+                {field_name: f"El identificador {usuario_id!r} no es válido."}
+            ) from exc
+
+        usuario = Usuario.objects.filter(id=usuario_id_int).first()
+        if not usuario:
+            raise serializers.ValidationError(
+                {field_name: f"No existe un usuario con id {usuario_id_int}."}
+            )
+
+        rol_normalizado = (usuario.rol or "").strip().lower()
+        if rol_normalizado != rol.strip().lower():
+            raise serializers.ValidationError(
+                {field_name: f"El usuario con id {usuario_id_int} no es un {rol}."}
+            )
+
+        return usuario
+
+    def validate(self, attrs):
+        alumno = self._obtener_usuario(attrs.get("alumno_id"), "alumno", "alumno_id")
+        docente = self._obtener_usuario(attrs.get("docente_id"), "docente", "docente_id")
+
+        preferencias = attrs.get("preferencias_docentes") or []
+        if preferencias:
+            docentes = Usuario.objects.filter(id__in=preferencias, rol="docente")
+            encontrados = {d.id for d in docentes}
+            faltantes = [pk for pk in preferencias if pk not in encontrados]
+            if faltantes:
+                raise serializers.ValidationError(
+                    {
+                        "preferencias_docentes": [
+                            f"Los siguientes docentes no existen: {', '.join(map(str, faltantes))}"
+                        ]
+                    }
+                )
+            if docente is None:
+                docente = next((d for d in docentes if d.id == preferencias[0]), None)
+
+        attrs["alumno"] = alumno
+        attrs["docente"] = docente
+        attrs["preferencias_docentes"] = preferencias
+        return attrs
+
+    def create(self, validated_data):
+        alumno = validated_data.pop("alumno", None)
+        docente = validated_data.pop("docente", None)
+        validated_data.pop("alumno_id", None)
+        validated_data.pop("docente_id", None)
+        preferencias = validated_data.pop("preferencias_docentes", [])
+
+        propuesta = PropuestaTema.objects.create(
+            alumno=alumno,
+            docente=docente,
+            preferencias_docentes=preferencias,
+            **validated_data,
+        )
+        return propuesta
+
+
+class PropuestaTemaDecisionSerializer(serializers.ModelSerializer):
+    docente_id = serializers.IntegerField(required=False, allow_null=True)
+
+    class Meta:
+        model = PropuestaTema
+        fields = ["estado", "comentario_decision", "docente_id"]
+
+    def validate_docente_id(self, value):
+        if value in (None, "", 0):
+            return None
+        try:
+            return Usuario.objects.get(id=value, rol="docente")
+        except Usuario.DoesNotExist as exc:
+            raise serializers.ValidationError("Docente no válido") from exc
+
+    def update(self, instance, validated_data):
+        docente = validated_data.pop("docente_id", None)
+        if docente is not None:
+            instance.docente = docente
+        return super().update(instance, validated_data)
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    usuario = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = Notificacion
+        fields = [
+            "id",
+            "titulo",
+            "mensaje",
+            "tipo",
+            "leida",
+            "meta",
+            "created_at",
+            "usuario",
+        ]

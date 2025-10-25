@@ -145,16 +145,20 @@
     <button type="button" class="icon" (click)="togglePropuestasModal(false)">✕</button>
   </div>
 
-  <div class="tabla">
+  <div class="muted" *ngIf="propuestasCargando">Cargando propuestas...</div>
+  <div class="err" *ngIf="propuestasError">{{ propuestasError }}</div>
+  <p class="muted" *ngIf="!propuestasCargando && !propuestasError && !propuestas.length">No hay propuestas registradas por ahora.</p>
+
+  <div class="tabla" *ngIf="!propuestasCargando && propuestas.length">
     <div class="head">
       <span>Alumno</span><span>Tema</span><span>Rama</span><span>Fecha</span><span>Estado</span><span></span>
     </div>
     <div *ngFor="let p of propuestas">
       <div class="fila">
-        <div>{{ p.alumno }}</div>
-        <div>{{ p.tema }}</div>
+        <div>{{ p.alumno?.nombre || 'Sin registro' }}</div>
+        <div>{{ p.titulo }}</div>
         <div>{{ p.rama }}</div>
-        <div>{{ p.fecha }}</div>
+        <div>{{ p.createdAt | date:'shortDate' }}</div>
         <div>
           <span class="chip"
             [class.chip-ok]="p.estado==='aceptada'"
@@ -167,18 +171,21 @@
   </div>
 
   <div class="detalle" *ngIf="propuestaSeleccionada as sel">
-    <h4>{{ sel.tema }}</h4>
-    <p><b>Alumno:</b> {{ sel.alumno }}</p>
-    <p class="muted"><b>Rama:</b> {{ sel.rama }} — <b>Fecha:</b> {{ sel.fecha }}</p>
+    <h4>{{ sel.titulo }}</h4>
+    <p><b>Alumno:</b> {{ sel.alumno?.nombre || 'Sin registro' }}</p>
+    <p class="muted"><b>Rama:</b> {{ sel.rama }} — <b>Creada:</b> {{ sel.createdAt | date:'short' }}</p>
+    <p><b>Objetivo:</b> {{ sel.objetivo }}</p>
     <p><b>Descripción:</b> {{ sel.descripcion }}</p>
+    <p *ngIf="sel.comentarioDecision" class="muted">Último comentario registrado: {{ sel.comentarioDecision }}</p>
 
     <div class="form">
       <label for="comentario">Comentario</label>
       <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
       <div class="actions">
-        <button class="btn primary" type="button" (click)="aceptarPropuesta()" [disabled]="!comentarioDecision">Aceptar</button>
-        <button class="btn danger"  type="button" (click)="rechazarPropuesta()" [disabled]="!comentarioDecision">Rechazar</button>
+        <button class="btn primary" type="button" (click)="aceptarPropuesta()" [disabled]="!comentarioDecision || decisionEnCurso">Aceptar</button>
+        <button class="btn danger"  type="button" (click)="rechazarPropuesta()" [disabled]="!comentarioDecision || decisionEnCurso">Rechazar</button>
       </div>
+      <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>
     </div>
   </div>
 </div>

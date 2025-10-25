@@ -3,11 +3,16 @@ from django.urls import path, re_path
 from .views import (
     login_view,
     TemaDisponibleListCreateView,
-    TemaDisponibleRetrieveDestroyView,
+    tema_disponible_detalle,
     crear_solicitud_carta_practica,
     listar_solicitudes_carta_practica,
     aprobar_solicitud_carta_practica,
     rechazar_solicitud_carta_practica,
+    PropuestaTemaListCreateView,
+    PropuestaTemaRetrieveUpdateView,
+    DocenteListView,
+    NotificacionListView,
+    marcar_notificacion_leida,
 )
 
 urlpatterns = [
@@ -15,8 +20,25 @@ urlpatterns = [
     path("temas/", TemaDisponibleListCreateView.as_view(), name="temas-disponibles"),
     path(
         "temas/<int:pk>/",
-        TemaDisponibleRetrieveDestroyView.as_view(),
+        tema_disponible_detalle,
         name="tema-detalle",
+    ),
+    path("docentes/", DocenteListView.as_view(), name="lista-docentes"),
+    path("propuestas/", PropuestaTemaListCreateView.as_view(), name="propuestas"),
+    path(
+        "propuestas/<int:pk>/",
+        PropuestaTemaRetrieveUpdateView.as_view(),
+        name="detalle-propuesta",
+    ),
+    path(
+        "notificaciones/",
+        NotificacionListView.as_view(),
+        name="lista-notificaciones",
+    ),
+    path(
+        "notificaciones/<int:pk>/leer/",
+        marcar_notificacion_leida,
+        name="marcar-notificacion-leida",
     ),
     re_path(
         r"^practicas/solicitudes-carta/?$",

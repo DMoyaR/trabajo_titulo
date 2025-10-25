@@ -1,9 +1,10 @@
+import json
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
-from .models import TemaDisponible, Usuario
-
+from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion
 
 class TemaDisponibleAPITestCase(APITestCase):
     def setUp(self):
@@ -162,3 +163,170 @@ class LoginAPITestCase(APITestCase):
         response = self.client.post(self.login_url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PropuestaTemaListViewTests(APITestCase):
+    def setUp(self):
+        self.url = reverse("propuestas")
+        self.alumno = Usuario.objects.create(
+            nombre_completo="Alumno Uno",
+            correo="alumno1@example.com",
+            carrera="Computación",
+            rut="10",
+            telefono="123",
+            rol="alumno",
+            contrasena="password",
+        )
+        self.docente_principal = Usuario.objects.create(
+            nombre_completo="Docente Principal",
+            correo="docente1@example.com",
+            carrera="Computación",
+            rut="20",
+            telefono="456",
+            rol="docente",
+            contrasena="password",
+        )
+        self.docente_aux = Usuario.objects.create(
+            nombre_completo="Docente Aux",
+            correo="docente2@example.com",
+            carrera="Computación",
+            rut="30",
+            telefono="789",
+            rol="docente",
+            contrasena="password",
+        )
+
+    def test_docente_recibe_propuestas_directas_y_preferencias_en_listas(self):
+        directa = PropuestaTema.objects.create(
+            alumno=self.alumno,
+            docente=self.docente_principal,
+            titulo="Propuesta directa",
+            objetivo="Objetivo",
+            descripcion="Descripcion",
+            rama="Software",
+        )
+        preferida = PropuestaTema.objects.create(
+            alumno=self.alumno,
+            titulo="Propuesta preferencia",
+            objetivo="Objetivo",
+            descripcion="Descripcion",
+            rama="Datos",
+            preferencias_docentes=[self.docente_principal.id, self.docente_aux.id],
+        )
+
+        response = self.client.get(self.url, {"docente": self.docente_principal.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(directa.id, ids)
+        self.assertIn(preferida.id, ids)
+
+    def test_docente_recibe_preferencias_serializadas_como_dict(self):
+        preferida = PropuestaTema.objects.create(
+            alumno=self.alumno,
+            titulo="Preferida dict",
+            objetivo="Objetivo",
+            descripcion="Descripcion",
+            rama="IA",
+            preferencias_docentes=[{"id": self.docente_principal.id}],
+        )
+
+        response = self.client.get(self.url, {"docente": self.docente_principal.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(preferida.id, ids)
+
+    def test_docente_recibe_preferencias_serializadas_como_texto(self):
+        preferida = PropuestaTema.objects.create(
+            alumno=self.alumno,
+            titulo="Preferida texto",
+            objetivo="Objetivo",
+            descripcion="Descripcion",
+            rama="Redes",
+            preferencias_docentes=json.dumps([{ "id": self.docente_principal.id }]),
+        )
+
+        response = self.client.get(self.url, {"docente": self.docente_principal.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(preferida.id, ids)
+
+
+class PropuestaTemaDecisionNotificationTests(APITestCase):
+    def setUp(self):
+        self.alumno = Usuario.objects.create(
+            nombre_completo="Alumno Prueba",
+            correo="alumno.prueba@example.com",
+            carrera="Computación",
+            rut="50",
+            telefono="1234567",
+            rol="alumno",
+            contrasena="password",
+        )
+        self.docente = Usuario.objects.create(
+            nombre_completo="Docente Revisor",
+            correo="docente.revisor@example.com",
+            carrera="Computación",
+            rut="60",
+            telefono="7654321",
+            rol="docente",
+            contrasena="password",
+        )
+        self.propuesta = PropuestaTema.objects.create(
+            alumno=self.alumno,
+            docente=self.docente,
+            titulo="Sistema de gestión",
+            objetivo="Validar flujos",
+            descripcion="Descripción de prueba",
+            rama="Desarrollo",
+        )
+        self.url = reverse("detalle-propuesta", args=[self.propuesta.pk])
+
+    def test_crea_notificacion_al_aceptar_propuesta(self):
+        payload = {
+            "estado": "aceptada",
+            "comentario_decision": "Felicitaciones",
+            "docente_id": self.docente.id,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Notificacion.objects.count(), 1)
+        notif = Notificacion.objects.get()
+        self.assertEqual(notif.usuario, self.alumno)
+        self.assertEqual(notif.meta.get("estado"), "aceptada")
+        self.assertIn("aceptada", notif.titulo.lower())
+
+    def test_crea_notificacion_al_rechazar_propuesta(self):
+        payload = {
+            "estado": "rechazada",
+            "comentario_decision": "Se requiere más detalle",
+            "docente_id": self.docente.id,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Notificacion.objects.count(), 1)
+        notif = Notificacion.objects.get()
+        self.assertEqual(notif.meta.get("estado"), "rechazada")
+        self.assertIn("rechazada", notif.titulo.lower())
+        self.assertIn("se requiere", notif.mensaje.lower())
+
+    def test_no_duplica_notificacion_si_estado_no_cambia(self):
+        self.propuesta.estado = "rechazada"
+        self.propuesta.save(update_fields=["estado"])
+
+        payload = {
+            "estado": "rechazada",
+            "comentario_decision": "Falta información",
+            "docente_id": self.docente.id,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Notificacion.objects.count(), 0)

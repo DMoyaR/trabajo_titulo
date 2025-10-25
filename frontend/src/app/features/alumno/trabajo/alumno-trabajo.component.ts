@@ -4,6 +4,9 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 
 import { TemaService, TemaDisponible } from '../../docente/trabajolist/tema.service';
+import { DocentesService, Docente } from '../../../shared/services/docentes.service';
+import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type RamaCarrera =
   | 'Desarrollo de Software' | 'Sistemas de Información'
@@ -41,9 +44,11 @@ interface ResumenNivel {
 }
 
 interface Profesor {
-  id: string;
+    id: number;
   nombre: string;
-  ramas: RamaCarrera[];
+  carrera: string | null;
+  telefono: string | null;
+  ramas: RamaCarrera[] | null;
 }
 
 
@@ -191,6 +196,39 @@ export class AlumnoTrabajoComponent {
   temasCargando = signal(false);
   temasError = signal<string | null>(null);
   private temasCargados = false;
+  
+  propuestas = signal<Propuesta[]>([]);
+  propuestasCargando = signal(false);
+  propuestasError = signal<string | null>(null);
+  private propuestasCargadas = false;
+
+  propuestasAceptadas = computed(() => {
+    return this.propuestas()
+      .filter((p) => p.estado === 'aceptada')
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  });
+
+  propuestaAceptadaDestacada = computed(() => {
+    const aceptadas = this.propuestasAceptadas();
+    return aceptadas.length ? aceptadas[0] : null;
+  });
+
+  estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
+    pendiente: 'Pendiente',
+    aceptada: 'Aceptada',
+    rechazada: 'Rechazada',
+  };
+
+  estadoPropuestaClase(estado: Propuesta['estado']): string {
+    if (estado === 'aceptada') {
+      return 'aceptada';
+    }
+    if (estado === 'rechazada') {
+      return 'rechazada';
+    }
+    return 'pendiente';
+  }
+
 
   // Estado modal
   showPostulacion = signal(false);
@@ -201,17 +239,22 @@ export class AlumnoTrabajoComponent {
     'Ciencia de Datos','Redes y Seguridad','Otra'
   ];
 
-  profesores: Profesor[] = [
-    { id: 'p1', nombre: 'Mauro Castillo', ramas: ['Desarrollo de Software','Sistemas de Información'] },
-    { id: 'p2', nombre: 'Gilberto', ramas: ['Ciencia de Datos','Inteligencia de Negocios'] },
-    { id: 'p3', nombre: 'María Pérez', ramas: ['Redes y Seguridad','Sistemas de Información'] },
-    { id: 'p4', nombre: 'Juan Soto', ramas: ['Desarrollo de Software','Ciencia de Datos'] },
-    { id: 'p5', nombre: 'Ana Díaz', ramas: ['Inteligencia de Negocios'] },
-  ];
+  profesores = signal<Profesor[]>([]);
+  profesoresCargando = signal(false);
+  profesoresError = signal<string | null>(null);
 
   postulacionForm: FormGroup;
 
-  constructor(private fb: FormBuilder, private temaService: TemaService) {
+  enviandoPropuesta = signal(false);
+  postulacionError = signal<string | null>(null);
+
+  constructor(
+    private fb: FormBuilder,
+    private temaService: TemaService,
+    private propuestaService: PropuestaService,
+    private docentesService: DocentesService,
+    private currentUserService: CurrentUserService,
+  ) {
     this.postulacionForm = this.fb.group({
       titulo: ['', [Validators.required, Validators.maxLength(160)]],
       objetivo: ['', [Validators.required, Validators.maxLength(300)]],
@@ -222,10 +265,16 @@ export class AlumnoTrabajoComponent {
       prof3: ['']
     }, { validators: this.profesoresDistintosValidator });
 
-      effect(() => {
+    effect(() => {
       if (this.tab() === 'temas') {
         this.intentarCargarTemas();
+        this.intentarCargarPropuestas();
       }
+    });
+
+    effect(() => {
+      const shouldDisable = this.profesoresCargando() || !this.profesores().length;
+      this.actualizarEstadoControlesProfesores(shouldDisable);
     });
   }
 
@@ -237,13 +286,40 @@ export class AlumnoTrabajoComponent {
   // Filtra profesores por rama seleccionada
   profesoresFiltrados = computed(() => {
     const rama = this.postulacionForm.get('rama')?.value as RamaCarrera | '';
-    if (!rama) return this.profesores;
-    return this.profesores.filter(p => p.ramas.includes(rama as RamaCarrera));
+    const lista = this.profesores();
+    if (!rama) return lista;
+    return lista.filter(p => !p.ramas?.length || p.ramas.includes(rama as RamaCarrera));
   });
 
   togglePostulacion(open: boolean) {
     this.showPostulacion.set(open);
-    if (!open) this.postulacionForm.reset();
+    if (open) {
+      this.cargarProfesores();
+    } else {
+      this.postulacionForm.reset();
+      this.postulacionError.set(null);
+    }
+  }
+
+  private actualizarEstadoControlesProfesores(desactivar: boolean) {
+    const controles = ['prof1', 'prof2', 'prof3'];
+    controles.forEach((nombre) => {
+      const control = this.postulacionForm.get(nombre);
+      if (!control) {
+        return;
+      }
+
+      if (desactivar) {
+        if (control.enabled) {
+          control.disable({ emitEvent: false });
+        }
+        return;
+      }
+
+      if (control.disabled) {
+        control.enable({ emitEvent: false });
+      }
+    });
   }
 
   private intentarCargarTemas() {
@@ -266,6 +342,35 @@ export class AlumnoTrabajoComponent {
     });
   }
 
+ private intentarCargarPropuestas() {
+    if (this.propuestasCargadas || this.propuestasCargando()) {
+      return;
+    }
+
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+    if (!alumnoId) {
+      this.propuestasCargadas = true;
+      this.propuestas.set([]);
+      return;
+    }
+
+    this.propuestasCargando.set(true);
+    this.propuestasError.set(null);
+
+    this.propuestaService.listarPorAlumno(alumnoId).subscribe({
+      next: (propuestas) => {
+        this.propuestas.set(propuestas);
+        this.propuestasCargadas = true;
+        this.propuestasCargando.set(false);
+      },
+      error: (err) => {
+        console.error('Error al cargar tus propuestas', err);
+        this.propuestasError.set('No fue posible cargar tus propuestas. Intenta nuevamente.');
+        this.propuestasCargando.set(false);
+      },
+    });
+  }
 
   private profesoresDistintosValidator = (group: FormGroup) => {
     const p1 = group.get('prof1')?.value;
@@ -280,24 +385,78 @@ export class AlumnoTrabajoComponent {
       this.postulacionForm.markAllAsTouched();
       return;
     }
-    const payload = {
-      titulo: this.postulacionForm.value.titulo.trim(),
-      objetivo: this.postulacionForm.value.objetivo.trim(),
-      descripcion: this.postulacionForm.value.descripcion.trim(),
-      rama: this.postulacionForm.value.rama,
-      preferenciasProfesores: [
-        this.postulacionForm.value.prof1,
-        this.postulacionForm.value.prof2 || null,
-        this.postulacionForm.value.prof3 || null
-      ].filter(Boolean)
-    };
-    console.log('Postulación enviada:', payload);
-    alert('Tu postulación fue enviada para revisión.');
-    this.togglePostulacion(false);
+const titulo = this.postulacionForm.value.titulo.trim();
+    const objetivo = this.postulacionForm.value.objetivo.trim();
+    const descripcion = this.postulacionForm.value.descripcion.trim();
+    const rama = this.postulacionForm.value.rama;
+    const preferenciasValores = [
+      this.postulacionForm.value.prof1,
+      this.postulacionForm.value.prof2,
+      this.postulacionForm.value.prof3
+    ].filter((v): v is string | number => v !== null && v !== '');
+    const preferencias = preferenciasValores.map((id) => Number(id));
+    const perfil = this.currentUserService.getProfile();
+
+    this.enviandoPropuesta.set(true);
+    this.postulacionError.set(null);
+
+    this.propuestaService.crearPropuesta({
+      alumnoId: perfil?.id ?? null,
+      titulo,
+      objetivo,
+      descripcion,
+      rama,
+      preferenciasDocentes: preferencias,
+      docenteId: preferencias.length ? preferencias[0] : null,
+    }).subscribe({
+      next: () => {
+        alert('Tu postulación fue enviada para revisión.');
+        this.togglePostulacion(false);
+        this.enviandoPropuesta.set(false);
+        this.propuestasCargadas = false;
+        this.intentarCargarPropuestas();
+      },
+      error: (err) => {
+        console.error('No fue posible enviar la propuesta', err);
+        this.postulacionError.set('No fue posible enviar la postulación. Intenta nuevamente.');
+        this.enviandoPropuesta.set(false);
+      }
+    });
   }
 
   hasError(ctrl: string, err: string) {
     const c = this.postulacionForm.get(ctrl);
     return !!(c && c.touched && c.hasError(err));
+  }
+  
+  private cargarProfesores() {
+    if (this.profesores().length || this.profesoresCargando()) {
+      return;
+    }
+
+    const perfil = this.currentUserService.getProfile();
+    const carrera = perfil?.carrera ?? undefined;
+
+    this.profesoresCargando.set(true);
+    this.profesoresError.set(null);
+
+    this.docentesService.listar(carrera ?? undefined).subscribe({
+      next: (docentes: Docente[]) => {
+        const mapped: Profesor[] = docentes.map((doc) => ({
+          id: doc.id,
+          nombre: doc.nombre,
+          carrera: doc.carrera,
+          telefono: doc.telefono,
+          ramas: null,
+        }));
+        this.profesores.set(mapped);
+        this.profesoresCargando.set(false);
+      },
+      error: (err) => {
+        console.error('No fue posible cargar los docentes', err);
+        this.profesoresError.set('No fue posible cargar el listado de docentes.');
+        this.profesoresCargando.set(false);
+      }
+    });
   }
 }
