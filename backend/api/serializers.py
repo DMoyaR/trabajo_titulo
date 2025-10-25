@@ -23,6 +23,7 @@ class LoginSerializer(serializers.Serializer):
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    creado_por = serializers.SerializerMethodField()
 
     class Meta:
         model = TemaDisponible
@@ -35,9 +36,20 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "cupos",
             "created_at",
             "created_by",
+            "creado_por",
         ]
         read_only_fields = ["id", "created_at", "created_by"]
 
+    def get_creado_por(self, obj):
+        usuario = obj.created_by
+        if not usuario:
+            return None
+
+        return {
+            "nombre": usuario.nombre_completo,
+            "rol": usuario.rol,
+            "carrera": usuario.carrera,
+        }
 
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)
