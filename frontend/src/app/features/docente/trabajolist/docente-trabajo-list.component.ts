@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { HttpClientModule } from '@angular/common/http';
 import { TemaService, TemaDisponible as TemaAPI, CrearTemaPayload } from './tema.service';
+import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type Tab = 'titulo1' | 'titulo2' | 'temas';
 type EstadoGrupo = 'pendiente' | 'en_revision' | 'aprobado' | 'finalizado';
@@ -39,17 +41,6 @@ interface TemaDisponible {
   cupos: number;
   requisitos: string;
   fecha: Date;             // Mapea a created_at
-}
-
-interface Propuesta {
-  id: string;
-  alumno: string;
-  tema: string;
-  descripcion: string;
-  rama: string;
-  fecha: string;
-  estado: 'pendiente' | 'aceptada' | 'rechazada';
-  comentario?: string;
 }
 
 @Component({
@@ -186,7 +177,11 @@ export class DocenteTrabajoListComponent implements OnInit {
     titulo: '', objetivo: '', descripcion: '', rama: '', cupos: 1, requisitos: ''
   };
 
-  constructor(private temaService: TemaService) {}
+   constructor(
+    private temaService: TemaService,
+    private propuestaService: PropuestaService,
+    private currentUserService: CurrentUserService,
+  ) {}
 
   ngOnInit(): void {
     // Carga inicial de temas desde el backend
@@ -298,36 +293,107 @@ export class DocenteTrabajoListComponent implements OnInit {
     });
   }
 
-  // ===== Propuestas (mock UI, sin backend)
+  // ===== Propuestas (conectado a backend)
   showPropuestasModal = false;
   propuestaSeleccionada: Propuesta | null = null;
   comentarioDecision = '';
-  propuestas: Propuesta[] = [
-    { id: '1', alumno: 'Bastián Peña', tema: 'Plataforma de gestión de prácticas UTEM', descripcion: 'Sistema web para la administración de prácticas profesionales.', rama: 'Informática', fecha: '15/10/2025', estado: 'pendiente' },
-    { id: '2', alumno: 'Mauro Muñoz', tema: 'Optimización de rutas logísticas', descripcion: 'Proyecto de análisis de datos para transporte urbano eficiente.', rama: 'Industrial',  fecha: '14/10/2025', estado: 'pendiente' },
-  ];
+  propuestas: Propuesta[] = [];
+  propuestasCargando = false;
+  propuestasError: string | null = null;
+  propuestasCargadas = false;
+  decisionEnCurso = false;
+
   togglePropuestasModal(v: boolean) {
     this.showPropuestasModal = v;
-    if (!v) { this.propuestaSeleccionada = null; this.comentarioDecision = ''; }
+     if (v) {
+      this.cargarPropuestas();
+    } else {
+      this.propuestaSeleccionada = null;
+      this.comentarioDecision = '';
+      this.decisionEnCurso = false;
+    }
   }
+
   seleccionarPropuesta(p: Propuesta) {
     this.propuestaSeleccionada = p;
-    this.comentarioDecision = '';
+     this.comentarioDecision = p.comentarioDecision ?? '';
   }
   aceptarPropuesta() {
-    if (!this.propuestaSeleccionada) return;
-    const idx = this.propuestas.findIndex(p => p.id === this.propuestaSeleccionada!.id);
-    if (idx >= 0) {
-      this.propuestas[idx] = { ...this.propuestaSeleccionada, estado: 'aceptada', comentario: this.comentarioDecision };
-      this.togglePropuestasModal(false);
-    }
+    this.resolverPropuesta('aceptada');
   }
+
   rechazarPropuesta() {
-    if (!this.propuestaSeleccionada) return;
-    const idx = this.propuestas.findIndex(p => p.id === this.propuestaSeleccionada!.id);
-    if (idx >= 0) {
-      this.propuestas[idx] = { ...this.propuestaSeleccionada, estado: 'rechazada', comentario: this.comentarioDecision };
-      this.togglePropuestasModal(false);
+   this.resolverPropuesta('rechazada');
+  }
+
+  private cargarPropuestas(force = false) {
+    if (this.propuestasCargando || (this.propuestasCargadas && !force)) {
+      return;
     }
+
+    const docenteId = this.obtenerDocenteIdActual();
+    if (!docenteId) {
+      this.propuestasError = 'No se pudo determinar el docente actual.';
+      this.propuestas = [];
+      this.propuestasCargadas = true;
+      return;
+    }
+
+    this.propuestasCargando = true;
+    this.propuestasError = null;
+
+    this.propuestaService
+      .listarPorDocente(docenteId)
+      .pipe(finalize(() => (this.propuestasCargando = false)))
+      .subscribe({
+        next: (propuestas) => {
+          this.propuestas = propuestas;
+          this.propuestasCargadas = true;
+        },
+        error: () => {
+          this.propuestasError = 'No fue posible cargar las propuestas.';
+        },
+      });
+  }
+
+  private resolverPropuesta(estado: 'aceptada' | 'rechazada') {
+    if (!this.propuestaSeleccionada) {
+      return;
+    }
+
+    const comentario = this.comentarioDecision.trim();
+    if (!comentario) {
+      return;
+    }
+    const docenteId = this.obtenerDocenteIdActual();
+    if (!docenteId) {
+      this.propuestasError = 'No se pudo determinar el docente actual.';
+      return;
+    }
+
+    this.decisionEnCurso = true;
+    this.propuestaService
+      .actualizarPropuesta(this.propuestaSeleccionada.id, {
+        estado,
+        comentarioDecision: comentario,
+        docenteId,
+      })
+      .pipe(finalize(() => (this.decisionEnCurso = false)))
+      .subscribe({
+        next: (actualizada) => {
+          this.propuestas = this.propuestas.map((p) =>
+            p.id === actualizada.id ? actualizada : p
+          );
+          this.togglePropuestasModal(false);
+        },
+        error: () => {
+          this.propuestasError = 'No fue posible actualizar la propuesta.';
+        },
+      });
+  }
+
+  private obtenerDocenteIdActual(): number | null {
+    const perfil = this.currentUserService.getProfile();
+    return perfil?.id ?? null;
   }
 }

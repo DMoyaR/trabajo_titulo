@@ -139,6 +139,11 @@
       </div>
 
       <form [formGroup]="postulacionForm" (ngSubmit)="submitPostulacion()" class="grid" novalidate>
+        <div class="muted" *ngIf="profesoresCargando()">Cargando docentes disponibles...</div>
+        <div class="err" *ngIf="profesoresError()">{{ profesoresError() }}</div>
+        <div class="muted" *ngIf="!profesoresCargando() && !profesoresError() && !profesores().length">Por ahora no hay docentes disponibles en el listado.</div>
+        <div class="err" *ngIf="postulacionError()">{{ postulacionError() }}</div>
+
         <div class="field full">
           <label for="titulo">Nombre del tema <span class="req">*</span></label>
           <input id="titulo" type="text" formControlName="titulo" />
@@ -171,7 +176,7 @@
 
         <div class="field">
           <label for="prof1">Profesor guía (Preferencia 1) <span class="req">*</span></label>
-          <select id="prof1" formControlName="prof1">
+          <select id="prof1" formControlName="prof1"  [disabled]="profesoresCargando() || !profesores().length">
             <option value="" disabled>Selecciona</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>
@@ -180,7 +185,7 @@
 
         <div class="field">
           <label for="prof2">Profesor guía (Preferencia 2)</label>
-          <select id="prof2" formControlName="prof2">
+          <select id="prof2" formControlName="prof2"  [disabled]="profesoresCargando() || !profesores().length">
             <option value="">(Opcional)</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>
@@ -188,7 +193,7 @@
 
         <div class="field">
           <label for="prof3">Profesor guía (Preferencia 3)</label>
-          <select id="prof3" formControlName="prof3">
+          <select id="prof3" formControlName="prof3"  [disabled]="profesoresCargando() || !profesores().length">
             <option value="">(Opcional)</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>
@@ -200,7 +205,9 @@
 
         <div class="actions full">
           <button type="button" class="btn light" (click)="togglePostulacion(false)">Cancelar</button>
-          <button type="submit" class="btn primary">Enviar postulación</button>
+         <button type="submit" class="btn primary" [disabled]="enviandoPropuesta()">
+            {{ enviandoPropuesta() ? 'Enviando…' : 'Enviar postulación' }}
+          </button>
         </div>
       </form>
     </div>

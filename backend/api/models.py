@@ -156,3 +156,42 @@ class SolicitudCartaPractica(models.Model):
 
     def __str__(self) -> str:
         return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"
+
+
+class PropuestaTema(models.Model):
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("aceptada", "Aceptada"),
+        ("rechazada", "Rechazada"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="propuestas_tema",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="propuestas_revision",
+    )
+    titulo = models.CharField(max_length=160)
+    objetivo = models.CharField(max_length=300)
+    descripcion = models.TextField()
+    rama = models.CharField(max_length=120)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    comentario_decision = models.TextField(blank=True, null=True)
+    preferencias_docentes = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "propuestas_tema"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.titulo} ({self.get_estado_display()})"

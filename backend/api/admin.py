@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from .models import Usuario
+from .models import Usuario, PropuestaTema
 
 class UsuarioAdminForm(forms.ModelForm):
     # Campo de password tipo <input type="password">
@@ -33,3 +33,16 @@ class UsuarioAdmin(admin.ModelAdmin):
     list_display = ("nombre_completo", "correo", "rol", "carrera", "rut", "telefono")
     search_fields = ("nombre_completo", "correo", "rut", "rol", "carrera")
     list_filter = ("rol", "carrera")
+
+
+@admin.register(PropuestaTema)
+class PropuestaTemaAdmin(admin.ModelAdmin):
+    list_display = (
+        "titulo",
+        "alumno",
+        "docente",
+        "estado",
+        "created_at",
+    )
+    list_filter = ("estado", "rama")
+    search_fields = ("titulo", "descripcion", "alumno__nombre_completo", "docente__nombre_completo")

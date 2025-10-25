@@ -14,8 +14,12 @@ from .serializers import (
     TemaDisponibleSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
+    PropuestaTemaSerializer,
+    PropuestaTemaCreateSerializer,
+    PropuestaTemaDecisionSerializer,
+    UsuarioResumenSerializer,
 )
-from .models import TemaDisponible, Usuario, SolicitudCartaPractica
+from .models import TemaDisponible, Usuario, SolicitudCartaPractica, PropuestaTema
 
 
 REDIRECTS = {
@@ -64,6 +68,70 @@ class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
     serializer_class = TemaDisponibleSerializer
     permission_classes = [AllowAny]
+
+
+class DocenteListView(generics.ListAPIView):
+    serializer_class = UsuarioResumenSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = Usuario.objects.filter(rol="docente").order_by("nombre_completo")
+        carrera = self.request.query_params.get("carrera")
+        if carrera:
+            queryset = queryset.filter(carrera__icontains=carrera)
+        return queryset
+
+
+class PropuestaTemaListCreateView(generics.ListCreateAPIView):
+    queryset = PropuestaTema.objects.select_related("alumno", "docente")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return PropuestaTemaCreateSerializer
+        return PropuestaTemaSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        docente_id = self.request.query_params.get("docente")
+        alumno_id = self.request.query_params.get("alumno")
+        estado = self.request.query_params.get("estado")
+
+        if docente_id:
+            queryset = queryset.filter(docente_id=docente_id)
+        if alumno_id:
+            queryset = queryset.filter(alumno_id=alumno_id)
+        if estado in {"pendiente", "aceptada", "rechazada"}:
+            queryset = queryset.filter(estado=estado)
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        propuesta = serializer.save()
+        output_serializer = PropuestaTemaSerializer(propuesta)
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class PropuestaTemaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    queryset = PropuestaTema.objects.select_related("alumno", "docente")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method in {"PUT", "PATCH"}:
+            return PropuestaTemaDecisionSerializer
+        return PropuestaTemaSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        propuesta = serializer.save()
+        output_serializer = PropuestaTemaSerializer(propuesta)
+        return Response(output_serializer.data)
 
 
 def _normalizar_carrera(nombre: str) -> str:
