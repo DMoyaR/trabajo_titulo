@@ -271,6 +271,11 @@ export class AlumnoTrabajoComponent {
         this.intentarCargarPropuestas();
       }
     });
+
+    effect(() => {
+      const shouldDisable = this.profesoresCargando() || !this.profesores().length;
+      this.actualizarEstadoControlesProfesores(shouldDisable);
+    });
   }
 
   // Getter para usar en template y evitar TS4111
@@ -294,6 +299,27 @@ export class AlumnoTrabajoComponent {
       this.postulacionForm.reset();
       this.postulacionError.set(null);
     }
+  }
+
+  private actualizarEstadoControlesProfesores(desactivar: boolean) {
+    const controles = ['prof1', 'prof2', 'prof3'];
+    controles.forEach((nombre) => {
+      const control = this.postulacionForm.get(nombre);
+      if (!control) {
+        return;
+      }
+
+      if (desactivar) {
+        if (control.enabled) {
+          control.disable({ emitEvent: false });
+        }
+        return;
+      }
+
+      if (control.disabled) {
+        control.enable({ emitEvent: false });
+      }
+    });
   }
 
   private intentarCargarTemas() {

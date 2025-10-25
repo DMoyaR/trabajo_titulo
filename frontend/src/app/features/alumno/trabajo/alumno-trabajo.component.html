@@ -228,7 +228,7 @@
 
         <div class="field">
           <label for="prof1">Profesor guía (Preferencia 1) <span class="req">*</span></label>
-          <select id="prof1" formControlName="prof1" [disabled]="profesoresCargando() || !profesores().length">
+          <select id="prof1" formControlName="prof1">
             <option value="" disabled>Selecciona</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>
@@ -237,14 +237,15 @@
 
         <div class="field">
           <label for="prof2">Profesor guía (Preferencia 2)</label>
-          <select id="prof1" formControlName="prof1" [disabled]="profesoresCargando() || !profesores().length">
+          <select id="prof2" formControlName="prof2">
+            <option value="">(Opcional)</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>
         </div>
 
         <div class="field">
           <label for="prof3">Profesor guía (Preferencia 3)</label>
-          <select id="prof1" formControlName="prof1" [disabled]="profesoresCargando() || !profesores().length">
+          <select id="prof3" formControlName="prof3">
             <option value="">(Opcional)</option>
             <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
           </select>

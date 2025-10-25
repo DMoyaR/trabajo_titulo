@@ -70,19 +70,100 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     permission_classes = [AllowAny]
 
     def perform_create(self, serializer):
-        serializer.save()
+        user = getattr(self.request, "user", None)
+        if isinstance(user, Usuario):
+            serializer.save(created_by=user)
+        else:
+            serializer.save()
+
+class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    queryset = TemaDisponible.objects.all()
+    serializer_class = TemaDisponibleSerializer
+    permission_classes = [AllowAny]
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([AllowAny])
+def tema_disponible_detalle(request, pk: int):
+    """Permite obtener o eliminar un tema disponible concreto."""
+
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    if request.method == "DELETE":
+        tema.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    serializer = TemaDisponibleSerializer(tema)
+    return Response(serializer.data)
+
+
+class DocenteListView(generics.ListAPIView):
+    serializer_class = UsuarioResumenSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = Usuario.objects.filter(rol="docente").order_by("nombre_completo")
+        carrera = self.request.query_params.get("carrera")
+        if carrera:
+            queryset = queryset.filter(carrera__icontains=carrera)
+        return queryset
+
 
 class PropuestaTemaListCreateView(generics.ListCreateAPIView):
-    queryset = PropuestaTema.objects.all()
-    serializer_class = PropuestaTemaCreateSerializer
+    queryset = PropuestaTema.objects.select_related("alumno", "docente")
     permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return PropuestaTemaCreateSerializer
+        return PropuestaTemaSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        docente_id = self.request.query_params.get("docente")
+        alumno_id = self.request.query_params.get("alumno")
+        estado = self.request.query_params.get("estado")
+
+        if docente_id:
+            try:
+                docente_id_int = int(docente_id)
+            except (TypeError, ValueError):
+                return queryset.none()
+
+            # Django's JSONField lookups are inconsistent across engines when
+            # checking if a simple value exists inside an array. To guarantee
+            # that docentes listed en "preferencias_docentes" también puedan
+            # ver la propuesta, primero filtramos por coincidencia directa y
+            # luego agregamos manualmente los ids cuyo arreglo contiene el
+            # docente buscado.
+            direct_ids = queryset.filter(docente_id=docente_id_int).values_list(
+                "id", flat=True
+            )
+
+            preferred_ids = [
+                pk
+                for pk, preferencias in queryset.values_list(
+                    "id", "preferencias_docentes"
+                )
+                if _docente_en_preferencias(docente_id_int, preferencias)
+            ]
+
+            queryset = queryset.filter(
+                id__in=set(direct_ids).union(preferred_ids)
+            )
+        if alumno_id:
+            queryset = queryset.filter(alumno_id=alumno_id)
+        if estado in {"pendiente", "aceptada", "rechazada"}:
+            queryset = queryset.filter(estado=estado)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         propuesta = serializer.save()
-        headers = self.get_success_headers(serializer.data)
         output_serializer = PropuestaTemaSerializer(propuesta)
+        headers = self.get_success_headers(output_serializer.data)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
@@ -127,6 +208,7 @@ class NotificacionListView(generics.ListAPIView):
             valor = str(leida).lower()
             if valor in {"true", "1", "false", "0"}:
                 queryset = queryset.filter(leida=valor in {"true", "1"})
+
         return queryset
 
 
@@ -299,33 +381,62 @@ def _extraer_ids_docentes(preferencias) -> set[int]:
     def agregar(valor):
         if valor in (None, ""):
             return
-        try:
-            encontrados.add(int(str(valor)))
-        except (TypeError, ValueError):
-            pass
 
-    if isinstance(preferencias, str):
-        try:
-            preferencias = json.loads(preferencias)
-        except json.JSONDecodeError:
-            preferencias = []
+        if isinstance(valor, bool):
+            # Los booleanos son subclase de int; los descartamos explícitamente
+            # para evitar tratar True como id 1, por ejemplo.
+            return
 
-    if isinstance(preferencias, (list, tuple)):
-        for item in preferencias:
-            if isinstance(item, dict):
-                agregar(item.get("id"))
-            else:
+        if isinstance(valor, int):
+            encontrados.add(valor)
+            return
+
+        if isinstance(valor, str):
+            texto = valor.strip()
+            if not texto:
+                return
+            try:
+                encontrados.add(int(texto))
+                return
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                datos = json.loads(texto)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                return
+            agregar(datos)
+            return
+
+        if isinstance(valor, dict):
+            # Intentamos las claves más comunes para almacenar un identificador
+            # y luego recorremos recursivamente los valores anidados.
+            for clave in ("id", "pk", "docente", "docente_id", "value"):
+                if clave in valor:
+                    agregar(valor[clave])
+            for item in valor.values():
+                if isinstance(item, (list, tuple, set, dict)):
+                    agregar(item)
+            return
+
+        if isinstance(valor, (list, tuple, set)):
+            for item in valor:
                 agregar(item)
-    elif isinstance(preferencias, dict):
-        agregar(preferencias.get("id"))
-    else:
-        agregar(preferencias)
+            return
 
+    agregar(preferencias)
     return encontrados
-def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
-    alumno = propuesta.alumno
 
-    if propuesta.estado == "aceptado":
+
+def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
+    if propuesta.estado not in {"aceptada", "rechazada"}:
+        return
+
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    if propuesta.estado == "aceptada":
         titulo = "Tu propuesta de tema fue aceptada"
         mensaje_base = (
             "El docente ha aceptado tu propuesta de tema "
@@ -392,3 +503,26 @@ def _buscar_coordinador_por_carrera(carrera: str):
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
+    url = request.data.get("url")
+    solicitud.url_documento = url or None
+    solicitud.motivo_rechazo = None
+    solicitud.estado = "aprobado"
+    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
+    return Response({"status": "ok"})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def rechazar_solicitud_carta_practica(request, pk: int):
+    solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
+    motivo = (request.data.get("motivo") or "").strip()
+    if not motivo:
+        return Response(
+            {"motivo": "Este campo es obligatorio."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    solicitud.motivo_rechazo = motivo
+    solicitud.url_documento = None
+    solicitud.estado = "rechazado"
+    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
+    return Response({"status": "ok"})
