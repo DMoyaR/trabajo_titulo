@@ -208,12 +208,21 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
     def _obtener_usuario(self, usuario_id, rol, field_name):
         if usuario_id in (None, "", 0):
             return None
+        
         try:
-            return Usuario.objects.get(id=usuario_id, rol=rol)
+            usuario = Usuario.objects.get(id=usuario_id)
         except Usuario.DoesNotExist as exc:
             raise serializers.ValidationError(
-                {field_name: f"No existe un usuario con id {usuario_id} y rol {rol}."}
+                {field_name: f"No existe un usuario con id {usuario_id}."}
             ) from exc
+
+        if (usuario.rol or "").lower() != rol:
+            raise serializers.ValidationError(
+                {field_name: f"El usuario con id {usuario_id} no corresponde al rol {rol}."}
+            )
+
+        return usuario
+
 
     def validate(self, attrs):
         alumno = self._obtener_usuario(attrs.get("alumno_id"), "alumno", "alumno_id")
