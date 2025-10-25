@@ -207,6 +207,104 @@
   color: #0369a1;
 }
 
+.chip.success {
+  background: #d1fae5;
+  border-color: #34d399;
+  color: #047857;
+}
+
+.mis-propuestas {
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.propuesta-highlight {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, rgba(209, 250, 229, 0.9), #ecfeff);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.18);
+}
+
+.propuesta-highlight .highlight-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.propuesta-highlight h4 {
+  margin: 12px 0 6px;
+  color: #065f46;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.propuesta-highlight .muted {
+  color: #065f46;
+  opacity: 0.85;
+}
+
+.propuesta-highlight .comentario {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.propuesta-highlight .comentario span {
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.list.propuestas li {
+  border-color: #e5e7eb;
+}
+
+.propuestas-historial h4 {
+  margin: 0 0 8px;
+  color: #1a3e6a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.propuestas-historial .comentario {
+  margin: 8px 0;
+  font-size: 13px;
+  color: #374151;
+}
+
+.propuestas-historial .comentario span {
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.badge.propuesta {
+  background: #e5edff;
+  border-color: #c7d2fe;
+  color: #1a3e6a;
+}
+
+.badge.propuesta.aceptada {
+  background: #d1fae5;
+  border-color: #34d399;
+  color: #047857;
+}
+
+.badge.propuesta.pendiente {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.badge.propuesta.rechazada {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
 .list.topics li {
   grid-template-columns: 1fr auto;
   align-items: flex-start;

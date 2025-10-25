@@ -11,6 +11,8 @@ from .views import (
     PropuestaTemaListCreateView,
     PropuestaTemaRetrieveUpdateView,
     DocenteListView,
+    NotificacionListView,
+    marcar_notificacion_leida,
 )
 
 urlpatterns = [
@@ -21,12 +23,22 @@ urlpatterns = [
         TemaDisponibleRetrieveDestroyView.as_view(),
         name="tema-detalle",
     ),
-    path("docentes/", DocenteListView.as_view(), name="lista-docentes"),
+     path("docentes/", DocenteListView.as_view(), name="lista-docentes"),
     path("propuestas/", PropuestaTemaListCreateView.as_view(), name="propuestas"),
     path(
         "propuestas/<int:pk>/",
         PropuestaTemaRetrieveUpdateView.as_view(),
         name="detalle-propuesta",
+    ),
+    path(
+        "notificaciones/",
+        NotificacionListView.as_view(),
+        name="lista-notificaciones",
+    ),
+    path(
+        "notificaciones/<int:pk>/leer/",
+        marcar_notificacion_leida,
+        name="marcar-notificacion-leida",
     ),
     re_path(
         r"^practicas/solicitudes-carta/?$",

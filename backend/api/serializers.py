@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Usuario, TemaDisponible, SolicitudCartaPractica, PropuestaTema
+from .models import (
+    Usuario,
+    TemaDisponible,
+    SolicitudCartaPractica,
+    PropuestaTema,
+    Notificacion,
+)
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -208,21 +214,12 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
     def _obtener_usuario(self, usuario_id, rol, field_name):
         if usuario_id in (None, "", 0):
             return None
-        
         try:
-            usuario = Usuario.objects.get(id=usuario_id)
+            return Usuario.objects.get(id=usuario_id, rol=rol)
         except Usuario.DoesNotExist as exc:
             raise serializers.ValidationError(
-                {field_name: f"No existe un usuario con id {usuario_id}."}
+                {field_name: f"No existe un usuario con id {usuario_id} y rol {rol}."}
             ) from exc
-
-        if (usuario.rol or "").lower() != rol:
-            raise serializers.ValidationError(
-                {field_name: f"El usuario con id {usuario_id} no corresponde al rol {rol}."}
-            )
-
-        return usuario
-
 
     def validate(self, attrs):
         alumno = self._obtener_usuario(attrs.get("alumno_id"), "alumno", "alumno_id")
@@ -285,3 +282,20 @@ class PropuestaTemaDecisionSerializer(serializers.ModelSerializer):
         if docente is not None:
             instance.docente = docente
         return super().update(instance, validated_data)
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    usuario = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = Notificacion
+        fields = [
+            "id",
+            "titulo",
+            "mensaje",
+            "tipo",
+            "leida",
+            "meta",
+            "created_at",
+            "usuario",
+        ]

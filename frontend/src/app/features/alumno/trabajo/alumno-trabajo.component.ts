@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 
 import { TemaService, TemaDisponible } from '../../docente/trabajolist/tema.service';
 import { DocentesService, Docente } from '../../../shared/services/docentes.service';
-import { PropuestaService } from '../../../shared/services/propuesta.service';
+import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type RamaCarrera =
@@ -196,6 +196,39 @@ export class AlumnoTrabajoComponent {
   temasCargando = signal(false);
   temasError = signal<string | null>(null);
   private temasCargados = false;
+  
+  propuestas = signal<Propuesta[]>([]);
+  propuestasCargando = signal(false);
+  propuestasError = signal<string | null>(null);
+  private propuestasCargadas = false;
+
+  propuestasAceptadas = computed(() => {
+    return this.propuestas()
+      .filter((p) => p.estado === 'aceptada')
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  });
+
+  propuestaAceptadaDestacada = computed(() => {
+    const aceptadas = this.propuestasAceptadas();
+    return aceptadas.length ? aceptadas[0] : null;
+  });
+
+  estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
+    pendiente: 'Pendiente',
+    aceptada: 'Aceptada',
+    rechazada: 'Rechazada',
+  };
+
+  estadoPropuestaClase(estado: Propuesta['estado']): string {
+    if (estado === 'aceptada') {
+      return 'aceptada';
+    }
+    if (estado === 'rechazada') {
+      return 'rechazada';
+    }
+    return 'pendiente';
+  }
+
 
   // Estado modal
   showPostulacion = signal(false);
@@ -232,9 +265,10 @@ export class AlumnoTrabajoComponent {
       prof3: ['']
     }, { validators: this.profesoresDistintosValidator });
 
-      effect(() => {
+    effect(() => {
       if (this.tab() === 'temas') {
         this.intentarCargarTemas();
+        this.intentarCargarPropuestas();
       }
     });
   }
@@ -282,6 +316,35 @@ export class AlumnoTrabajoComponent {
     });
   }
 
+ private intentarCargarPropuestas() {
+    if (this.propuestasCargadas || this.propuestasCargando()) {
+      return;
+    }
+
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+    if (!alumnoId) {
+      this.propuestasCargadas = true;
+      this.propuestas.set([]);
+      return;
+    }
+
+    this.propuestasCargando.set(true);
+    this.propuestasError.set(null);
+
+    this.propuestaService.listarPorAlumno(alumnoId).subscribe({
+      next: (propuestas) => {
+        this.propuestas.set(propuestas);
+        this.propuestasCargadas = true;
+        this.propuestasCargando.set(false);
+      },
+      error: (err) => {
+        console.error('Error al cargar tus propuestas', err);
+        this.propuestasError.set('No fue posible cargar tus propuestas. Intenta nuevamente.');
+        this.propuestasCargando.set(false);
+      },
+    });
+  }
 
   private profesoresDistintosValidator = (group: FormGroup) => {
     const p1 = group.get('prof1')?.value;
@@ -296,7 +359,7 @@ export class AlumnoTrabajoComponent {
       this.postulacionForm.markAllAsTouched();
       return;
     }
-    const titulo = this.postulacionForm.value.titulo.trim();
+const titulo = this.postulacionForm.value.titulo.trim();
     const objetivo = this.postulacionForm.value.objetivo.trim();
     const descripcion = this.postulacionForm.value.descripcion.trim();
     const rama = this.postulacionForm.value.rama;
@@ -324,6 +387,8 @@ export class AlumnoTrabajoComponent {
         alert('Tu postulación fue enviada para revisión.');
         this.togglePostulacion(false);
         this.enviandoPropuesta.set(false);
+        this.propuestasCargadas = false;
+        this.intentarCargarPropuestas();
       },
       error: (err) => {
         console.error('No fue posible enviar la propuesta', err);

@@ -195,3 +195,29 @@ class PropuestaTema(models.Model):
 
     def __str__(self) -> str:
         return f"{self.titulo} ({self.get_estado_display()})"
+
+
+class Notificacion(models.Model):
+    TIPOS = [
+        ("propuesta", "Propuesta"),
+        ("general", "General"),
+    ]
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="notificaciones",
+    )
+    titulo = models.CharField(max_length=160)
+    mensaje = models.TextField()
+    tipo = models.CharField(max_length=40, choices=TIPOS, default="general")
+    leida = models.BooleanField(default=False)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "notificaciones"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.titulo} -> {self.usuario.nombre_completo}"
