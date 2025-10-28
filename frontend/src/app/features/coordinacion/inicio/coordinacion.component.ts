@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../auth.service';
 
 // Interfaces para tipado de datos
 interface CardData {
@@ -30,7 +32,7 @@ interface Profesor {
   styleUrls: ['./coordinacion.component.css']
 })
 export class CoordinacionComponent implements OnInit {
-  menuOpen = true;
+
 
   // ===== DATOS DINÁMICOS PARA LAS TARJETAS =====
   cardStats: CardData[] = [
@@ -47,6 +49,8 @@ export class CoordinacionComponent implements OnInit {
   isLoadingStats = false;
   isLoadingProcesos = false;
   isLoadingProfesores = false;
+
+  constructor(private readonly authService: AuthService, private readonly router: Router) {}
 
   ngOnInit(): void {
     // Cargar datos iniciales cuando tengas el backend
@@ -155,42 +159,16 @@ export class CoordinacionComponent implements OnInit {
 
   // ===== MÉTODOS DE NAVEGACIÓN =====
 
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a: ${section}`);
-    // TODO: Implementar navegación real
-  }
 
   logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-      // TODO: Implementar logout real
+    if (!confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      return;
     }
+
+    this.authService.logout().subscribe({
+      next: () => this.router.navigateByUrl('/auth/login'),
+      error: () => this.router.navigateByUrl('/auth/login'),
+    });
   }
 
-  onOutsideClick(event: Event): void {
-    if (window.innerWidth <= 768 && this.menuOpen) {
-      const target = event.target as HTMLElement;
-      const sidebar = document.querySelector('.sidebar');
-      
-      if (sidebar && !sidebar.contains(target)) {
-        this.menuOpen = false;
-      }
-    }
-  }
-
-  onKeyDown(event: KeyboardEvent): void {
-    if (event.ctrlKey && event.key === 'm') {
-      event.preventDefault();
-      this.toggleMenu();
-    }
-    
-    if (event.key === 'Escape' && window.innerWidth <= 768) {
-      this.menuOpen = false;
-    }
-  }
 }

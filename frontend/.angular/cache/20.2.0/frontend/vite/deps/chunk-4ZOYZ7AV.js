@@ -1,13 +1,13 @@
 import {
   withHttpTransferCache
-} from "./chunk-M7J3EA32.js";
+} from "./chunk-GLN6RIZ6.js";
 import {
   CommonModule,
   DomAdapter,
   PLATFORM_BROWSER_ID,
   getDOM,
   setRootDomAdapter
-} from "./chunk-KB574W5H.js";
+} from "./chunk-ACHY2X2X.js";
 import {
   XhrFactory,
   parseCookieValue
@@ -19,15 +19,9 @@ import {
   ApplicationRef,
   CSP_NONCE,
   Console,
-  DOCUMENT,
-  ENVIRONMENT_INITIALIZER,
-  ErrorHandler,
-  INJECTOR_SCOPE,
   IS_ENABLED_BLOCKING_INITIAL_NAVIGATION,
   Inject,
   Injectable,
-  InjectionToken,
-  Injector,
   MAX_ANIMATION_TIMEOUT,
   NgModule,
   NgZone,
@@ -36,7 +30,6 @@ import {
   PLATFORM_INITIALIZER,
   RendererFactory2,
   RendererStyleFlags2,
-  RuntimeError,
   SecurityContext,
   TESTABILITY,
   TESTABILITY_GETTER,
@@ -45,9 +38,6 @@ import {
   TracingService,
   Version,
   ViewEncapsulation,
-  XSS_SECURITY_URL,
-  ZONELESS_ENABLED,
-  _global,
   _sanitizeHtml,
   _sanitizeUrl,
   allowSanitizationBypassAndThrow,
@@ -57,12 +47,7 @@ import {
   bypassSanitizationTrustStyle,
   bypassSanitizationTrustUrl,
   createPlatformFactory,
-  formatRuntimeError,
-  forwardRef,
-  getAnimationElementRemovalRegistry,
-  inject,
   internalCreateApplication,
-  makeEnvironmentProviders,
   platformCore,
   resolveComponentResources,
   setClassMetadata,
@@ -72,11 +57,28 @@ import {
   withEventReplay,
   withI18nSupport,
   withIncrementalHydration,
+  ɵɵdefineNgModule
+} from "./chunk-BUHPUFHN.js";
+import {
+  DOCUMENT,
+  ENVIRONMENT_INITIALIZER,
+  ErrorHandler,
+  INJECTOR_SCOPE,
+  InjectionToken,
+  Injector,
+  RuntimeError,
+  XSS_SECURITY_URL,
+  ZONELESS_ENABLED,
+  _global,
+  formatRuntimeError,
+  forwardRef,
+  getAnimationElementRemovalRegistry,
+  inject,
+  makeEnvironmentProviders,
   ɵɵdefineInjectable,
   ɵɵdefineInjector,
-  ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-6FLZN62G.js";
+} from "./chunk-NQKEAZII.js";
 import {
   __spreadValues
 } from "./chunk-WDMUDEB6.js";
@@ -2074,4 +2076,4 @@ export {
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-ZAEBCF3K.js.map
+//# sourceMappingURL=chunk-4ZOYZ7AV.js.map

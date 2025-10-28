@@ -1,0 +1,73 @@
+.ttl { color:#0a244d; font-weight:800; margin-bottom:12px; }
+.card { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:12px; box-shadow:0 8px 28px rgba(10,36,77,.06); }
+.tabs { display:flex; gap:8px; }
+.tab { border:1px solid #dbe3ee; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:700; }
+.tab.active { background:#1976d2; color:#fff; border-color:#1976d2; }
+
+.filters { display:flex; gap:8px; align-items:center; }
+.filters input { height:40px; border:1px solid #dbe3ee; border-radius:10px; padding:0 12px; }
+
+.list-head, .row { display:grid; grid-template-columns:1.4fr 1.4fr 1.2fr .6fr .6fr .6fr; gap:8px; align-items:center; }
+.list-head { font-weight:800; color:#0a244d; }
+.row { border-top:1px solid #eef2f7; padding:8px 0; }
+.actions { text-align:right; }
+
+.btn { border:0; border-radius:8px; padding:6px 12px; font-weight:700; cursor:pointer; }
+.btn.primary { background:#1976d2; color:#fff; }
+.btn.danger { background:#dc2626; color:#fff; }
+.btn.sm { font-size:.9rem; }
+
+.chip { border-radius:999px; padding:4px 10px; font-weight:700; font-size:.8rem; }
+.chip-warn { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+.chip-ok { background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; }
+.chip-bad { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+
+.drawer { position:fixed; top:0; right:0; bottom:0; width:min(90vw,1100px); background:#fff; border-left:1px solid #e9eef6; box-shadow:-8px 0 24px rgba(0,0,0,.15); z-index:9999; display:flex; flex-direction:column; }
+.drawer header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #e9eef6; background:#f7faff; }
+.drawer .detail { display:grid; grid-template-columns:1fr 1fr; height:100%; }
+.col { padding:20px; overflow:auto; }
+.carta { border-left:1px solid #e9eef6; background:#fafbff; }
+
+.actions form { display:flex; gap:8px; margin-bottom:10px; }
+.actions input { flex:1; height:40px; padding:0 10px; border:1px solid #dbe3ee; border-radius:8px; }
+
+.preview { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:20px; line-height:1.5; }
+.preview .fecha { text-align:right; font-weight:700; margin-bottom:10px; }
+
+.backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9998; }
+
+.toast { 
+    position:fixed; 
+    bottom:20px; 
+    right:20px; 
+    background:#0a244d; 
+    color:#fff; 
+    padding:10px 14px; 
+    border-radius:8px; }
+
+
+.loading { 
+    padding:10px; 
+    color:#0a244d; }
+
+.alert.error { 
+    background:#fef2f2; 
+    color:#991b1b; 
+    border:1px solid #fecaca; 
+    padding:8px; 
+    border-radius:8px; }
+
+/* barra superior: tabs + buscador en una fila */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* tabs a la izquierda, buscador a la derecha */
+  gap: 12px;
+  flex-wrap: wrap; /* si la pantalla es chica, permite que baje a 2da línea */
+}
+
+/* (ya tienes .filters, lo dejamos igual; opcionalmente fija un ancho cómodo al input) */
+.toolbar .filters input {
+  width: 280px;       /* ajusta a gusto */
+  max-width: 40vw;    /* que no se pase en pantallas pequeñas */
+}

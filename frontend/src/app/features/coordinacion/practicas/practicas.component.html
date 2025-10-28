@@ -1,0 +1,107 @@
+<h2 class="ttl">Coordinación — Cartas de Práctica</h2>
+
+<div class="toolbar card">
+  <div class="tabs">
+    <button class="tab" [class.active]="estado()==='pendiente'" (click)="setEstado('pendiente')">Pendientes</button>
+    <button class="tab" [class.active]="estado()==='aprobado'" (click)="setEstado('aprobado')">Aprobadas</button>
+    <button class="tab" [class.active]="estado()==='rechazado'" (click)="setEstado('rechazado')">Rechazadas</button>
+  </div>
+
+  <div class="filters">
+    
+    <input  type="search"  placeholder="Buscar por alumno o empresa..."  [ngModel]="query()"  (ngModelChange)="query.set($event)"  (keyup.enter)="buscar()" />
+
+    <button class="btn" (click)="buscar()">Buscar</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="list-head">
+    <span>Alumno</span>
+    <span>Carrera</span>
+    <span>Empresa</span>
+    <span>Duración</span>
+    <span>Estado</span>
+    <span></span>
+  </div>
+
+  <div *ngIf="loading()" class="loading">Cargando...</div>
+  <div *ngIf="error()" class="alert error">{{ error() }}</div>
+
+  <div class="list-body" *ngIf="!loading()">
+    <div class="row" *ngFor="let s of solicitudes()">
+      <div>{{ s.alumno.nombres }} {{ s.alumno.apellidos }}</div>
+      <div>{{ s.alumno.carrera }}</div>
+      <div>{{ s.destinatario.empresa }}</div>
+      <div>{{ s.practica.duracionHoras }} h</div>
+      <div>
+        <span class="chip"
+              [class.chip-warn]="s.estado==='pendiente'"
+              [class.chip-ok]="s.estado==='aprobado'"
+              [class.chip-bad]="s.estado==='rechazado'">{{ s.estado | titlecase }}</span>
+      </div>
+      <div class="actions">
+        <button class="btn sm" (click)="abrirDetalle(s)">Revisar</button>
+      </div>
+    </div>
+
+    <div class="pager" *ngIf="total() > size()">
+      <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
+      <span>Página {{ page() }}</span>
+      <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" *ngIf="toast()">{{ toast() }}</div>
+
+<!-- ======= DETALLE ======= -->
+<ng-container *ngIf="showDetalle() && current() as c">
+  <div class="backdrop" (click)="cerrarDetalle()"></div>
+
+  <aside class="drawer">
+    <header>
+      <h3>Solicitud de {{ c.alumno.nombres }} {{ c.alumno.apellidos }}</h3>
+      <button class="icon" (click)="cerrarDetalle()">✕</button>
+    </header>
+
+    <div class="detail">
+      <div class="col">
+        <h4>Datos</h4>
+        <p><b>RUT:</b> {{ c.alumno.rut }}</p>
+        <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
+        <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
+        <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+        <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+
+        <div class="actions">
+          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
+            <input type="url" placeholder="URL PDF firmado (opcional)" formControlName="urlFirmado">
+            <button class="btn primary" type="submit">Aprobar</button>
+          </form>
+
+          <form [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
+            <input type="text" placeholder="Motivo rechazo" formControlName="motivo">
+            <button class="btn danger" type="submit">Rechazar</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col carta">
+        <h4>Vista previa</h4>
+        <div class="preview">
+          <div class="fecha">{{ fechaHoy() }}</div>
+          <p>
+            Me permito dirigirme a Ud. para presentar al Sr.
+            <b>{{ c.alumno.nombres }} {{ c.alumno.apellidos }}</b>,
+            alumno regular de la carrera de
+            <b>{{ c.alumno.carrera }}</b> de la Universidad Tecnológica Metropolitana.
+          </p>
+          <p>Duración: <b>{{ c.practica.duracionHoras }}</b> horas cronológicas.</p>
+          <p>Le saluda atentamente,</p>
+          <p><b>Coordinación de Carrera</b><br>Universidad Tecnológica Metropolitana</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+</ng-container>

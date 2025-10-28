@@ -1,120 +1,77 @@
-<div class="dashboard">
-  <aside class="sidebar" [ngClass]="{'open': menuOpen, 'closed': !menuOpen}">
-    <!-- Logo siempre visible en la parte superior - clickeable para abrir menú -->
-    <div class="logo-container" (click)="menuOpen ? null : toggleMenu()">
-      <img src="assets/utem.png" alt="Logo UTEM" class="logo-image" />
-      <h3 class="logo-title" [class.hidden]="!menuOpen">PROCESO DE TITULACIÓN</h3>
-    </div>
-    
-    <!-- Botón toggle optimizado -->
-    <div class="menu-toggle" (click)="toggleMenu()" [attr.aria-label]="menuOpen ? 'Cerrar menú' : 'Abrir menú'">
-      <span class="toggle-icon" [class.rotated]="!menuOpen">☰</span>
-    </div>
-    
-    <!-- Navegación mejorada -->
-    <nav class="navigation">
-      <ul>
-        <li class="nav-item" (click)="navigateTo('notificaciones')">
-          <img src="assets/Notificaciones.png" alt="Notificaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Notificaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('bandeja')">
-          <img src="assets/Bandeja_entrada.png" alt="Bandeja de entrada" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Bandeja de Entrada</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('inicio')">
-          <img src="assets/Inicio.png" alt="Inicio" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Inicio</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('estudiantes')">
-          <img src="assets/Estudiantes.png" alt="Estudiantes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Estudiantes</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('docentes')">
-          <img src="assets/Docentes.png" alt="Docentes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Docentes</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('procesos')">
-          <img src="assets/Procesos.png" alt="Procesos" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Procesos</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('evaluaciones')">
-          <img src="assets/Evaluaciones.png" alt="Evaluaciones" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Evaluaciones</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('reportes')">
-          <img src="assets/Reportes.png" alt="Reportes" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Reportes</span>
-        </li>
-        <li class="nav-item" (click)="navigateTo('perfil')">
-          <img src="assets/Perfil.png" alt="Perfil" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Perfil</span>
-        </li>
-        <li class="nav-item logout" (click)="logout()">
-          <img src="assets/Cerrar_Sesion.png" alt="Cerrar sesión" class="menu-icon" />
-          <span class="label" [class.hidden]="!menuOpen">Cerrar Sesión</span>
-        </li>
-      </ul>
-    </nav>
-  </aside>
-
-  <main class="content">
+<section class="dashboard-content">
+  <header class="dashboard-header">
     <h1 class="title">Panel de administración</h1>
+    <button class="refresh-button" type="button" (click)="refreshData()">
+      Refrescar datos
+    </button>
+  </header>
 
     <!-- TARJETAS DINÁMICAS - Mostrar 0 si no hay datos -->
-    <div class="cards">
-      <div class="card" *ngFor="let card of cardStats; trackBy: trackByCardTitle">
-        <h2 [style.color]="card.color">{{ card.value }}</h2>
-        <p>{{ card.title }}</p>
-      </div>
+  <div class="cards">
+    <div class="card" *ngFor="let card of cardStats; trackBy: trackByCardTitle">
+      <h2 [style.color]="card.color">{{ card.value }}</h2>
+      <p>{{ card.title }}</p>
     </div>
+  </div>
 
-    <div class="tables">
-      <!-- TABLA DE PROCESOS RECIENTES - Solo mostrar si hay datos -->
-      <div class="table" *ngIf="procesosRecientes.length > 0">
-        <h3>Procesos Recientes</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Estudiante</th>
-              <th>Título del Proyecto</th>
-              <th>Estado</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let proceso of procesosRecientes; trackBy: trackByProcesoId">
-              <td>{{ proceso.estudiante }}</td>
-              <td>{{ proceso.tituloProyecto }}</td>
-              <td>
-                <span class="badge" [class]="getBadgeClass(proceso.estado)">
-                  {{ getEstadoText(proceso.estado) }}
-                </span>
-              </td>
-              <td>{{ proceso.fecha }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TABLA DE PROFESORES - Solo mostrar si hay datos y solo 2 columnas -->
-    <div class="table" *ngIf="profesores.length > 0">
-      <h3>Resumen de Profesores</h3>
+  <div class="tables">
+    <!-- TABLA DE PROCESOS RECIENTES - Solo mostrar si hay datos -->
+    <div class="table" *ngIf="procesosRecientes.length > 0; else emptyProcesos">
+      <h3>Procesos Recientes</h3>
       <table>
         <thead>
           <tr>
-            <th>Nombre</th>
-            <th>Correo electrónico</th>
+            <th>Estudiante</th>
+            <th>Título del Proyecto</th>
+            <th>Estado</th>
+            <th>Fecha</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let profesor of profesores; trackBy: trackByProfesorId">
-            <td>{{ profesor.nombre }}</td>
-            <td>{{ profesor.email }}</td>
+          <tr *ngFor="let proceso of procesosRecientes; trackBy: trackByProcesoId">
+            <td>{{ proceso.estudiante }}</td>
+            <td>{{ proceso.tituloProyecto }}</td>
+            <td>
+              <span class="badge" [class]="getBadgeClass(proceso.estado)">
+                {{ getEstadoText(proceso.estado) }}
+              </span>
+            </td>
+            <td>{{ proceso.fecha }}</td>
           </tr>
         </tbody>
       </table>
     </div>
-  </main>
-</div>
+
+ <ng-template #emptyProcesos>
+      <div class="table empty">
+        <h3>Procesos Recientes</h3>
+        <p class="empty-message">Aún no hay procesos recientes registrados.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- TABLA DE PROFESORES - Solo mostrar si hay datos y solo 2 columnas -->
+  <div class="table" *ngIf="profesores.length > 0; else emptyProfesores">
+    <h3>Resumen de Profesores</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo electrónico</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let profesor of profesores; trackBy: trackByProfesorId">
+          <td>{{ profesor.nombre }}</td>
+          <td>{{ profesor.email }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <ng-template #emptyProfesores>
+    <div class="table empty">
+      <h3>Resumen de Profesores</h3>
+      <p class="empty-message">No hay profesores cargados aún.</p>
+    </div>
+  </ng-template>
+</section>

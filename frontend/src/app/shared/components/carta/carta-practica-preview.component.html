@@ -1,0 +1,47 @@
+<div class="carta">
+  <header class="c-enc">
+    <div class="c-uni">Universidad Tecnológica Metropolitana</div>
+    <div class="c-addr">
+      {{ escuela.nombre }} — {{ escuela.direccion }} — Tel. {{ escuela.telefono }}
+    </div>
+  </header>
+
+  <div class="c-fecha">{{ fechaTexto }}</div>
+
+  <section class="c-dest">
+    <div>Señor</div>
+    <div class="c-dest-name">{{ destinatario.nombres }} {{ destinatario.apellidos }}</div>
+    <div class="c-dest-cargo">{{ destinatario.cargo }}</div>
+    <div class="c-dest-emp">{{ destinatario.empresa }}</div>
+    <div>Presente</div>
+  </section>
+
+  <section class="c-body">
+    <p>
+      Me permito dirigirme a Ud. para presentar al Sr.
+      <b>{{ alumno.nombres }} {{ alumno.apellidos }}</b>, RUT
+      <b>{{ alumno.rut }}</b>, alumno regular de la carrera de
+      <b>{{ alumno.carrera }}</b> de la Universidad Tecnológica Metropolitana, y
+      solicitar su aceptación en calidad de alumno en práctica.
+    </p>
+    <p>
+      Esta práctica tiene una duración de <b>{{ duracionHoras }}</b> horas
+      cronológicas y sus objetivos son:
+    </p>
+    <ul class="c-obj">
+      <li *ngFor="let obj of objetivosLista">{{ obj }}</li>
+    </ul>
+    <p>
+      Al término de la práctica, el estudiante deberá reportar sus avances y
+      aprendizajes a la Coordinación de Carrera, quienes se pondrán en contacto
+      para conocer los resultados de su desempeño.
+    </p>
+    <p>Le saluda atentamente,</p>
+  </section>
+
+  <footer class="c-sign">
+    <div class="c-firma-nombre">{{ firmaNombre }}</div>
+    <div class="c-firma-cargo">{{ firmaCargo }}</div>
+    <div class="c-web">{{ firmaInstitucion }}</div>
+  </footer>
+</div>

@@ -24,8 +24,6 @@ interface Docente {
   styleUrls: ['./docentes.component.css']
 })
 export class CoordinacionDocentesComponent implements OnInit {
-  // Estado del menú
-  menuOpen = true;
 
   // Filtros
   cohortes: string[] = ['2019', '2020', '2021', '2022', '2023'];
@@ -134,7 +132,7 @@ export class CoordinacionDocentesComponent implements OnInit {
       fechaCierre: '2024-09-20'
     }
   ];
-
+  // Inicialización del componente
   ngOnInit(): void {
     this.loadDocentes();
     // Establecer filtros por defecto según la imagen
@@ -209,24 +207,6 @@ export class CoordinacionDocentesComponent implements OnInit {
   exportPDF(): void {
     console.log('Exportando datos de feedback docente a PDF...');
     alert('Exportando reporte de encuestas de feedback docente a PDF');
-  }
-
-  // ===== Métodos del Sidebar =====
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a sección: ${section}`);
-    // Aquí implementarías la navegación real usando Router
-  }
-
-  logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-      // Aquí implementarías la lógica de logout real
-    }
   }
 
   // Método para obtener el número total de docentes filtrados

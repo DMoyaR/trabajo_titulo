@@ -30,9 +30,7 @@ interface Carrera {
   templateUrl: './estudiantes.component.html',
   styleUrls: ['./estudiantes.component.css']
 })
-export class EstudiantesComponent implements OnInit {
-  // Estado del menú
-  menuOpen = true;
+export class CoordinacionEstudiantesComponent implements OnInit {
 
   // Datos
   estudiantes: Estudiante[] = [];
@@ -132,7 +130,7 @@ export class EstudiantesComponent implements OnInit {
       fechaIngreso: '2020-03-05'
     }
   ];
-
+  // Inicialización del componente
   ngOnInit(): void {
     this.loadEstudiantes();
   }
@@ -430,25 +428,6 @@ export class EstudiantesComponent implements OnInit {
 
   trackByEstudianteId(index: number, estudiante: Estudiante): number {
     return estudiante.id;
-  }
-
-  // ===== NAVEGACIÓN =====
-
-  toggleMenu(): void {
-    this.menuOpen = !this.menuOpen;
-  }
-
-  navigateTo(section: string): void {
-    console.log(`Navegando a: ${section}`);
-    // TODO: Implementar navegación real con Router
-  }
-
-  logout(): void {
-    const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-    if (confirmLogout) {
-      console.log('Cerrando sesión...');
-      // TODO: Implementar logout real
-    }
   }
 
   // ===== HELPERS =====

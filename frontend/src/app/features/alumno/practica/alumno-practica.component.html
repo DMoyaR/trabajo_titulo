@@ -19,11 +19,307 @@
 </div>
 
 <div class="card">
-  <h3>Documentos oficiales</h3>
+  <div class="card-head">
+    <h3>Documentos oficiales</h3>
+   
+  </div>
+
   <ul class="files">
-    <li *ngFor="let d of documentos()">
-      <span>📄 {{ d.nombre }}</span><small>{{ d.tipo }}</small>
-      <button class="btn sm">Descargar</button>
+    <li *ngFor="let d of documentos()" [attr.title]="d.detalle || null">
+      <span>📄 {{ d.nombre }}</span>
+      <ng-container *ngIf="d.estado; else tipoSimple">
+
+      </ng-container>
+      <ng-template #tipoSimple>
+        <small class="muted">{{ d.tipo }}</small>
+      </ng-template>
+
+      <ng-container *ngIf="d.url; else docPendiente">
+        <a class="btn sm" [href]="d.url" target="_blank" rel="noopener">Descargar</a>
+      </ng-container>
+      <ng-template #docPendiente>
+        <button class="btn sm" disabled aria-disabled="true">Pendiente</button>
+      </ng-template>
+      <small class="muted" *ngIf="d.detalle">
+        {{ d.estado === 'Rechazado' ? ('Motivo: ' + d.detalle) : d.detalle }}
+      </small>
     </li>
   </ul>
+
 </div>
+
+<div class="card solicitudes-card">
+  <div class="card-head">
+    <h3>Solicitudes de práctica</h3>
+    <button class="btn primary sm" (click)="openCarta()">+ Solicitar carta de práctica</button>
+  </div>
+
+  <p class="muted" *ngIf="solicitudesLoading()">Cargando solicitudes…</p>
+  <div class="alert error" *ngIf="solicitudesError()">{{ solicitudesError() }}</div>
+
+<ng-container *ngIf="!solicitudesLoading() && !solicitudesError()">
+    <p class="muted solicitud-empty" *ngIf="!solicitudes().length">
+      Aún no registras solicitudes de carta de práctica.
+    </p>
+
+    <ul class="solicitudes-list" *ngIf="solicitudes().length">
+      <li class="solicitud-item" *ngFor="let solicitud of solicitudes()">
+        <div class="solicitud-header">
+          <div class="solicitud-meta">
+            <span>
+              <small class="label">Creada</small>
+              <strong>{{ formatFecha(solicitud.creadoEn) }}</strong>
+            </span>
+            <span>
+              <small class="label">Inicio práctica</small>
+              <strong>{{ formatFechaCorta(solicitud.practica.fechaInicio) }}</strong>
+            </span>
+            <span>
+              <small class="label">Estado</small>
+              <span class="chip" [ngClass]="estadoChipClase(solicitud.estado)">
+                {{ estadoEtiqueta(solicitud.estado) }}
+              </span>
+            </span>
+          </div>
+
+          <div class="solicitud-actions">
+            <a
+              class="btn sm"
+              *ngIf="solicitud.url; else pendienteDoc"
+              [href]="solicitud.url!"
+              target="_blank"
+              rel="noopener"
+            >
+              Descargar carta
+            </a>
+            <ng-template #pendienteDoc>
+              <button class="btn sm" disabled aria-disabled="true">Sin documento</button>
+            </ng-template>
+          </div>
+        </div>
+
+        <div class="solicitud-body">
+          <span>
+            <small class="label">Empresa</small>
+            <strong>{{ solicitud.destinatario.empresa }}</strong>
+            <small class="muted">{{ solicitud.destinatario.cargo }}</small>
+          </span>
+          <span>
+            <small class="label">Contacto</small>
+            <strong>{{ solicitud.destinatario.nombres }} {{ solicitud.destinatario.apellidos }}</strong>
+            <small class="muted">Jefe directo: {{ solicitud.practica.jefeDirecto }}</small>
+          </span>
+          <span>
+            <small class="label">Duración</small>
+            <strong>{{ solicitud.practica.duracionHoras }} horas</strong>
+            <small class="muted">Sector: {{ solicitud.practica.sectorEmpresa }}</small>
+          </span>
+        </div>
+
+        <div class="solicitud-detalle" *ngIf="solicitud.estado === 'rechazado' && solicitud.motivoRechazo">
+          Motivo del rechazo: {{ solicitud.motivoRechazo }}
+        </div>
+      </li>
+    </ul>
+  </ng-container>
+
+
+</div>
+
+<!-- ================== MODAL SOLICITUD CARTA (EMBEBIDO) ================== -->
+<ng-container *ngIf="showCarta()">
+  <div class="pp-backdrop" (click)="closeCarta()"></div>
+
+  <div class="pp-modal pp-modal--lg" role="dialog" aria-modal="true">
+    <header>
+      <h3>Solicitud de carta de práctica</h3>
+      <button class="icon" type="button" (click)="closeCarta()">✕</button>
+    </header>
+
+    <div class="modal-grid two-pane">
+      <!-- ====== FORM ====== -->
+      <form [formGroup]="cartaForm" (ngSubmit)="enviarAprobacion()" class="form-col" novalidate>
+
+        <div class="block full"><h4 class="block-title">Datos para la carta</h4></div>
+
+        <div>
+          <label class="lbl req">Nombres del alumno</label>
+          <input type="text" formControlName="alumnoNombres"/>
+          <small class="help" *ngIf="f('alumnoNombres').invalid && f('alumnoNombres').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Apellidos del alumno</label>
+          <input type="text" formControlName="alumnoApellidos"/>
+          <small class="help" *ngIf="f('alumnoApellidos').invalid && f('alumnoApellidos').touched">Campo requerido.</small>
+        </div>
+
+        <div class="full">
+          <label class="lbl req">RUT del alumno</label>
+          <input type="text" formControlName="alumnoRut" placeholder="12.345.678-9" (blur)="onRutBlur('alumnoRut')"/>
+          <small class="help" *ngIf="f('alumnoRut').hasError('rutInvalido') && f('alumnoRut').touched">
+            RUT inválido. Verifica dígito verificador.
+          </small>
+          <small class="help" *ngIf="f('alumnoRut').hasError('required') && f('alumnoRut').touched">
+            Campo requerido.
+          </small>
+        </div>
+
+        <div>
+          <label class="lbl req">Escuela</label>
+          <select formControlName="escuelaId">
+            <option value="" disabled selected>Selecciona</option>
+            <option *ngFor="let e of escuelas" [value]="e.id">{{e.nombre}}</option>
+          </select>
+          <small class="help" *ngIf="f('escuelaId').invalid && f('escuelaId').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Carrera</label>
+          <select formControlName="carrera">
+            <option value="" disabled selected>Selecciona</option>
+            <option *ngFor="let c of carrerasDisponibles()" [value]="c">{{c}}</option>
+          </select>
+          <small class="help" *ngIf="f('carrera').invalid && f('carrera').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Duración de práctica</label>
+          <select formControlName="duracionHoras">
+            <option [ngValue]="160">160 horas</option>
+            <option [ngValue]="320">320 horas</option>
+          </select>
+          <small class="help" *ngIf="f('duracionHoras').invalid && f('duracionHoras').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Destinatario - Nombres</label>
+          <input type="text" formControlName="destNombres"/>
+          <small class="help" *ngIf="f('destNombres').invalid && f('destNombres').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Destinatario - Apellidos</label>
+          <input type="text" formControlName="destApellidos"/>
+          <small class="help" *ngIf="f('destApellidos').invalid && f('destApellidos').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Destinatario - Cargo</label>
+          <input type="text" formControlName="destCargo"/>
+          <small class="help" *ngIf="f('destCargo').invalid && f('destCargo').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Destinatario - Empresa</label>
+          <input type="text" formControlName="destEmpresa"/>
+          <small class="help" *ngIf="f('destEmpresa').invalid && f('destEmpresa').touched">Campo requerido.</small>
+        </div>
+
+        <div class="block full"><h4 class="block-title">Datos de la práctica</h4></div>
+
+        <div>
+          <label class="lbl req">RUT de la empresa</label>
+          <input type="text" formControlName="empresaRut" placeholder="11.111.111-1" (blur)="onRutBlur('empresaRut')"/>
+          <small class="help" *ngIf="f('empresaRut').hasError('rutInvalido') && f('empresaRut').touched">
+            RUT inválido. Verifica dígito verificador.
+          </small>
+          <small class="help" *ngIf="f('empresaRut').hasError('required') && f('empresaRut').touched">
+            Campo requerido.
+          </small>
+        </div>
+
+        <div>
+          <label class="lbl req">Sector / Área</label>
+          <select formControlName="sectorEmpresa">
+            <option value="" disabled selected>Selecciona</option>
+            <option *ngFor="let s of sectorOpciones" [value]="s">{{s}}</option>
+          </select>
+          <small class="help" *ngIf="f('sectorEmpresa').invalid && f('sectorEmpresa').touched">Campo requerido.</small>
+        </div>
+
+        <div class="full" *ngIf="cartaForm.get('sectorEmpresa')?.value === 'Otro'">
+          <label class="lbl req">Especifica el sector</label>
+          <input type="text" formControlName="sectorEmpresaOtro" placeholder="Describe el sector o área"/>
+          <small class="help" *ngIf="f('sectorEmpresaOtro').invalid && f('sectorEmpresaOtro').touched">
+            Este campo es obligatorio cuando seleccionas “Otro”.
+          </small>
+        </div>
+
+        <div>
+          <label class="lbl req">Jefe directo</label>
+          <input type="text" formControlName="jefeDirecto"/>
+          <small class="help" *ngIf="f('jefeDirecto').invalid && f('jefeDirecto').touched">Campo requerido.</small>
+        </div>
+
+        <div>
+          <label class="lbl req">Fecha de inicio</label>
+          <input type="date" formControlName="fechaInicio"/>
+          <small class="help" *ngIf="f('fechaInicio').invalid && f('fechaInicio').touched">Campo requerido.</small>
+        </div>
+
+        <div class="full">
+          <label class="lbl req">Cargo del alumno</label>
+          <input type="text" formControlName="cargoAlumno" placeholder="Ej: Desarrollador en práctica"/>
+          <small class="help" *ngIf="f('cargoAlumno').invalid && f('cargoAlumno').touched">Campo requerido.</small>
+        </div>
+
+        <div class="full actions">
+          <button type="button" class="btn" (click)="closeCarta()" [disabled]="isSubmitting()">Cancelar</button>
+          <button type="submit" class="btn primary" [disabled]="cartaForm.invalid || isSubmitting()" [attr.aria-busy]="isSubmitting()">
+            {{ isSubmitting() ? 'Enviando…' : 'Enviar a Coordinación' }}
+          </button>
+        </div>
+
+        <div class="full" *ngIf="submitError()">
+          <div class="alert error">{{ submitError() }}</div>
+        </div>
+        <div class="full" *ngIf="submitOk()">
+          <div class="alert ok">{{ submitOk() }}</div>
+        </div>
+      </form>
+
+      <!-- ====== PREVIEW ====== -->
+      <aside class="preview-col">
+        <div class="carta">
+          <header class="c-enc">
+            <div class="c-uni">Universidad Tecnológica Metropolitana</div>
+            <div class="c-addr">{{prev().escuelaNombre}} — {{prev().escuelaDireccion}} — Tel. {{prev().escuelaTelefono}}</div>
+          </header>
+
+          <div class="c-fecha">{{fechaHoy()}}</div>
+
+          <section class="c-dest">
+            <div>Señor</div>
+            <div class="c-dest-name">{{prev().destNombres}} {{prev().destApellidos}}</div>
+            <div class="c-dest-cargo">{{prev().destCargo}}</div>
+            <div class="c-dest-emp">{{prev().destEmpresa}}</div>
+            <div>Presente</div>
+          </section>
+
+          <section class="c-body">
+            <p>
+              Me permito dirigirme a Ud. para presentar al Sr. <b>{{prev().alumnoNombres}} {{prev().alumnoApellidos}}</b>,
+              RUT <b>{{prev().alumnoRut}}</b>, alumno regular de la carrera de <b>{{prev().carrera}}</b> de la
+              Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+            </p>
+            <p>
+              Esta práctica tiene una duración de
+              <b>{{ prev().duracionHoras }}</b> horas cronológicas
+              y sus objetivos son:
+            </p>
+            <ul class="c-obj"><li *ngFor="let obj of objetivosActuales()">{{obj}}</li></ul>
+            <p>Le saluda atentamente,</p>
+          </section>
+
+          <footer class="c-sign">
+            <div class="c-firma-nombre">{{firmaActual().nombre}}</div>
+            <div class="c-firma-cargo">{{firmaActual().cargo}}</div>
+            <div class="c-web">{{firmaActual().institucion || 'Universidad Tecnologica Metropolitana'}}</div>
+          </footer>
+        </div>
+        <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
+      </aside>
+    </div>
+  </div>
+</ng-container>
