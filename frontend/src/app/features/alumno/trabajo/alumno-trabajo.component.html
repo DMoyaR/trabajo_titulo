@@ -112,7 +112,7 @@
               <p class="muted">{{ propuestaAprobada.descripcion }}</p>
               <div class="chips">
                 <span class="chip">Rama: {{ propuestaAprobada.rama }}</span>
-                <span class="chip ghost" *ngIf="propuestaAprobada.docente">Docente guía: {{ propuestaAprobada.docente?.nombre }}</span>
+                <span class="chip ghost" *ngIf="propuestaAprobada.docente">Docente guía: {{ propuestaAprobada.docente.nombre }}</span>
               </div>
               <p class="comentario" *ngIf="propuestaAprobada.comentarioDecision">
                 Comentario del docente:
@@ -137,7 +137,7 @@
                     </p>
                     <div class="chips">
                       <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
-                      <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente?.nombre }}</span>
+                      <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
                     </div>
                   </div>
                 </li>
