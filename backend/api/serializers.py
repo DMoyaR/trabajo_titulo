@@ -28,7 +28,9 @@ class LoginSerializer(serializers.Serializer):
 
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), required=False, allow_null=True
+    )
     creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
 
     class Meta:
@@ -44,7 +46,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "created_by",
             "creadoPor",
         ]
-        read_only_fields = ["id", "created_at", "created_by"]
+        read_only_fields = ["id", "created_at"]
 
     def get_creado_por(self, obj):
         usuario = obj.created_by

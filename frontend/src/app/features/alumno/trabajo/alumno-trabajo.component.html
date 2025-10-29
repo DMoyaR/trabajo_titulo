@@ -171,7 +171,7 @@
                   <span class="badge">{{ tema.carrera }}</span>
                 </div>
                 <div class="grupo-alumnos">{{ tema.descripcion }}</div>
-                <div class="tema-autor" *ngIf="tema.creadoPor as autor">
+                 <div class="tema-autor" *ngIf="tema.creadoPor as autor">
                   <span class="tema-autor__icon" aria-hidden="true">👤</span>
                   <span>
                     {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:

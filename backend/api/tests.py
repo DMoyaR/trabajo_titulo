@@ -40,6 +40,27 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(tema.requisitos, data["requisitos"])
         self.assertEqual(tema.cupos, data["cupos"])
 
+    def test_create_tema_disponible_with_creator_id(self):
+        data = {
+            "titulo": "Tema creado con autor",
+            "carrera": "Informática",
+            "descripcion": "Descripción de prueba",
+            "requisitos": ["Requisito 1"],
+            "cupos": 2,
+            "created_by": self.usuario.pk,
+        }
+
+        response = self.client.post(self.list_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data.get("created_by"), self.usuario.pk)
+
+        creador = response.data.get("creadoPor")
+        self.assertIsInstance(creador, dict)
+        self.assertEqual(creador.get("nombre"), self.usuario.nombre_completo)
+        self.assertEqual(creador.get("rol"), self.usuario.rol)
+        self.assertEqual(creador.get("carrera"), self.usuario.carrera)
+
     def test_list_temas_disponibles(self):
         TemaDisponible.objects.create(
             titulo="Tema 1",

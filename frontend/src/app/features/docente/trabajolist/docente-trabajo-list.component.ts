@@ -48,7 +48,7 @@ interface TemaDisponible {
   requisitos: string;
   fecha: Date;             // Mapea a created_at
   creadoPor: TemaCreator | null;
-}
+  }
 
 @Component({
   selector: 'docente-trabajo-list',
@@ -253,7 +253,20 @@ export class DocenteTrabajoListComponent implements OnInit {
       // created_by: (opcional) si tu backend lo necesita
     };
 
-    
+    const perfil = this.currentUserService.getProfile();
+    if (perfil?.id) {
+      payload.created_by = perfil.id;
+    }
+
+    const autorActual = perfil
+      ? {
+          nombre: perfil.nombre,
+          rol: perfil.rol,
+          carrera: perfil.carrera ?? null,
+        }
+      : null;
+
+
     this.enviarTema = true;
     this.enviarTemaError = null;
 
@@ -271,7 +284,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             cupos: temaCreado.cupos,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
             fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
-            creadoPor: temaCreado.creadoPor ?? null,
+            creadoPor: temaCreado.creadoPor ?? autorActual,
           };
           this.temas = [temaUI, ...this.temas];
           this.cerrarModalTema();
