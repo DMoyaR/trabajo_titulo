@@ -1027,12 +1027,8 @@ def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
     url_param = (request.data.get("url") or "").strip()
 
-    if url_param:
-        documento_url = url_param
-    else:
-        documento_url = _generar_documento_carta(solicitud)
-
-    solicitud.url_documento = documento_url or None
+    solicitud.url_documento = url_param or None
+    
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
     solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])

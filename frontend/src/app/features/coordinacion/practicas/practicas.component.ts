@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, ViewChild, inject, signal, computed } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import jsPDF from 'jspdf';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type Estado = 'pendiente' | 'aprobado' | 'rechazado';
@@ -308,6 +309,14 @@ export class PracticasComponent {
     ],
   };
 
+  private objetivosGenericos: string[] = [
+    'Aplicar conocimientos disciplinares en un contexto profesional real.',
+    'Integrarse a equipos de trabajo, comunicando avances y resultados.',
+    'Cumplir con normas de seguridad, calidad y medioambiente vigentes.',
+    'Elaborar informes técnicos con conclusiones basadas en evidencia.',
+  ];
+
+
   private firmaFallback: Firma = {
     nombre: 'Coordinación de Carrera — UTEM',
     cargo: '',
@@ -542,6 +551,7 @@ export class PracticasComponent {
           this.toast.set('Solicitud aprobada correctamente.');
           const nuevaUrl = res?.url ?? (body['url'] as string | null | undefined) ?? null;
           this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl ?? undefined);
+          this.descargarCartaPdf(c);
           this.cerrarDetalle();
         },
         error: () => this.toast.set('Error al aprobar solicitud.'),
@@ -592,19 +602,7 @@ export class PracticasComponent {
     });
   }
 
-  fechaHoy = computed(() => {
-    const d = new Date();
-    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    return `Santiago, ${meses[d.getMonth()]} ${d.getDate()} del ${d.getFullYear()}.`;
-  });
-
-  firmaActual = computed<Firma>(() => {
-    const carrera = this.current()?.alumno?.carrera || '';
-    return this.firmasPorCarrera[carrera] || this.firmaFallback;
-  });
-
-  objetivosActuales = computed<string[]>(() => {
-    const carta = this.current();
+  private obtenerObjetivosParaSolicitud(carta: SolicitudCarta | null): string[] {
     if (!carta) {
       return [];
     }
@@ -622,16 +620,10 @@ export class PracticasComponent {
       return porEscuela;
     }
 
-    return [
-      'Aplicar conocimientos disciplinares en un contexto profesional real.',
-      'Integrarse a equipos de trabajo, comunicando avances y resultados.',
-      'Cumplir con normas de seguridad, calidad y medioambiente vigentes.',
-      'Elaborar informes técnicos con conclusiones basadas en evidencia.',
-    ];
-  });
+    return this.objetivosGenericos;
+  }
 
-  cartaPreview = computed<CartaPreviewData>(() => {
-    const carta = this.current();
+  private construirCartaPreviewData(carta: SolicitudCarta | null): CartaPreviewData {
     const escuela = carta?.escuela;
 
     return {
@@ -648,18 +640,141 @@ export class PracticasComponent {
       destCargo: carta?.destinatario?.cargo || 'Cargo',
       destEmpresa: carta?.destinatario?.empresa || 'Empresa',
     };
+  }
+
+  private obtenerFirmaPorCarrera(carrera: string | null | undefined): Firma {
+    const clave = carrera || '';
+    return this.firmasPorCarrera[clave] || this.firmaFallback;
+  }
+
+  private descargarCartaPdf(solicitud: SolicitudCarta) {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const preview = this.construirCartaPreviewData(solicitud);
+    const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
+    const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
+    const fechaTexto = this.fechaHoy();
+
+    const margenX = 20;
+    let cursorY = 25;
+    const anchoTexto = 170;
+    const saltoLinea = 6;
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Universidad Tecnológica Metropolitana', 105, cursorY, { align: 'center' });
+    cursorY += 7;
+
+    doc.setFontSize(11);
+    doc.setFont('Helvetica', 'normal');
+    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono}`;
+    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
+    doc.text(encabezadoLineas, 105, cursorY, { align: 'center' });
+    cursorY += encabezadoLineas.length * (saltoLinea - 1) + 6;
+
+    doc.text(fechaTexto, margenX, cursorY);
+    cursorY += saltoLinea + 2;
+
+    const destinatarioLineas = [
+      'Señor',
+      `${preview.destNombres} ${preview.destApellidos}`.trim(),
+      preview.destCargo,
+      preview.destEmpresa,
+      'Presente',
+    ].filter((linea) => !!linea);
+    destinatarioLineas.forEach((linea) => {
+      doc.text(linea, margenX, cursorY);
+      cursorY += saltoLinea;
+    });
+
+    cursorY += 2;
+
+    const alumnoNombre = `${preview.alumnoNombres} ${preview.alumnoApellidos}`.trim() || 'Alumno/a';
+    const rutTexto = preview.alumnoRut === '—' ? '' : `, RUT ${preview.alumnoRut}`;
+    const carreraTexto = preview.carrera === '—' ? '' : ` de la carrera de ${preview.carrera}`;
+    const parrafo1 = `Me permito dirigirme a Ud. para presentar al Sr. ${alumnoNombre}${rutTexto}${carreraTexto} de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.`;
+    const parrafo1Lineas = doc.splitTextToSize(parrafo1, anchoTexto);
+    doc.text(parrafo1Lineas, margenX, cursorY);
+    cursorY += parrafo1Lineas.length * saltoLinea;
+
+    const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
+    const parrafo2 = `Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
+    const parrafo2Lineas = doc.splitTextToSize(parrafo2, anchoTexto);
+    doc.text(parrafo2Lineas, margenX, cursorY);
+    cursorY += parrafo2Lineas.length * saltoLinea;
+
+    objetivos.forEach((objetivo) => {
+      const bullet = doc.splitTextToSize(`• ${objetivo}`, anchoTexto - 8);
+      doc.text(bullet, margenX + 4, cursorY);
+      cursorY += bullet.length * saltoLinea;
+    });
+
+    const parrafo3Lineas = doc.splitTextToSize('Le saluda atentamente,', anchoTexto);
+    doc.text(parrafo3Lineas, margenX, cursorY);
+    cursorY += parrafo3Lineas.length * saltoLinea + 12;
+
+    doc.setFont('Helvetica', 'bold');
+    doc.text(firma.nombre, margenX, cursorY);
+    cursorY += saltoLinea;
+
+    doc.setFont('Helvetica', 'normal');
+    if (firma.cargo) {
+      const cargoLineas = doc.splitTextToSize(firma.cargo, anchoTexto);
+      doc.text(cargoLineas, margenX, cursorY);
+      cursorY += cargoLineas.length * saltoLinea;
+    }
+
+    const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
+    const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
+    doc.text(institucionLineas, margenX, cursorY);
+
+    const nombreArchivo = this.construirNombreArchivoCarta(preview);
+    doc.save(nombreArchivo);
+  }
+
+  private construirNombreArchivoCarta(preview: CartaPreviewData): string {
+    const base = `${preview.alumnoNombres} ${preview.alumnoApellidos}`.trim() || 'estudiante';
+    const normalizado = base
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+    const sufijo = normalizado || 'estudiante';
+    return `carta_practica_${sufijo}.pdf`;
+  }
+
+  fechaHoy = computed(() => {
+    const d = new Date();
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    return `Santiago, ${meses[d.getMonth()]} ${d.getDate()} del ${d.getFullYear()}.`;
   });
+
+  firmaActual = computed<Firma>(() => {
+    const carrera = this.current()?.alumno?.carrera;
+    return this.obtenerFirmaPorCarrera(carrera);
+  });
+
+  objetivosActuales = computed<string[]>(() => {
+    const carta = this.current();
+    const objetivos = this.obtenerObjetivosParaSolicitud(carta);
+    return [...objetivos];
+  });
+
+  cartaPreview = computed<CartaPreviewData>(() => {
+    const carta = this.current();
+    return this.construirCartaPreviewData(carta);
+  });
+
   // ====== Pestañas ======
   // arriba, junto al resto de signals:
-mainTab = signal<'solicitudes' | 'documentos'>('solicitudes');
+  mainTab = signal<'solicitudes' | 'documentos'>('solicitudes');
 
-// función para cambiar de pestaña
-setMainTab(tab: 'solicitudes' | 'documentos') {
-  this.mainTab.set(tab);
-  if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
-    // si entras a Documentos y aún no cargan, los traemos
-    this.cargarDocumentosCompartidos();
+  // función para cambiar de pestaña
+  setMainTab(tab: 'solicitudes' | 'documentos') {
+    this.mainTab.set(tab);
+    if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
+      // si entras a Documentos y aún no cargan, los traemos
+      this.cargarDocumentosCompartidos();
+    }
   }
-}
-
 }
