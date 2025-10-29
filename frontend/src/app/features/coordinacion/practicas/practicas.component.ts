@@ -46,7 +46,12 @@ interface SolicitudCarta {
   estado: Estado;
   url?: string | null;
   motivoRechazo?: string | null;
-  meta?: Record<string, unknown> | null;
+   meta?: Record<string, unknown> | null;
+}
+
+interface AprobarSolicitudResponse {
+  status: string;
+  url?: string | null;
 }
 
 interface DocumentoCompartidoApi {
@@ -526,18 +531,21 @@ export class PracticasComponent {
     const c = this.current();
     if (!c) return;
 
-    const body = this.aprobarForm.value.urlFirmado
+    const body: { url?: string | null } = this.aprobarForm.value.urlFirmado
       ? { url: this.aprobarForm.value.urlFirmado }
       : {};
 
-    this.http.post(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, body).subscribe({
-      next: () => {
-        this.toast.set('Solicitud aprobada correctamente.');
-        this.actualizarEstadoLocal(c.id, 'aprobado', body['url']);
-        this.cerrarDetalle();
-      },
-      error: () => this.toast.set('Error al aprobar solicitud.'),
-    });
+    this.http
+      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, body)
+      .subscribe({
+        next: (res) => {
+          this.toast.set('Solicitud aprobada correctamente.');
+          const nuevaUrl = res?.url ?? (body['url'] as string | null | undefined) ?? null;
+          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl ?? undefined);
+          this.cerrarDetalle();
+        },
+        error: () => this.toast.set('Error al aprobar solicitud.'),
+      });
   }
 
   rechazar() {

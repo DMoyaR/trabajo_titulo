@@ -2,9 +2,15 @@ import json
 import re
 import unicodedata
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.html import escape
+from django.utils.text import slugify
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -39,10 +45,313 @@ REDIRECTS = {
 }
 
 
+FIRMA_FALLBACK = {
+    "nombre": "Coordinación de Carrera — UTEM",
+    "cargo": "",
+    "institucion": "Universidad Tecnologica Metropolitana",
+}
+
+
+FIRMAS_POR_CARRERA = {
+    "Ingeniería Civil en Computación mención Informática": {
+        "nombre": "Víctor Escobar Jeria",
+        "cargo": "Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería en Informática": {
+        "nombre": "Patricia Mellado Acevedo",
+        "cargo": "Jefa de Carrera Ingeniería en Informática",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Civil en Ciencia de Datos": {
+        "nombre": "Jorge Vergara Quezada",
+        "cargo": "Jefe de Carrera Ingeniería Civil en Ciencia de Datos",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Civil Industrial": {
+        "nombre": "Evelyn Gajardo Gutiérrez",
+        "cargo": "Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Industrial": {
+        "nombre": "Alexis Rufatt Zafira",
+        "cargo": "Jefe de Carrera Ingeniería Industrial",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Civil Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Civil en Mecánica": {
+        "nombre": "Christian Muñoz Valenzuela",
+        "cargo": "Director Escuela de Mecánica",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería en Geomensura": {
+        "nombre": "Juan Toledo Ibarra",
+        "cargo": "Director Escuela de Geomensura",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Bachillerato en Ciencias de la Ingeniería": {
+        "nombre": "Rafael Loyola Berríos",
+        "cargo": "Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Dibujante Proyectista": {
+        "nombre": "Marcelo Borges Quintanilla",
+        "cargo": "Jefe de Carrera Dibujante Proyectista",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+    "Ingeniería Civil Biomédica": {
+        "nombre": "Raúl Caulier Cisterna",
+        "cargo": "Jefe de Carrera Ingeniería Civil Biomédica",
+        "institucion": "Universidad Tecnologica Metropolitana",
+    },
+}
+
+
+OBJETIVOS_DEFECTO = [
+    "Aplicar conocimientos disciplinares en un contexto profesional real.",
+    "Integrarse a equipos de trabajo, comunicando avances y resultados.",
+    "Cumplir con normas de seguridad, calidad y medioambiente vigentes.",
+    "Elaborar informes técnicos con conclusiones basadas en evidencia.",
+]
+
+
+OBJETIVOS_POR_ESCUELA = {
+    "inf": [
+        "Interactuar con profesionales del área informática y con otros de áreas relacionadas.",
+        "Desarrollar capacidades informáticas que le permitan desenvolverse en el ámbito profesional.",
+        "Comprobar empíricamente la importancia de las tecnologías de información.",
+        "Participar en el diseño y/o implementación de soluciones informáticas.",
+    ],
+    "ind": [
+        "Aplicar metodologías de mejora continua (Lean/Seis Sigma) en procesos productivos o de servicios.",
+        "Levantar y analizar indicadores de gestión (KPI), costos y productividad.",
+        "Participar en la planificación de la cadena de suministro, logística y gestión de inventarios.",
+        "Colaborar en sistemas de gestión de calidad y seguridad industrial.",
+    ],
+    "elec": [
+        "Apoyar el diseño, simulación y pruebas de circuitos electrónicos y sistemas embebidos.",
+        "Implementar e integrar instrumentación, sensores y adquisición de datos.",
+        "Participar en el diseño/ensamble de PCB y protocolos de comunicación.",
+        "Aplicar normas de seguridad y estándares eléctricos en laboratorio y terreno.",
+    ],
+    "mec": [
+        "Apoyar el diseño y análisis mecánico mediante herramientas CAD/CAE.",
+        "Participar en procesos de manufactura, mantenimiento y confiabilidad.",
+        "Realizar análisis térmico y de fluidos en equipos/sistemas cuando aplique.",
+        "Aplicar normas de seguridad industrial en talleres y plantas.",
+    ],
+    "geo": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
+    "trans": [
+        "Apoyar estudios de tránsito: aforos, velocidad y nivel de servicio.",
+        "Analizar y modelar la demanda de transporte para la planificación de rutas.",
+        "Colaborar en medidas de seguridad vial e infraestructura asociada.",
+        "Contribuir a la gestión operativa del transporte público/privado.",
+    ],
+}
+
+
+OBJETIVOS_POR_CARRERA = {
+    "Ingeniería Civil Biomédica": [
+        "Apoyar la integración y validación de equipos biomédicos en entornos clínicos.",
+        "Aplicar normas y estándares de seguridad (IEC/ISO) y gestión de riesgos clínicos.",
+        "Desarrollar y/o mantener sistemas de bioinstrumentación y monitoreo.",
+        "Colaborar en interoperabilidad de sistemas de información en salud.",
+    ],
+    "Ingeniería en Alimentos": [
+        "Apoyar el control de calidad bajo BPM y sistema HACCP.",
+        "Realizar análisis fisicoquímicos y/o microbiológicos según protocolos.",
+        "Participar en mejora de procesos y trazabilidad en planta.",
+        "Colaborar en desarrollo o reformulación de productos alimentarios.",
+    ],
+    "Ingeniería Civil Química": [
+        "Participar en operaciones unitarias y control de procesos químicos.",
+        "Apoyar en control de calidad y cumplimiento normativo ambiental.",
+        "Realizar balances de materia y energía y análisis de datos de planta.",
+        "Contribuir a seguridad de procesos y gestión de residuos.",
+    ],
+    "Química Industrial": [
+        "Apoyar en control de calidad y análisis químico instrumental.",
+        "Participar en operación/optimización de procesos y seguridad industrial.",
+        "Gestionar documentación técnica y cumplimiento normativo.",
+        "Colaborar en implementación de mejoras de proceso.",
+    ],
+    "Ingeniería Civil Matemática": [
+        "Aplicar modelamiento matemático a problemas de ingeniería.",
+        "Desarrollar análisis estadístico y métodos de optimización.",
+        "Implementar soluciones computacionales para simulación numérica.",
+        "Elaborar reportes técnicos con interpretación de resultados.",
+    ],
+    "Ingeniería Civil en Ciencia de Datos": [
+        "Adquirir, depurar y preparar datos desde fuentes heterogéneas.",
+        "Construir modelos de analítica/aprendizaje supervisado y no supervisado.",
+        "Validar y evaluar modelos; comunicar hallazgos con visualizaciones.",
+        "Apoyar el despliegue y monitoreo de soluciones de data science.",
+    ],
+    "Ingeniería en Biotecnología": [
+        "Apoyar cultivos, bioprocesos y análisis en laboratorio biotecnológico.",
+        "Aplicar normas de bioseguridad y buenas prácticas de laboratorio.",
+        "Procesar y analizar datos experimentales para toma de decisiones.",
+        "Colaborar en escalamiento o transferencia tecnológica cuando aplique.",
+    ],
+    "Ingeniería en Geomensura": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
+}
+
+
 def _limpiar_rut(valor: str | None) -> str:
     if not valor:
         return ""
     return re.sub(r"[^0-9kK]", "", valor)
+
+
+def _formatear_rut(valor: str | None) -> str:
+    limpio = _limpiar_rut(valor)
+    if not limpio:
+        return valor or ""
+
+    cuerpo, dv = limpio[:-1], limpio[-1].upper()
+    if not cuerpo:
+        return dv
+
+    partes = []
+    while len(cuerpo) > 3:
+        partes.insert(0, cuerpo[-3:])
+        cuerpo = cuerpo[:-3]
+    if cuerpo:
+        partes.insert(0, cuerpo)
+    cuerpo_formateado = ".".join(partes)
+    return f"{cuerpo_formateado}-{dv}"
+
+
+def _obtener_firma(carrera: str | None) -> dict[str, str]:
+    if carrera and carrera in FIRMAS_POR_CARRERA:
+        return FIRMAS_POR_CARRERA[carrera]
+    return FIRMA_FALLBACK
+
+
+def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]:
+    if carrera and carrera in OBJETIVOS_POR_CARRERA:
+        return OBJETIVOS_POR_CARRERA[carrera]
+    if escuela_id and escuela_id in OBJETIVOS_POR_ESCUELA:
+        return OBJETIVOS_POR_ESCUELA[escuela_id]
+    return OBJETIVOS_DEFECTO
+
+
+def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
+    fecha = timezone.localtime(timezone.now())
+    meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
+    ]
+    fecha_texto = f"Santiago, {meses[fecha.month - 1]} {fecha.day} del {fecha.year}."
+
+    firma = _obtener_firma(solicitud.alumno_carrera)
+    objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
+
+    objetivos_html = "".join(f"<li>{escape(obj)}</li>" for obj in objetivos)
+
+    alumno_nombre = f"{solicitud.alumno_nombres} {solicitud.alumno_apellidos}".strip()
+    rut_formateado = _formatear_rut(solicitud.alumno_rut)
+
+    html = f"""<!DOCTYPE html>
+<html lang=\"es\">
+<head>
+    <meta charset=\"utf-8\">
+    <title>Carta {escape(alumno_nombre)}</title>
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f3f4f6; color: #111827; }}
+        .carta {{ max-width: 680px; margin: 32px auto; background: #ffffff; padding: 48px 56px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border-radius: 18px; line-height: 1.6; }}
+        header {{ text-align: center; margin-bottom: 28px; }}
+        .c-uni {{ text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; font-weight: 700; color: #0f172a; }}
+        .c-addr {{ font-size: 0.9rem; margin-top: 6px; color: #475569; }}
+        .c-fecha {{ text-align: right; font-size: 0.95rem; color: #1f2937; margin-bottom: 32px; }}
+        .c-dest div {{ margin: 0; }}
+        .c-dest {{ margin-bottom: 28px; font-size: 0.95rem; }}
+        .c-dest-name {{ font-weight: 600; font-size: 1.05rem; color: #0f172a; }}
+        .c-body p {{ margin: 18px 0; text-align: justify; }}
+        .c-body ul {{ margin: 12px 0 12px 22px; }}
+        .c-body li {{ margin-bottom: 6px; }}
+        .c-sign {{ margin-top: 48px; font-size: 0.95rem; color: #0f172a; }}
+        .c-firma-nombre {{ font-weight: 600; font-size: 1rem; }}
+        .c-firma-cargo {{ color: #475569; }}
+        .c-web {{ margin-top: 6px; color: #0ea5e9; font-size: 0.9rem; }}
+    </style>
+</head>
+<body>
+    <div class=\"carta\">
+        <header>
+            <div class=\"c-uni\">Universidad Tecnológica Metropolitana</div>
+            <div class=\"c-addr\">{escape(solicitud.escuela_nombre)} — {escape(solicitud.escuela_direccion)} — Tel. {escape(solicitud.escuela_telefono)}</div>
+        </header>
+        <div class=\"c-fecha\">{escape(fecha_texto)}</div>
+        <section class=\"c-dest\">
+            <div>Señor</div>
+            <div class=\"c-dest-name\">{escape(solicitud.dest_nombres)} {escape(solicitud.dest_apellidos)}</div>
+            <div class=\"c-dest-cargo\">{escape(solicitud.dest_cargo)}</div>
+            <div class=\"c-dest-emp\">{escape(solicitud.dest_empresa)}</div>
+            <div>Presente</div>
+        </section>
+        <section class=\"c-body\">
+            <p>
+                Me permito dirigirme a Ud. para presentar al Sr. <b>{escape(alumno_nombre)}</b>,
+                RUT <b>{escape(rut_formateado)}</b>, alumno regular de la carrera de <b>{escape(solicitud.alumno_carrera)}</b>
+                de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+            </p>
+            <p>
+                Esta práctica tiene una duración de <b>{solicitud.practica_duracion_horas}</b> horas cronológicas y sus objetivos son:
+            </p>
+            <ul>{objetivos_html}</ul>
+            <p>Le saluda atentamente,</p>
+        </section>
+        <footer class=\"c-sign\">
+            <div class=\"c-firma-nombre\">{escape(firma.get('nombre', ''))}</div>
+            <div class=\"c-firma-cargo\">{escape(firma.get('cargo', ''))}</div>
+            <div class=\"c-web\">{escape(firma.get('institucion') or 'Universidad Tecnologica Metropolitana')}</div>
+        </footer>
+    </div>
+</body>
+</html>
+"""
+
+    base_nombre = f"carta {alumno_nombre}".strip()
+    slug = slugify(base_nombre) or "carta-practica"
+    ruta = f"practicas/cartas/{fecha.year}/carta-{slug}.html"
+
+    if default_storage.exists(ruta):
+        default_storage.delete(ruta)
+
+    archivo = ContentFile(html.encode("utf-8"))
+    path = default_storage.save(ruta, archivo)
+    return default_storage.url(path)
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -586,12 +895,18 @@ def _buscar_coordinador_por_carrera(carrera: str):
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
-    url = request.data.get("url")
-    solicitud.url_documento = url or None
+    url_param = (request.data.get("url") or "").strip()
+
+    if url_param:
+        documento_url = url_param
+    else:
+        documento_url = _generar_documento_carta(solicitud)
+
+    solicitud.url_documento = documento_url or None
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
     solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok"})
+    return Response({"status": "ok", "url": solicitud.url_documento})
 
 
 @api_view(["POST"])
