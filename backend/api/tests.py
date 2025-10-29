@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
-from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion
+from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion, InscripcionTema
 
 class TemaDisponibleAPITestCase(APITestCase):
     def setUp(self):
@@ -39,6 +39,8 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(tema.descripcion, data["descripcion"])
         self.assertEqual(tema.requisitos, data["requisitos"])
         self.assertEqual(tema.cupos, data["cupos"])
+        self.assertEqual(response.data["cuposDisponibles"], data["cupos"])
+        self.assertFalse(response.data["tieneCupoPropio"])
 
     def test_create_tema_disponible_with_creator_id(self):
         data = {
@@ -83,6 +85,7 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
+        self.assertTrue(all("cuposDisponibles" in item for item in response.data))
 
     def test_retrieve_tema_disponible(self):
         tema = TemaDisponible.objects.create(
@@ -99,6 +102,57 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["titulo"], "Tema único")
+
+    def test_reservar_tema_descuenta_cupo(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=2
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+
+        url = reverse("tema-reservar", args=[tema.pk])
+        response = self.client.post(url, {"alumno": alumno.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["cuposDisponibles"], 1)
+        self.assertTrue(response.data["tieneCupoPropio"])
+
+    def test_no_permite_reservar_sin_cupos(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=1
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        otro = Usuario.objects.create(
+            nombre_completo="Otro", correo="otro@example.com", carrera="Computación", rut="33333333-3",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        InscripcionTema.objects.create(tema=tema, alumno=alumno)
+
+        url = reverse("tema-reservar", args=[tema.pk])
+        response = self.client.post(url, {"alumno": otro.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
+    def test_listado_informa_cupo_propio(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=2
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        InscripcionTema.objects.create(tema=tema, alumno=alumno)
+
+        response = self.client.get(self.list_url, {"alumno": alumno.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data[0]["tieneCupoPropio"])
 
 
 class LoginAPITestCase(APITestCase):

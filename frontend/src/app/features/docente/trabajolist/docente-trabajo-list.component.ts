@@ -45,10 +45,11 @@ interface TemaDisponible {
   descripcion: string;
   rama: string;            // Mapea a "carrera" del backend
   cupos: number;
+  cuposDisponibles: number;
   requisitos: string;
   fecha: Date;             // Mapea a created_at
   creadoPor: TemaCreator | null;
-  }
+}
 
 @Component({
   selector: 'docente-trabajo-list',
@@ -211,6 +212,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             descripcion: t.descripcion,
             rama: t.carrera,
             cupos: t.cupos,
+            cuposDisponibles: t.cuposDisponibles,
             requisitos: (t.requisitos?.join(', ') ?? ''),
             fecha: t.created_at ? new Date(t.created_at) : new Date(),
             creadoPor: t.creadoPor ?? null,
@@ -283,6 +285,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             descripcion: temaCreado.descripcion,
             rama: temaCreado.carrera,
             cupos: temaCreado.cupos,
+            cuposDisponibles: temaCreado.cuposDisponibles,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
             fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
             creadoPor: autorRespuesta ?? autorActual ?? null,

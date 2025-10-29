@@ -76,6 +76,14 @@
   background: #174bb8;
 }
 
+.btn[disabled] {
+  background: #9ca3af;
+  color: #f9fafb;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.8;
+}
+
 .btn.sm {
   padding: 6px 12px;
   font-size: 13px;
@@ -204,6 +212,14 @@
   gap: 8px;
 }
 
+.chips.meta {
+  margin-top: 8px;
+}
+
+.chips.requisitos {
+  margin-top: 6px;
+}
+
 .chip {
   display: inline-block;
   padding: 4px 10px;
@@ -229,6 +245,30 @@
   background: #d1fae5;
   border-color: #34d399;
   color: #047857;
+}
+
+.alert {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.alert.success {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #047857;
+}
+
+.alert.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.alert + .alert {
+  margin-top: 8px;
 }
 
 .mis-propuestas {

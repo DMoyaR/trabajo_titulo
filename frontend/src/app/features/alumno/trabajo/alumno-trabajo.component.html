@@ -163,6 +163,8 @@
         </ng-template>
 
         <ng-template #temasLista>
+          <div class="alert success" *ngIf="reservaMensaje()">{{ reservaMensaje() }}</div>
+          <div class="alert error" *ngIf="reservaError()">{{ reservaError() }}</div>
           <ul class="list topics" *ngIf="temas().length; else sinTemas">
             <li *ngFor="let tema of temas()">
               <div class="grupo-info">
@@ -180,11 +182,22 @@
                     <ng-container *ngIf="autor.carrera"> — {{ autor.carrera }}</ng-container>
                   </span>
                 </div>
-                <div class="chips">
+                <div class="chips meta">
+                  <span class="chip ghost">Cupos disp.: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
+                  <span class="chip success" *ngIf="tema.tieneCupoPropio">Tu cupo reservado</span>
+                </div>
+                <div class="chips requisitos" *ngIf="tema.requisitos?.length">
                   <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
                 </div>
               </div>
-              <button type="button" class="btn primary sm">Pedir tema</button>
+              <button
+                type="button"
+                class="btn primary sm"
+                [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
+                (click)="pedirTema(tema)"
+              >
+                {{ etiquetaPedirTema(tema) }}
+              </button>
             </li>
           </ul>
         </ng-template>

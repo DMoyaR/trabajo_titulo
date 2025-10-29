@@ -32,6 +32,8 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
         queryset=Usuario.objects.all(), required=False, allow_null=True
     )
     creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
+    cuposDisponibles = serializers.SerializerMethodField()
+    tieneCupoPropio = serializers.SerializerMethodField()
 
     class Meta:
         model = TemaDisponible
@@ -42,6 +44,8 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "descripcion",
             "requisitos",
             "cupos",
+            "cuposDisponibles",
+            "tieneCupoPropio",
             "created_at",
             "created_by",
             "creadoPor",
@@ -58,6 +62,15 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "rol": usuario.rol,
             "carrera": usuario.carrera,
         }
+
+    def get_cuposDisponibles(self, obj) -> int:
+        return obj.cupos_disponibles
+
+    def get_tieneCupoPropio(self, obj) -> bool:
+        alumno_id = self.context.get("alumno_id")
+        if not alumno_id:
+            return False
+        return obj.inscripciones.filter(alumno_id=alumno_id, activo=True).exists()
 
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)
