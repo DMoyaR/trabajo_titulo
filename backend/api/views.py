@@ -69,6 +69,15 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     serializer_class = TemaDisponibleSerializer
     permission_classes = [AllowAny]
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        alumno = self.request.query_params.get("alumno")
+        try:
+            context["alumno_id"] = int(alumno) if alumno is not None else None
+        except (TypeError, ValueError):
+            context["alumno_id"] = None
+        return context
+
     def perform_create(self, serializer):
         user = getattr(self.request, "user", None)
         if isinstance(user, Usuario):
@@ -93,7 +102,68 @@ def tema_disponible_detalle(request, pk: int):
         tema.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    serializer = TemaDisponibleSerializer(tema)
+    alumno = request.query_params.get("alumno")
+    try:
+        alumno_id = int(alumno) if alumno is not None else None
+    except (TypeError, ValueError):
+        alumno_id = None
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno_id},
+    )
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def reservar_tema(request, pk: int):
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    alumno_id = request.data.get("alumno")
+    if not alumno_id:
+        return Response(
+            {"detail": "Debe indicar el alumno que solicita el tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        alumno_id_int = int(alumno_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "El identificador de alumno es inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = get_object_or_404(Usuario, pk=alumno_id_int)
+    if alumno.rol != "alumno":
+        return Response(
+            {"detail": "Solo estudiantes pueden reservar un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if tema.cupos_disponibles <= 0:
+        return Response(
+            {"detail": "Este tema ya no tiene cupos disponibles."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripcion, created = tema.inscripciones.get_or_create(alumno=alumno)
+
+    if not created and inscripcion.activo:
+        return Response(
+            {"detail": "Ya cuentas con un cupo reservado en este tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not inscripcion.activo:
+        inscripcion.activo = True
+        inscripcion.save(update_fields=["activo", "updated_at"])
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno.pk},
+    )
     return Response(serializer.data)
 
 

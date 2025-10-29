@@ -32,6 +32,12 @@ interface Entrega {
 }
 
 /** Tema usado en la UI. Incluye id para poder eliminar en backend */
+interface TemaCreator {
+  nombre: string;
+  rol: string;
+  carrera: string | null;
+}
+
 interface TemaDisponible {
   id?: number;
   titulo: string;
@@ -39,8 +45,10 @@ interface TemaDisponible {
   descripcion: string;
   rama: string;            // Mapea a "carrera" del backend
   cupos: number;
+  cuposDisponibles: number;
   requisitos: string;
   fecha: Date;             // Mapea a created_at
+  creadoPor: TemaCreator | null;
 }
 
 @Component({
@@ -204,8 +212,10 @@ export class DocenteTrabajoListComponent implements OnInit {
             descripcion: t.descripcion,
             rama: t.carrera,
             cupos: t.cupos,
+            cuposDisponibles: t.cuposDisponibles,
             requisitos: (t.requisitos?.join(', ') ?? ''),
-            fecha: t.created_at ? new Date(t.created_at) : new Date()
+            fecha: t.created_at ? new Date(t.created_at) : new Date(),
+            creadoPor: t.creadoPor ?? null,
           }));
         },
         error: () => {
@@ -245,7 +255,20 @@ export class DocenteTrabajoListComponent implements OnInit {
       // created_by: (opcional) si tu backend lo necesita
     };
 
-    
+    const perfil = this.currentUserService.getProfile();
+    if (perfil?.id) {
+      payload.created_by = perfil.id;
+    }
+
+    const autorActual = perfil
+      ? {
+          nombre: perfil.nombre,
+          rol: perfil.rol,
+          carrera: perfil.carrera ?? null,
+        }
+      : null;
+
+
     this.enviarTema = true;
     this.enviarTemaError = null;
 
@@ -254,6 +277,7 @@ export class DocenteTrabajoListComponent implements OnInit {
       .subscribe({
         next: (temaCreado: TemaAPI) => {
           // Mapeo API -> UI para insertar al inicio manteniendo tu tabla actual
+          const autorRespuesta = temaCreado.creadoPor ?? null;
           const temaUI: TemaDisponible = {
             id: temaCreado.id,
             titulo: temaCreado.titulo,
@@ -261,8 +285,10 @@ export class DocenteTrabajoListComponent implements OnInit {
             descripcion: temaCreado.descripcion,
             rama: temaCreado.carrera,
             cupos: temaCreado.cupos,
+            cuposDisponibles: temaCreado.cuposDisponibles,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
-            fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date()
+            fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
+            creadoPor: autorRespuesta ?? autorActual ?? null,
           };
           this.temas = [temaUI, ...this.temas];
           this.cerrarModalTema();

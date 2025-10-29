@@ -196,6 +196,9 @@ export class AlumnoTrabajoComponent {
   temasCargando = signal(false);
   temasError = signal<string | null>(null);
   private temasCargados = false;
+  reservaMensaje = signal<string | null>(null);
+  reservaError = signal<string | null>(null);
+  reservandoTemaId = signal<number | null>(null);
   
   propuestas = signal<Propuesta[]>([]);
   propuestasCargando = signal(false);
@@ -267,6 +270,8 @@ export class AlumnoTrabajoComponent {
 
     effect(() => {
       if (this.tab() === 'temas') {
+        this.reservaMensaje.set(null);
+        this.reservaError.set(null);
         this.intentarCargarTemas();
         this.intentarCargarPropuestas();
       }
@@ -328,7 +333,8 @@ export class AlumnoTrabajoComponent {
     }
     this.temasCargando.set(true);
     this.temasError.set(null);
-    this.temaService.getTemas().subscribe({
+    const alumnoId = this.obtenerAlumnoIdActual();
+    this.temaService.getTemas(alumnoId ?? undefined).subscribe({
       next: temas => {
         this.temas.set(temas);
         this.temasCargados = true;
@@ -340,6 +346,69 @@ export class AlumnoTrabajoComponent {
         this.temasCargando.set(false);
       },
     });
+  }
+
+  puedePedirTema(tema: TemaDisponible): boolean {
+    return tema.cuposDisponibles > 0 && !tema.tieneCupoPropio;
+  }
+
+  etiquetaPedirTema(tema: TemaDisponible): string {
+    if (tema.tieneCupoPropio) {
+      return 'Cupo reservado';
+    }
+    if (tema.cuposDisponibles === 0) {
+      return 'Sin cupos';
+    }
+    if (this.reservandoTemaId() === tema.id) {
+      return 'Reservando…';
+    }
+    return 'Pedir tema';
+  }
+
+  pedirTema(tema: TemaDisponible) {
+    const alumnoId = this.obtenerAlumnoIdActual();
+    if (!alumnoId || !tema.id) {
+      this.reservaError.set('No se pudo identificar al alumno actual.');
+      this.reservaMensaje.set(null);
+      return;
+    }
+
+    if (!this.puedePedirTema(tema)) {
+      return;
+    }
+
+    this.reservaMensaje.set(null);
+    this.reservandoTemaId.set(tema.id);
+    this.reservaError.set(null);
+
+    this.temaService.pedirTema(tema.id, alumnoId).subscribe({
+      next: (actualizado) => {
+        this.actualizarTemaEnLista(actualizado);
+        this.reservaMensaje.set('Cupo reservado correctamente.');
+        this.reservaError.set(null);
+        this.reservandoTemaId.set(null);
+      },
+      error: (err) => {
+        const detail = err?.error?.detail ?? 'No fue posible reservar el tema. Intenta nuevamente.';
+        this.reservaError.set(detail);
+        this.reservaMensaje.set(null);
+        this.reservandoTemaId.set(null);
+      }
+    });
+  }
+
+  private actualizarTemaEnLista(actualizado: TemaDisponible) {
+    this.temas.update((lista) =>
+      lista.map((tema) => (tema.id === actualizado.id ? actualizado : tema))
+    );
+  }
+
+  private obtenerAlumnoIdActual(): number | null {
+    const perfil = this.currentUserService.getProfile();
+    if (!perfil?.id || perfil.rol !== 'alumno') {
+      return null;
+    }
+    return perfil.id;
   }
 
  private intentarCargarPropuestas() {

@@ -28,8 +28,12 @@ class LoginSerializer(serializers.Serializer):
 
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
-    creado_por = serializers.SerializerMethodField()
+    created_by = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), required=False, allow_null=True
+    )
+    creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
+    cuposDisponibles = serializers.SerializerMethodField()
+    tieneCupoPropio = serializers.SerializerMethodField()
 
     class Meta:
         model = TemaDisponible
@@ -40,11 +44,13 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "descripcion",
             "requisitos",
             "cupos",
+            "cuposDisponibles",
+            "tieneCupoPropio",
             "created_at",
             "created_by",
-            "creado_por",
+            "creadoPor",
         ]
-        read_only_fields = ["id", "created_at", "created_by"]
+        read_only_fields = ["id", "created_at"]
 
     def get_creado_por(self, obj):
         usuario = obj.created_by
@@ -56,6 +62,15 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "rol": usuario.rol,
             "carrera": usuario.carrera,
         }
+
+    def get_cuposDisponibles(self, obj) -> int:
+        return obj.cupos_disponibles
+
+    def get_tieneCupoPropio(self, obj) -> bool:
+        alumno_id = self.context.get("alumno_id")
+        if not alumno_id:
+            return False
+        return obj.inscripciones.filter(alumno_id=alumno_id, activo=True).exists()
 
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)

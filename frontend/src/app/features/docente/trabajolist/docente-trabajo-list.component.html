@@ -118,12 +118,25 @@
           <div>
             <h4 class="temas-item__title">{{ tema.titulo }}</h4>
             <p class="temas-item__objetivo">{{ tema.objetivo }}</p>
+            <div class="temas-item__creator" *ngIf="tema.creadoPor as autor">
+              <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
+              <div>
+                <div class="temas-item__creator-label">
+                  {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:
+                  <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                </div>
+                <div class="temas-item__creator-meta">
+                  {{ autor.rol | titlecase }}
+                  <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                </div>
+              </div>
+            </div>
           </div>
-          
+
         </div>
 
         <div class="temas-item__meta">
-          <span class="chip ghost">Cupos: {{ tema.cupos }}</span>
+          <span class="chip ghost">Cupos: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
           <span class="chip ghost">Fecha de publicación: {{ tema.fecha | date:'shortDate' }}</span>
           <span class="badge">{{ tema.rama }}</span>
         </div>
