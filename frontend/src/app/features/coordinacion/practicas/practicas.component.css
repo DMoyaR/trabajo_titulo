@@ -106,3 +106,16 @@
   width: 280px;       /* ajusta a gusto */
   max-width: 40vw;    /* que no se pase en pantallas pequeñas */
 }
+
+/* Tabs principales y subtabs */
+.main-tabs .tab { font-size: 0.95rem; }
+.subtabs .tab { font-size: 0.9rem; padding: 6px 10px; }
+.subtabs-bar { margin-top: 10px; }
+
+.tab.sm { font-size: .9rem; padding: 6px 10px; }
+
+/* Ajustes de toolbar en pantallas pequeñas */
+@media (max-width: 900px) {
+  .toolbar { gap: 8px; }
+  .toolbar .filters input { width: 100%; max-width: 100%; }
+}

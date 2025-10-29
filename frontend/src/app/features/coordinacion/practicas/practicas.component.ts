@@ -641,4 +641,17 @@ export class PracticasComponent {
       destEmpresa: carta?.destinatario?.empresa || 'Empresa',
     };
   });
+  // ====== Pestañas ======
+  // arriba, junto al resto de signals:
+mainTab = signal<'solicitudes' | 'documentos'>('solicitudes');
+
+// función para cambiar de pestaña
+setMainTab(tab: 'solicitudes' | 'documentos') {
+  this.mainTab.set(tab);
+  if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
+    // si entras a Documentos y aún no cargan, los traemos
+    this.cargarDocumentosCompartidos();
+  }
+}
+
 }
