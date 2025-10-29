@@ -29,7 +29,7 @@ class LoginSerializer(serializers.Serializer):
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
-    creado_por = serializers.SerializerMethodField()
+    creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
 
     class Meta:
         model = TemaDisponible
@@ -42,7 +42,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "cupos",
             "created_at",
             "created_by",
-            "creado_por",
+            "creadoPor",
         ]
         read_only_fields = ["id", "created_at", "created_by"]
 
