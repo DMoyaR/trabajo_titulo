@@ -15,6 +15,7 @@ from .serializers import (
     TemaDisponibleSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
+    PracticaDocumentoSerializer,
     PropuestaTemaSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDecisionSerializer,
@@ -25,6 +26,7 @@ from .models import (
     TemaDisponible,
     Usuario,
     SolicitudCartaPractica,
+    PracticaDocumento,
     PropuestaTema,
     Notificacion,
 )
@@ -607,3 +609,134 @@ def rechazar_solicitud_carta_practica(request, pk: int):
     solicitud.estado = "rechazado"
     solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
     return Response({"status": "ok"})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def gestionar_documentos_practica(request):
+    if request.method == "GET":
+        carrera_param = (request.query_params.get("carrera") or "").strip()
+        coordinador_param = request.query_params.get("coordinador")
+
+        carrera = None
+        if coordinador_param not in (None, ""):
+            try:
+                coordinador_id = int(coordinador_param)
+            except (TypeError, ValueError):
+                return Response(
+                    {"coordinador": "Identificador de coordinador inválido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
+            if not coordinador:
+                return Response(
+                    {"coordinador": "Coordinador no encontrado."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            carrera = coordinador.carrera
+        elif carrera_param:
+            carrera = carrera_param
+        else:
+            return Response(
+                {"detail": "Debe indicar una carrera o coordinador."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        documentos = PracticaDocumento.objects.filter(carrera=carrera).order_by("-created_at")
+        serializer = PracticaDocumentoSerializer(
+            documentos,
+            many=True,
+            context={"request": request},
+        )
+        data = serializer.data
+        return Response({"items": data, "total": len(data)})
+
+    coordinador_param = request.data.get("coordinador")
+    if coordinador_param in (None, ""):
+        return Response(
+            {"coordinador": "Debe indicar el coordinador que sube el archivo."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        coordinador_id = int(coordinador_param)
+    except (TypeError, ValueError):
+        return Response(
+            {"coordinador": "Identificador de coordinador inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
+    if not coordinador:
+        return Response(
+            {"coordinador": "Coordinador no encontrado."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not coordinador.carrera:
+        return Response(
+            {"coordinador": "El coordinador no tiene una carrera asociada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": "Debe adjuntar un archivo."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name).strip()
+    if not nombre:
+        nombre = archivo.name
+
+    descripcion = (request.data.get("descripcion") or "").strip() or None
+
+    documento = PracticaDocumento.objects.create(
+        carrera=coordinador.carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaDocumentoSerializer(documento, context={"request": request})
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def eliminar_documento_practica(request, pk: int):
+    coordinador_param = request.query_params.get("coordinador")
+    if coordinador_param in (None, ""):
+        return Response(
+            {"coordinador": "Debe indicar el coordinador."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        coordinador_id = int(coordinador_param)
+    except (TypeError, ValueError):
+        return Response(
+            {"coordinador": "Identificador de coordinador inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
+    if not coordinador:
+        return Response(
+            {"coordinador": "Coordinador no encontrado."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    documento = get_object_or_404(PracticaDocumento, pk=pk)
+    if documento.carrera != coordinador.carrera:
+        return Response(
+            {"detail": "No tiene permisos para eliminar este archivo."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if documento.archivo:
+        documento.archivo.delete(save=False)
+    documento.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

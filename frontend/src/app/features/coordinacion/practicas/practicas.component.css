@@ -4,6 +4,26 @@
 .tab { border:1px solid #dbe3ee; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:700; }
 .tab.active { background:#1976d2; color:#fff; border-color:#1976d2; }
 
+.docs-card { margin-top:16px; }
+.docs-card .doc-form { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.doc-grid { display:grid; grid-template-columns:minmax(220px,1.2fr) 1fr 1fr; gap:12px; align-items:center; }
+.file-input { display:flex; align-items:center; gap:8px; border:1px dashed #c6d4eb; border-radius:10px; padding:10px 12px; cursor:pointer; background:#f8fbff; font-weight:600; color:#0a244d; }
+.file-input span { flex:1; }
+.file-input input { display:none; }
+.doc-actions { display:flex; gap:8px; }
+.doc-list { margin-top:12px; }
+.doc-items { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.doc-items li { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px; border:1px solid #e9eef6; border-radius:10px; background:#fdfdff; }
+.doc-info { display:flex; flex-direction:column; gap:4px; }
+.doc-buttons { display:flex; gap:8px; align-items:center; }
+.help.error { color:#b91c1c; font-size:.85rem; }
+
+@media (max-width: 900px) {
+  .doc-grid { grid-template-columns: 1fr; }
+  .doc-items li { flex-direction: column; }
+  .doc-buttons { justify-content:flex-start; }
+}
+
 .filters { display:flex; gap:8px; align-items:center; }
 .filters input { height:40px; border:1px solid #dbe3ee; border-radius:10px; padding:0 12px; }
 

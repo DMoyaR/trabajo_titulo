@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, signal, computed } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
@@ -47,6 +47,24 @@ interface SolicitudCarta {
   url?: string | null;
   motivoRechazo?: string | null;
   meta?: Record<string, unknown> | null;
+}
+
+interface DocumentoCompartidoApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
+  uploadedBy?: { id: number; nombre: string; correo: string } | null;
+}
+
+interface DocumentoCompartido {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  createdAt: string;
+  url: string | null;
 }
 
 interface CartaPreviewData {
@@ -98,6 +116,21 @@ export class PracticasComponent {
   private currentUserService = inject(CurrentUserService);
 
   private coordinadorId: number | null = null;
+
+  @ViewChild('archivoInput') archivoInput?: ElementRef<HTMLInputElement>;
+
+  documentosCompartidos = signal<DocumentoCompartido[]>([]);
+  documentosLoading = signal(false);
+  documentosError = signal<string | null>(null);
+  documentoUploadError = signal<string | null>(null);
+  gestionDocumentoLoading = signal(false);
+
+  documentoForm = this.fb.group({
+    nombre: ['', Validators.required],
+    descripcion: [''],
+  });
+  archivoNombre = signal<string | null>(null);
+  private archivoSeleccionado: File | null = null;
 
   estado = signal<Estado>('pendiente');
   query = signal<string>('');
@@ -281,6 +314,146 @@ export class PracticasComponent {
     const profile = this.currentUserService.getProfile();
     this.coordinadorId = profile?.id ?? null;
     this.cargarSolicitudes();
+    if (this.coordinadorId !== null) {
+      this.cargarDocumentosCompartidos();
+    } else {
+      this.documentosCompartidos.set([]);
+    }
+  }
+
+  // ====== Documentos oficiales ======
+  cargarDocumentosCompartidos() {
+    if (this.coordinadorId === null) {
+      this.documentosCompartidos.set([]);
+      return;
+    }
+
+    this.documentosLoading.set(true);
+    this.documentosError.set(null);
+
+    this.http
+      .get<{ items: DocumentoCompartidoApi[]; total: number }>(
+        '/api/coordinacion/practicas/documentos/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped = items.map((doc) => ({
+            id: doc.id,
+            nombre: doc.nombre,
+            descripcion: doc.descripcion ?? null,
+            createdAt: doc.created_at,
+            url: doc.url,
+          }));
+          this.documentosCompartidos.set(mapped);
+          this.documentosLoading.set(false);
+        },
+        error: () => {
+          this.documentosError.set('No se pudieron cargar los documentos compartidos.');
+          this.documentosCompartidos.set([]);
+          this.documentosLoading.set(false);
+        },
+      });
+  }
+
+  onArchivoSeleccionado(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    this.archivoSeleccionado = file;
+    this.documentoUploadError.set(null);
+    this.archivoNombre.set(file ? file.name : null);
+
+    if (file) {
+      const nombreCtrl = this.documentoForm.get('nombre');
+      if (nombreCtrl && !nombreCtrl.value) {
+        nombreCtrl.setValue(file.name);
+      }
+    }
+  }
+
+  subirDocumento() {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
+      return;
+    }
+
+    if (!this.archivoSeleccionado) {
+      this.documentoUploadError.set('Selecciona un archivo para compartir.');
+      return;
+    }
+
+    if (this.documentoForm.invalid) {
+      this.documentoForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.documentoForm.value;
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.archivoSeleccionado);
+    formData.append('nombre', formValue.nombre || this.archivoSeleccionado.name);
+    if (formValue.descripcion) {
+      formData.append('descripcion', formValue.descripcion);
+    }
+
+    this.gestionDocumentoLoading.set(true);
+    this.http
+      .post<DocumentoCompartidoApi>('/api/coordinacion/practicas/documentos/', formData)
+      .subscribe({
+        next: (res) => {
+          const nuevo: DocumentoCompartido = {
+            id: res.id,
+            nombre: res.nombre,
+            descripcion: res.descripcion ?? null,
+            createdAt: res.created_at,
+            url: res.url,
+          };
+          this.documentosCompartidos.update((docs) => [nuevo, ...docs]);
+          this.toast.set('Documento compartido correctamente.');
+          this.limpiarFormularioDocumento();
+          this.gestionDocumentoLoading.set(false);
+        },
+        error: () => {
+          this.toast.set('No se pudo subir el documento.');
+          this.gestionDocumentoLoading.set(false);
+        },
+      });
+  }
+
+  limpiarFormularioDocumento() {
+    this.documentoForm.reset();
+    this.archivoSeleccionado = null;
+    this.documentoUploadError.set(null);
+    this.archivoNombre.set(null);
+    if (this.archivoInput?.nativeElement) {
+      this.archivoInput.nativeElement.value = '';
+    }
+  }
+
+  eliminarDocumento(id: number) {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    this.gestionDocumentoLoading.set(true);
+    this.http
+      .delete(`/api/coordinacion/practicas/documentos/${id}/`, {
+        params: { coordinador: String(this.coordinadorId) },
+      })
+      .subscribe({
+        next: () => {
+          this.documentosCompartidos.update((docs) => docs.filter((doc) => doc.id !== id));
+          this.toast.set('Documento eliminado.');
+          this.gestionDocumentoLoading.set(false);
+        },
+        error: () => {
+          this.toast.set('No se pudo eliminar el documento.');
+          this.gestionDocumentoLoading.set(false);
+        },
+      });
   }
 
   cargarSolicitudes() {

@@ -24,6 +24,8 @@
    
   </div>
 
+  <div class="alert error" *ngIf="documentosOficialesError()">{{ documentosOficialesError() }}</div>
+  
   <ul class="files">
     <li *ngFor="let d of documentos()" [attr.title]="d.detalle || null">
       <span>📄 {{ d.nombre }}</span>

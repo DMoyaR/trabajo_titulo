@@ -18,10 +18,19 @@ interface Firma {
 }
 interface Documento {
   nombre: string;
-  tipo: 'PDF' | 'Carta';
+  tipo: 'PDF' | 'Carta' | 'Documento';
   estado?: 'En revisión' | 'Aprobado' | 'Rechazado';
   url?: string | null;
-    detalle?: string | null;
+  detalle?: string | null;
+}
+
+interface DocumentoOficialApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
 }
 
 type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
@@ -134,17 +143,21 @@ export class AlumnoPracticaComponent implements OnInit {
     { etapa: 'Cierre', pct: 10 },
   ]);
 
-  private readonly baseDocumentos: Documento[] = [
+  private readonly documentosPredefinidos: Documento[] = [
     { nombre: 'Certificado de práctica', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-practica.pdf' },
     { nombre: 'Certificado de cumplimiento', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-cumplimiento.pdf' },
   ];
-  documentos = signal<Documento[]>([...this.baseDocumentos]);
+  private documentosOficiales: Documento[] = [];
+  private documentosCartas: Documento[] = [];
+  documentos = signal<Documento[]>([...this.documentosPredefinidos]);
+  documentosOficialesError = signal<string | null>(null);
 
   solicitudes = signal<SolicitudCarta[]>([]);
   solicitudesLoading = signal(false);
   solicitudesError = signal<string | null>(null);
 
   private alumnoRut: string | null = null;
+  private carreraAlumno: string | null = null;
 
   // ===== Modal incrustado =====
   showCarta = signal(false);
@@ -374,12 +387,16 @@ export class AlumnoPracticaComponent implements OnInit {
     }
 
     if (storedCarrera) {
+      this.carreraAlumno = storedCarrera;
       this.cartaForm.get('carrera')?.setValue(storedCarrera);
       localStorage.setItem('alumnoCarrera', storedCarrera);
       const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
       if (escuelaMatch) {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
-      }  
+      }
+      this.cargarDocumentosOficiales(storedCarrera);
+      } else {
+        this.refrescarDocumentos();  
     }
     this.cargarDatosAlumnoDesdePerfil();
     this.cargarSolicitudes();
@@ -449,6 +466,11 @@ export class AlumnoPracticaComponent implements OnInit {
       if (carreraPerfil) {
         patch['carrera'] = carreraPerfil;
         localStorage.setItem('alumnoCarrera', carreraPerfil);
+
+        if (this.carreraAlumno !== carreraPerfil) {
+          this.carreraAlumno = carreraPerfil;
+          this.cargarDocumentosOficiales(carreraPerfil);
+        }
         const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) =>
           carreras.includes(carreraPerfil)
         );
@@ -498,6 +520,63 @@ export class AlumnoPracticaComponent implements OnInit {
     return this.carreraAliasMap[raw] || raw;
   }
 
+  private refrescarDocumentos(): void {
+    const combinados: Documento[] = [
+      ...this.documentosPredefinidos,
+      ...this.documentosOficiales,
+      ...this.documentosCartas,
+    ];
+    this.documentos.set(combinados);
+  }
+
+  private cargarDocumentosOficiales(carrera: string): void {
+    const carreraLimpia = (carrera || '').trim();
+    if (!carreraLimpia) {
+      this.documentosOficiales = [];
+      this.documentosOficialesError.set(null);
+      this.refrescarDocumentos();
+      return;
+    }
+
+    this.documentosOficialesError.set(null);
+
+    this.http
+      .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
+        params: { carrera: carreraLimpia },
+      })
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped = items.map((doc) => {
+            const fecha = this.formatFechaCorta(doc.created_at);
+            const partes: string[] = [];
+            if (doc.descripcion) {
+              partes.push(doc.descripcion);
+            }
+            if (fecha && fecha !== '—') {
+              partes.push(`Publicado: ${fecha}`);
+            }
+            return {
+              nombre: doc.nombre,
+              tipo: 'Documento' as const,
+              url: doc.url,
+              detalle: partes.length ? partes.join(' · ') : undefined,
+            };
+          });
+          this.documentosOficiales = mapped;
+          this.documentosOficialesError.set(null);
+          this.refrescarDocumentos();
+        },
+        error: (error) => {
+          console.error('Error cargando documentos oficiales:', error);
+          this.documentosOficiales = [];
+          this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
+          this.refrescarDocumentos();
+        },
+      });
+  }
+
+
   private cargarSolicitudes(): void {
 
     this.solicitudesLoading.set(true);
@@ -520,7 +599,7 @@ export class AlumnoPracticaComponent implements OnInit {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
           
-          const documentos: Documento[] = [...this.baseDocumentos];
+          const cartas: Documento[] = [];
 
           items
             .filter((solicitud) => solicitud.estado === 'aprobado' && !!solicitud.url)
@@ -534,7 +613,7 @@ export class AlumnoPracticaComponent implements OnInit {
                 ? `Dirigida a ${solicitud.destinatario.empresa}. Cargo: ${solicitud.destinatario.cargo}.`
                 : `Dirigida a ${solicitud.destinatario.empresa}.`;
 
-              documentos.push({
+              cartas.push({
                 nombre: nombreCarta,
                 tipo: 'Carta',
                 estado: 'Aprobado',
@@ -543,7 +622,8 @@ export class AlumnoPracticaComponent implements OnInit {
               });
             });
 
-          this.documentos.set(documentos);
+          this.documentosCartas = cartas;
+          this.refrescarDocumentos();
           
           if (!this.alumnoRut) {
             const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
@@ -560,7 +640,8 @@ export class AlumnoPracticaComponent implements OnInit {
           console.error('Error cargando solicitudes:', err);
           this.solicitudes.set([]);
           this.solicitudesError.set('No se pudieron cargar tus solicitudes de carta.');
-          this.documentos.set([...this.baseDocumentos]);
+          this.documentosCartas = [];
+          this.refrescarDocumentos();
           this.solicitudesLoading.set(false);
         },
       });
