@@ -275,6 +275,7 @@ export class DocenteTrabajoListComponent implements OnInit {
       .subscribe({
         next: (temaCreado: TemaAPI) => {
           // Mapeo API -> UI para insertar al inicio manteniendo tu tabla actual
+          const autorRespuesta = temaCreado.creadoPor ?? null;
           const temaUI: TemaDisponible = {
             id: temaCreado.id,
             titulo: temaCreado.titulo,
@@ -284,7 +285,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             cupos: temaCreado.cupos,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
             fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
-            creadoPor: temaCreado.creadoPor ?? autorActual,
+            creadoPor: autorRespuesta ?? autorActual ?? null,
           };
           this.temas = [temaUI, ...this.temas];
           this.cerrarModalTema();
