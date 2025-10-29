@@ -448,6 +448,15 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         lineas.extend(_pdf_wrap_vineta(objetivo))
 
     lineas.append("")
+
+    cuerpo_3 = (
+        "Al término de la práctica, el estudiante deberá reportar sus avances y "
+        "aprendizajes a la Coordinación de Carrera, quienes se pondrán en contacto "
+        "para conocer los resultados de su desempeño."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_3))
+
+    lineas.append("")
     lineas.extend(_pdf_wrap("Le saluda atentamente,"))
     lineas.append("")
 
