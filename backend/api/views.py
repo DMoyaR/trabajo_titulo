@@ -1,5 +1,7 @@
+import io
 import json
 import re
+import textwrap
 import unicodedata
 
 from django.core.files.base import ContentFile
@@ -9,7 +11,6 @@ from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.utils.html import escape
 from django.utils.text import slugify
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -255,6 +256,129 @@ def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]
     return OBJETIVOS_DEFECTO
 
 
+def _normalizar_texto_pdf(value: str) -> str:
+    if not value:
+        return ""
+
+    reemplazos = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2212": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u00b7": "-",
+    }
+
+    texto = unicodedata.normalize("NFKC", value)
+    texto = "".join(reemplazos.get(ch, ch) for ch in texto)
+
+    try:
+        texto.encode("latin-1")
+    except UnicodeEncodeError:
+        texto = texto.encode("latin-1", "replace").decode("latin-1")
+
+    return texto
+
+
+def _pdf_wrap(texto: str, ancho: int = 88) -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    return textwrap.wrap(
+        texto,
+        width=ancho,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _pdf_wrap_vineta(texto: str, ancho: int = 88, vineta: str = "-") -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    prefijo = f"{vineta} "
+    return textwrap.wrap(
+        texto,
+        width=ancho,
+        initial_indent=prefijo,
+        subsequent_indent=" " * len(prefijo),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _pdf_escape_texto(texto: str) -> str:
+    return (
+        texto.replace("\\", "\\\\")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
+
+
+def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
+    leading = 16
+    inicio_x = 72
+    inicio_y = 770
+
+    texto_ops: list[str] = [
+        "BT",
+        "/F1 12 Tf",
+        f"1 0 0 1 {inicio_x} {inicio_y} Tm",
+        f"{leading} TL",
+    ]
+
+    for linea in lineas:
+        if not linea:
+            texto_ops.append("T*")
+            continue
+        texto_ops.append(f"({_pdf_escape_texto(_normalizar_texto_pdf(linea))}) Tj")
+        texto_ops.append("T*")
+
+    texto_ops.append("ET")
+
+    contenido = "\n".join(texto_ops).encode("latin-1")
+
+    buffer = io.BytesIO()
+    buffer.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+
+    offsets: list[int] = []
+
+    def escribir_objeto(data: bytes) -> None:
+        offsets.append(buffer.tell())
+        buffer.write(data)
+
+    escribir_objeto(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    escribir_objeto(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    escribir_objeto(
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+    )
+
+    flujo = (
+        b"4 0 obj\n<< /Length "
+        + str(len(contenido)).encode("ascii")
+        + b" >>\nstream\n"
+        + contenido
+        + b"\nendstream\nendobj\n"
+    )
+    escribir_objeto(flujo)
+
+    escribir_objeto(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    xref_pos = buffer.tell()
+    buffer.write(f"xref\n0 {len(offsets) + 1}\n".encode("ascii"))
+    buffer.write(b"0000000000 65535 f \n")
+    for offset in offsets:
+        buffer.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+
+    buffer.write(b"trailer\n<< /Size " + str(len(offsets) + 1).encode("ascii") + b" /Root 1 0 R >>\n")
+    buffer.write(b"startxref\n" + str(xref_pos).encode("ascii") + b"\n%%EOF")
+
+    return buffer.getvalue()
+
+
 def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     fecha = timezone.localtime(timezone.now())
     meses = [
@@ -276,82 +400,79 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     firma = _obtener_firma(solicitud.alumno_carrera)
     objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
 
-    objetivos_html = "".join(f"<li>{escape(obj)}</li>" for obj in objetivos)
+    partes_alumno = [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+    alumno_nombre = " ".join(parte for parte in partes_alumno if parte).strip() or "Alumno"
+    rut_formateado = _formatear_rut(solicitud.alumno_rut) or (solicitud.alumno_rut or "")
+    carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
 
-    alumno_nombre = f"{solicitud.alumno_nombres} {solicitud.alumno_apellidos}".strip()
-    rut_formateado = _formatear_rut(solicitud.alumno_rut)
+    lineas: list[str] = []
+    lineas.extend(_pdf_wrap("Universidad Tecnologica Metropolitana", ancho=72))
+    encabezado = (
+        f"{solicitud.escuela_nombre or ''} - "
+        f"{solicitud.escuela_direccion or ''} - Tel. {solicitud.escuela_telefono or ''}"
+    )
+    lineas.extend(_pdf_wrap(encabezado, ancho=72))
+    lineas.append("")
 
-    html = f"""<!DOCTYPE html>
-<html lang=\"es\">
-<head>
-    <meta charset=\"utf-8\">
-    <title>Carta {escape(alumno_nombre)}</title>
-    <style>
-        body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #f3f4f6; color: #111827; }}
-        .carta {{ max-width: 680px; margin: 32px auto; background: #ffffff; padding: 48px 56px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border-radius: 18px; line-height: 1.6; }}
-        header {{ text-align: center; margin-bottom: 28px; }}
-        .c-uni {{ text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; font-weight: 700; color: #0f172a; }}
-        .c-addr {{ font-size: 0.9rem; margin-top: 6px; color: #475569; }}
-        .c-fecha {{ text-align: right; font-size: 0.95rem; color: #1f2937; margin-bottom: 32px; }}
-        .c-dest div {{ margin: 0; }}
-        .c-dest {{ margin-bottom: 28px; font-size: 0.95rem; }}
-        .c-dest-name {{ font-weight: 600; font-size: 1.05rem; color: #0f172a; }}
-        .c-body p {{ margin: 18px 0; text-align: justify; }}
-        .c-body ul {{ margin: 12px 0 12px 22px; }}
-        .c-body li {{ margin-bottom: 6px; }}
-        .c-sign {{ margin-top: 48px; font-size: 0.95rem; color: #0f172a; }}
-        .c-firma-nombre {{ font-weight: 600; font-size: 1rem; }}
-        .c-firma-cargo {{ color: #475569; }}
-        .c-web {{ margin-top: 6px; color: #0ea5e9; font-size: 0.9rem; }}
-    </style>
-</head>
-<body>
-    <div class=\"carta\">
-        <header>
-            <div class=\"c-uni\">Universidad Tecnológica Metropolitana</div>
-            <div class=\"c-addr\">{escape(solicitud.escuela_nombre)} — {escape(solicitud.escuela_direccion)} — Tel. {escape(solicitud.escuela_telefono)}</div>
-        </header>
-        <div class=\"c-fecha\">{escape(fecha_texto)}</div>
-        <section class=\"c-dest\">
-            <div>Señor</div>
-            <div class=\"c-dest-name\">{escape(solicitud.dest_nombres)} {escape(solicitud.dest_apellidos)}</div>
-            <div class=\"c-dest-cargo\">{escape(solicitud.dest_cargo)}</div>
-            <div class=\"c-dest-emp\">{escape(solicitud.dest_empresa)}</div>
-            <div>Presente</div>
-        </section>
-        <section class=\"c-body\">
-            <p>
-                Me permito dirigirme a Ud. para presentar al Sr. <b>{escape(alumno_nombre)}</b>,
-                RUT <b>{escape(rut_formateado)}</b>, alumno regular de la carrera de <b>{escape(solicitud.alumno_carrera)}</b>
-                de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
-            </p>
-            <p>
-                Esta práctica tiene una duración de <b>{solicitud.practica_duracion_horas}</b> horas cronológicas y sus objetivos son:
-            </p>
-            <ul>{objetivos_html}</ul>
-            <p>Le saluda atentamente,</p>
-        </section>
-        <footer class=\"c-sign\">
-            <div class=\"c-firma-nombre\">{escape(firma.get('nombre', ''))}</div>
-            <div class=\"c-firma-cargo\">{escape(firma.get('cargo', ''))}</div>
-            <div class=\"c-web\">{escape(firma.get('institucion') or 'Universidad Tecnologica Metropolitana')}</div>
-        </footer>
-    </div>
-</body>
-</html>
-"""
+    lineas.extend(_pdf_wrap(fecha_texto, ancho=72))
+    lineas.append("")
+
+    lineas.extend(_pdf_wrap("Señor"))
+    destinatario = " ".join(
+        parte
+        for parte in [solicitud.dest_nombres or "", solicitud.dest_apellidos or ""]
+        if parte
+    )
+    lineas.extend(_pdf_wrap(destinatario))
+    lineas.extend(_pdf_wrap(solicitud.dest_cargo or ""))
+    lineas.extend(_pdf_wrap(solicitud.dest_empresa or ""))
+    lineas.extend(_pdf_wrap("Presente"))
+    lineas.append("")
+
+    cuerpo_1 = (
+        "Me permito dirigirme a Ud. para presentar al Sr. "
+        f"{alumno_nombre}, RUT {rut_formateado}, alumno regular de la carrera de "
+        f"{carrera_texto} de la Universidad Tecnológica Metropolitana, "
+        "y solicitar su aceptación en calidad de alumno en práctica."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_1))
+    lineas.append("")
+
+    cuerpo_2 = (
+        "Esta práctica tiene una duración de "
+        f"{solicitud.practica_duracion_horas} horas cronológicas y sus objetivos son:"
+    )
+    lineas.extend(_pdf_wrap(cuerpo_2))
+
+    for objetivo in objetivos:
+        lineas.extend(_pdf_wrap_vineta(objetivo))
+
+    lineas.append("")
+    lineas.extend(_pdf_wrap("Le saluda atentamente,"))
+    lineas.append("")
+
+    if firma.get("nombre"):
+        lineas.extend(_pdf_wrap(firma["nombre"]))
+    if firma.get("cargo"):
+        lineas.extend(_pdf_wrap(firma["cargo"]))
+    institucion = firma.get("institucion") or "Universidad Tecnologica Metropolitana"
+    lineas.extend(_pdf_wrap(institucion))
+
+    pdf_bytes = _renderizar_pdf_lineas(lineas)
 
     base_nombre = f"carta {alumno_nombre}".strip()
     slug = slugify(base_nombre) or "carta-practica"
-    ruta = f"practicas/cartas/{fecha.year}/carta-{slug}.html"
+    ruta = f"practicas/cartas/{fecha.year}/carta-{slug}.pdf"
+    ruta_antigua_html = f"practicas/cartas/{fecha.year}/carta-{slug}.html"
 
     if default_storage.exists(ruta):
         default_storage.delete(ruta)
+    if default_storage.exists(ruta_antigua_html):
+        default_storage.delete(ruta_antigua_html)
 
-    archivo = ContentFile(html.encode("utf-8"))
+    archivo = ContentFile(pdf_bytes)
     path = default_storage.save(ruta, archivo)
     return default_storage.url(path)
-
 
 @api_view(["POST"])
 @permission_classes([AllowAny])

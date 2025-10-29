@@ -46,7 +46,7 @@ interface SolicitudCarta {
   estado: Estado;
   url?: string | null;
   motivoRechazo?: string | null;
-   meta?: Record<string, unknown> | null;
+  meta?: Record<string, unknown> | null;
 }
 
 interface AprobarSolicitudResponse {
