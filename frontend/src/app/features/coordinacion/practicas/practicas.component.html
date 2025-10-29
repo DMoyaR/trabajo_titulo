@@ -111,19 +111,47 @@
         </div>
       </div>
 
-      <div class="col carta">
+      <div class="col carta-col">
         <h4>Vista previa</h4>
-        <div class="preview">
-          <div class="fecha">{{ fechaHoy() }}</div>
-          <p>
-            Me permito dirigirme a Ud. para presentar al Sr.
-            <b>{{ c.alumno.nombres }} {{ c.alumno.apellidos }}</b>,
-            alumno regular de la carrera de
-            <b>{{ c.alumno.carrera }}</b> de la Universidad Tecnológica Metropolitana.
-          </p>
-          <p>Duración: <b>{{ c.practica.duracionHoras }}</b> horas cronológicas.</p>
-          <p>Le saluda atentamente,</p>
-          <p><b>Coordinación de Carrera</b><br>Universidad Tecnológica Metropolitana</p>
+        <div class="preview-col">
+          <div class="carta-preview">
+            <header class="c-enc">
+              <div class="c-uni">Universidad Tecnológica Metropolitana</div>
+              <div class="c-addr">{{ cartaPreview().escuelaNombre }} — {{ cartaPreview().escuelaDireccion }} — Tel. {{ cartaPreview().escuelaTelefono }}</div>
+            </header>
+
+            <div class="c-fecha">{{ fechaHoy() }}</div>
+
+            <section class="c-dest">
+              <div>Señor</div>
+              <div class="c-dest-name">{{ cartaPreview().destNombres }} {{ cartaPreview().destApellidos }}</div>
+              <div class="c-dest-cargo">{{ cartaPreview().destCargo }}</div>
+              <div class="c-dest-emp">{{ cartaPreview().destEmpresa }}</div>
+              <div>Presente</div>
+            </section>
+
+            <section class="c-body">
+              <p>
+                Me permito dirigirme a Ud. para presentar al Sr. <b>{{ cartaPreview().alumnoNombres }} {{ cartaPreview().alumnoApellidos }}</b>,
+                RUT <b>{{ cartaPreview().alumnoRut }}</b>, alumno regular de la carrera de <b>{{ cartaPreview().carrera }}</b> de la
+                Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+              </p>
+              <p>
+                Esta práctica tiene una duración de
+                <b>{{ cartaPreview().duracionHoras }}</b> horas cronológicas
+                y sus objetivos son:
+              </p>
+              <ul class="c-obj"><li *ngFor="let obj of objetivosActuales()">{{ obj }}</li></ul>
+              <p>Le saluda atentamente,</p>
+            </section>
+
+            <footer class="c-sign">
+              <div class="c-firma-nombre">{{ firmaActual().nombre }}</div>
+              <div class="c-firma-cargo">{{ firmaActual().cargo }}</div>
+              <div class="c-web">{{ firmaActual().institucion || 'Universidad Tecnologica Metropolitana' }}</div>
+            </footer>
+          </div>
+          <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
         </div>
       </div>
     </div>
