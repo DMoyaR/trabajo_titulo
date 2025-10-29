@@ -9,6 +9,8 @@ export interface TemaDisponible {
   descripcion: string;
   requisitos: string[];
   cupos: number;
+  cuposDisponibles: number;
+  tieneCupoPropio: boolean;
   created_at: string;
   created_by: number | null;
   creadoPor: {
@@ -18,7 +20,10 @@ export interface TemaDisponible {
   } | null;
 }
 
-export type CrearTemaPayload = Omit<TemaDisponible, 'id' | 'created_at' | 'created_by' | 'creadoPor'> & {
+export type CrearTemaPayload = Omit<
+  TemaDisponible,
+  'id' | 'created_at' | 'created_by' | 'creadoPor' | 'cuposDisponibles' | 'tieneCupoPropio'
+> & {
   created_by?: number | null;
 };
 
@@ -28,12 +33,19 @@ export class TemaService {
 
   constructor(private http: HttpClient) {}
 
-  getTemas(): Observable<TemaDisponible[]> {
-    return this.http.get<TemaDisponible[]>(this.baseUrl);
+  getTemas(alumnoId?: number | null): Observable<TemaDisponible[]> {
+    const params = alumnoId ? { alumno: alumnoId } : undefined;
+    return this.http.get<TemaDisponible[]>(this.baseUrl, { params });
   }
 
   crearTema(payload: CrearTemaPayload): Observable<TemaDisponible> {
     return this.http.post<TemaDisponible>(this.baseUrl, payload);
+  }
+
+  pedirTema(temaId: number, alumnoId: number): Observable<TemaDisponible> {
+    return this.http.post<TemaDisponible>(`${this.baseUrl}${temaId}/reservas/`, {
+      alumno: alumnoId,
+    });
   }
 
   eliminarTema(id: number): Observable<void> {

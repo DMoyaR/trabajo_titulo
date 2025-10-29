@@ -97,6 +97,36 @@ class TemaDisponible(models.Model):
     def __str__(self) -> str:
         return self.titulo
 
+    @property
+    def cupos_disponibles(self) -> int:
+        """Cantidad de cupos libres considerando inscripciones activas."""
+        inscritos = self.inscripciones.filter(activo=True).count()
+        restantes = self.cupos - inscritos
+        return restantes if restantes > 0 else 0
+
+
+class InscripcionTema(models.Model):
+    tema = models.ForeignKey(
+        TemaDisponible,
+        on_delete=models.CASCADE,
+        related_name="inscripciones",
+    )
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="inscripciones_tema",
+    )
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "inscripciones_tema"
+        unique_together = ("tema", "alumno")
+
+    def __str__(self) -> str:
+        return f"{self.alumno.nombre_completo} → {self.tema.titulo}"
+
 
 class SolicitudCartaPractica(models.Model):
     ESTADOS = [

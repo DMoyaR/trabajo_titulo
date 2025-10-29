@@ -241,6 +241,30 @@ select:focus {
   line-height:1.45;
 }
 
+.temas-item__creator {
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.temas-item__creator-label {
+  font-size:0.85rem;
+  color:#1f2937;
+  font-weight:600;
+}
+
+.temas-item__creator-icon {
+  font-size:18px;
+}
+
+.temas-item__creator-name { color:#1a3e6a; font-weight:700; }
+
+.temas-item__creator-meta {
+  font-size:0.8rem;
+  color:#6b7280;
+}
+
 .temas-item__meta {
   display:flex;
   flex-wrap:wrap;
