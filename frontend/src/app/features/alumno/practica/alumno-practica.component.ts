@@ -183,6 +183,26 @@ export class AlumnoPracticaComponent implements OnInit {
     'Ingeniería en Informática','Ingeniería Industrial','Química Industrial','Ingeniería Electrónica'
   ];
 
+  private readonly carreraAliasMap: Record<string, string> = {
+    'Ing. Civil Biomédica': 'Ingeniería Civil Biomédica',
+    'Ing. Civil Química': 'Ingeniería Civil Química',
+    'Ing. Civil Matemática': 'Ingeniería Civil Matemática',
+    'Bachillerato en Ciencias de la Ing.': 'Bachillerato en Ciencias de la Ingeniería',
+    'Ing. Civil en Ciencia de Datos': 'Ingeniería Civil en Ciencia de Datos',
+    'Ing. Civil en Computación mención Informática': 'Ingeniería Civil en Computación mención Informática',
+    'Ing. Civil Electrónica': 'Ingeniería Civil Electrónica',
+    'Ing. Civil en Mecánica': 'Ingeniería Civil en Mecánica',
+    'Ing. Civil Industrial': 'Ingeniería Civil Industrial',
+    'Ing. en Biotecnología': 'Ingeniería en Biotecnología',
+    'Ing. en Geomensura': 'Ingeniería en Geomensura',
+    'Ing. en Alimentos': 'Ingeniería en Alimentos',
+    'Ing. en Informática': 'Ingeniería en Informática',
+    'Ing. Industrial': 'Ingeniería Industrial',
+    'Ing. Electrónica': 'Ingeniería Electrónica',
+  };
+
+
+
   carrerasPorEscuela: Record<string, string[]> = {
     inf: ['Ingeniería Civil en Computación mención Informática','Ingeniería en Informática','Ingeniería Civil en Ciencia de Datos'],
     ind: ['Ingeniería Civil Industrial','Ingeniería Industrial','Bachillerato en Ciencias de la Ingeniería','Dibujante Proyectista'],
@@ -343,7 +363,7 @@ export class AlumnoPracticaComponent implements OnInit {
 
   ngOnInit(): void {
     const storedRutRaw = localStorage.getItem('alumnoRut');
-    const storedCarrera = localStorage.getItem('alumnoCarrera');
+    const storedCarrera = this.normalizarCarrera(localStorage.getItem('alumnoCarrera'));
      
 
     if (storedRutRaw) {
@@ -355,6 +375,7 @@ export class AlumnoPracticaComponent implements OnInit {
 
     if (storedCarrera) {
       this.cartaForm.get('carrera')?.setValue(storedCarrera);
+      localStorage.setItem('alumnoCarrera', storedCarrera);
       const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
       if (escuelaMatch) {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
@@ -424,7 +445,7 @@ export class AlumnoPracticaComponent implements OnInit {
     }
 
     if (profile.carrera) {
-      const carreraPerfil = profile.carrera.trim();
+      const carreraPerfil = this.normalizarCarrera(profile.carrera);
       if (carreraPerfil) {
         patch['carrera'] = carreraPerfil;
         localStorage.setItem('alumnoCarrera', carreraPerfil);
@@ -467,6 +488,14 @@ export class AlumnoPracticaComponent implements OnInit {
       nombres: partes.slice(0, partes.length - 2).join(' '),
       apellidos: partes.slice(-2).join(' '),
     };
+  }
+
+  private normalizarCarrera(carrera: string | null | undefined): string {
+    const raw = (carrera ?? '').trim();
+    if (!raw) {
+      return '';
+    }
+    return this.carreraAliasMap[raw] || raw;
   }
 
   private cargarSolicitudes(): void {
