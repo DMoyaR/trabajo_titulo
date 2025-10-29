@@ -227,20 +227,20 @@ export class AlumnoPracticaComponent implements OnInit {
   };
 
   firmasPorCarrera = {
-    'Ingeniería Civil en Computación mención Informática': { nombre:'Víctor Escobar Jeria', cargo:'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería en Informática': { nombre:'Patricia Mellado Acevedo', cargo:'Jefa de Carrera Ingeniería en Informática', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil en Ciencia de Datos': { nombre:'Jorge Vergara Quezada', cargo:'Jefe de Carrera Ingeniería Civil en Ciencia de Datos', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Industrial': { nombre:'Evelyn Gajardo Gutiérrez', cargo:'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Industrial': { nombre:'Alexis Rufatt Zafira', cargo:'Jefe de Carrera Ingeniería Industrial', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil en Mecánica': { nombre:'Christian Muñoz Valenzuela', cargo:'Director Escuela de Mecánica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería en Geomensura': { nombre:'Juan Toledo Ibarra', cargo:'Director Escuela de Geomensura', institucion:'Universidad Tecnologica Metropolitana' },
-    'Bachillerato en Ciencias de la Ingeniería': { nombre:'Rafael Loyola Berríos', cargo:'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería', institucion:'Universidad Tecnologica Metropolitana' },
-    'Dibujante Proyectista': { nombre:'Marcelo Borges Quintanilla', cargo:'Jefe de Carrera Dibujante Proyectista', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Biomédica': { nombre:'Raúl Caulier Cisterna', cargo:'Jefe de Carrera Ingeniería Civil Biomédica', institucion:'Universidad Tecnologica Metropolitana' }
+     'Ingeniería Civil en Computación mención Informática': { nombre:'Víctor Escobar Jeria', cargo:'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería en Informática': { nombre:'Patricia Mellado Acevedo', cargo:'Jefa de Carrera Ingeniería en Informática', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil en Ciencia de Datos': { nombre:'Jorge Vergara Quezada', cargo:'Jefe de Carrera Ingeniería Civil en Ciencia de Datos', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Industrial': { nombre:'Evelyn Gajardo Gutiérrez', cargo:'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Industrial': { nombre:'Alexis Rufatt Zafira', cargo:'Jefe de Carrera Ingeniería Industrial', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil en Mecánica': { nombre:'Christian Muñoz Valenzuela', cargo:'Director Escuela de Mecánica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería en Geomensura': { nombre:'Juan Toledo Ibarra', cargo:'Director Escuela de Geomensura', institucion:'Universidad Tecnológica Metropolitana' },
+    'Bachillerato en Ciencias de la Ingeniería': { nombre:'Rafael Loyola Berríos', cargo:'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería', institucion:'Universidad Tecnológica Metropolitana' },
+    'Dibujante Proyectista': { nombre:'Marcelo Borges Quintanilla', cargo:'Jefe de Carrera Dibujante Proyectista', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Biomédica': { nombre:'Raúl Caulier Cisterna', cargo:'Jefe de Carrera Ingeniería Civil Biomédica', institucion:'Universidad Tecnológica Metropolitana' }
   } as const;
-  firmaFallback: Firma = { nombre: 'Coordinación de Carrera — UTEM', cargo: '' };
+   firmaFallback: Firma = { nombre: 'Coordinación de Carrera — UTEM', cargo: '', institucion: 'Universidad Tecnológica Metropolitana' };
 
   objetivosPorEscuela: Record<string, string[]> = {
     inf: [

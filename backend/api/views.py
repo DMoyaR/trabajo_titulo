@@ -49,7 +49,7 @@ REDIRECTS = {
 FIRMA_FALLBACK = {
     "nombre": "Coordinación de Carrera — UTEM",
     "cargo": "",
-    "institucion": "Universidad Tecnologica Metropolitana",
+    "institucion": "Universidad Tecnológica Metropolitana",
 }
 
 
@@ -57,62 +57,62 @@ FIRMAS_POR_CARRERA = {
     "Ingeniería Civil en Computación mención Informática": {
         "nombre": "Víctor Escobar Jeria",
         "cargo": "Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería en Informática": {
         "nombre": "Patricia Mellado Acevedo",
         "cargo": "Jefa de Carrera Ingeniería en Informática",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Civil en Ciencia de Datos": {
         "nombre": "Jorge Vergara Quezada",
         "cargo": "Jefe de Carrera Ingeniería Civil en Ciencia de Datos",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Civil Industrial": {
         "nombre": "Evelyn Gajardo Gutiérrez",
         "cargo": "Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Industrial": {
         "nombre": "Alexis Rufatt Zafira",
         "cargo": "Jefe de Carrera Ingeniería Industrial",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Civil Electrónica": {
         "nombre": "Patricio Santos López",
         "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Electrónica": {
         "nombre": "Patricio Santos López",
         "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Civil en Mecánica": {
         "nombre": "Christian Muñoz Valenzuela",
         "cargo": "Director Escuela de Mecánica",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería en Geomensura": {
         "nombre": "Juan Toledo Ibarra",
         "cargo": "Director Escuela de Geomensura",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Bachillerato en Ciencias de la Ingeniería": {
         "nombre": "Rafael Loyola Berríos",
         "cargo": "Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Dibujante Proyectista": {
         "nombre": "Marcelo Borges Quintanilla",
         "cargo": "Jefe de Carrera Dibujante Proyectista",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
     "Ingeniería Civil Biomédica": {
         "nombre": "Raúl Caulier Cisterna",
         "cargo": "Jefe de Carrera Ingeniería Civil Biomédica",
-        "institucion": "Universidad Tecnologica Metropolitana",
+        "institucion": "Universidad Tecnológica Metropolitana",
     },
 }
 
@@ -406,10 +406,10 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
 
     lineas: list[str] = []
-    lineas.extend(_pdf_wrap("Universidad Tecnologica Metropolitana", ancho=72))
+    lineas.extend(_pdf_wrap("Universidad Tecnológica Metropolitana", ancho=72))
     encabezado = (
-        f"{solicitud.escuela_nombre or ''} - "
-        f"{solicitud.escuela_direccion or ''} - Tel. {solicitud.escuela_telefono or ''}"
+        f"{solicitud.escuela_nombre or ''} — "
+        f"{solicitud.escuela_direccion or ''} — Tel. {solicitud.escuela_telefono or ''}"
     )
     lineas.extend(_pdf_wrap(encabezado, ancho=72))
     lineas.append("")
@@ -455,7 +455,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         lineas.extend(_pdf_wrap(firma["nombre"]))
     if firma.get("cargo"):
         lineas.extend(_pdf_wrap(firma["cargo"]))
-    institucion = firma.get("institucion") or "Universidad Tecnologica Metropolitana"
+    institucion = firma.get("institucion") or "Universidad Tecnológica Metropolitana"
     lineas.extend(_pdf_wrap(institucion))
 
     pdf_bytes = _renderizar_pdf_lineas(lineas)
