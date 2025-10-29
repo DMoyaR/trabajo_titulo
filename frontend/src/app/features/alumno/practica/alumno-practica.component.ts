@@ -151,6 +151,7 @@ export class AlumnoPracticaComponent implements OnInit {
   private documentosCartas: Documento[] = [];
   documentos = signal<Documento[]>([...this.documentosPredefinidos]);
   documentosOficialesError = signal<string | null>(null);
+  oficiales = signal<Documento[]>([]);
 
   solicitudes = signal<SolicitudCarta[]>([]);
   solicitudesLoading = signal(false);
@@ -520,6 +521,21 @@ export class AlumnoPracticaComponent implements OnInit {
     return this.carreraAliasMap[raw] || raw;
   }
 
+  private carreraParaApi(carrera: string | null | undefined): string {
+    const limpia = (carrera ?? '').trim();
+    if (!limpia) {
+      return '';
+    }
+
+    const aliasEntry = Object.entries(this.carreraAliasMap).find(([, nombreLargo]) => nombreLargo === limpia);
+    if (aliasEntry) {
+      return aliasEntry[0];
+    }
+
+    return limpia;
+  }
+
+
   private refrescarDocumentos(): void {
     const combinados: Documento[] = [
       ...this.documentosPredefinidos,
@@ -529,52 +545,54 @@ export class AlumnoPracticaComponent implements OnInit {
     this.documentos.set(combinados);
   }
 
-  private cargarDocumentosOficiales(carrera: string): void {
-    const carreraLimpia = (carrera || '').trim();
-    if (!carreraLimpia) {
-      this.documentosOficiales = [];
-      this.documentosOficialesError.set(null);
-      this.refrescarDocumentos();
-      return;
-    }
-
+private cargarDocumentosOficiales(carrera: string): void {
+  const carreraLimpia = (carrera || '').trim();
+  if (!carreraLimpia) {
+    this.documentosOficiales = [];
+    this.oficiales.set([]); // ← si estás usando la signal
     this.documentosOficialesError.set(null);
-
-    this.http
-      .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
-        params: { carrera: carreraLimpia },
-      })
-      .subscribe({
-        next: (res) => {
-          const items = Array.isArray(res.items) ? res.items : [];
-          const mapped = items.map((doc) => {
-            const fecha = this.formatFechaCorta(doc.created_at);
-            const partes: string[] = [];
-            if (doc.descripcion) {
-              partes.push(doc.descripcion);
-            }
-            if (fecha && fecha !== '—') {
-              partes.push(`Publicado: ${fecha}`);
-            }
-            return {
-              nombre: doc.nombre,
-              tipo: 'Documento' as const,
-              url: doc.url,
-              detalle: partes.length ? partes.join(' · ') : undefined,
-            };
-          });
-          this.documentosOficiales = mapped;
-          this.documentosOficialesError.set(null);
-          this.refrescarDocumentos();
-        },
-        error: (error) => {
-          console.error('Error cargando documentos oficiales:', error);
-          this.documentosOficiales = [];
-          this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
-          this.refrescarDocumentos();
-        },
-      });
+    this.refrescarDocumentos();
+    return;
   }
+
+  this.documentosOficialesError.set(null);
+
+  const carreraApi = this.carreraParaApi(carreraLimpia);
+
+  this.http
+    .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
+      params: { carrera: carreraApi },
+    })
+    .subscribe({
+      next: (res) => {
+        const items = Array.isArray(res.items) ? res.items : [];
+        const mapped: Documento[] = items.map((doc) => {
+          const fecha = this.formatFechaCorta(doc.created_at);
+          const partes: string[] = [];
+          if (doc.descripcion) partes.push(doc.descripcion);
+          if (fecha && fecha !== '—') partes.push(`Publicado: ${fecha}`);
+          return {
+            nombre: doc.nombre,
+            tipo: 'Documento',
+            url: doc.url,
+            detalle: partes.length ? partes.join(' · ') : undefined,
+          };
+        });
+
+        this.documentosOficiales = mapped;   // opcional, si quieres conservar el array interno
+        this.oficiales.set(mapped);          // ← importante si usas la signal en el template
+        this.documentosOficialesError.set(null);
+        this.refrescarDocumentos();
+      },
+      error: (error) => {
+        console.error('Error cargando documentos oficiales:', error);
+        this.documentosOficiales = [];
+        this.oficiales.set([]);              // ← vacía la signal
+        this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
+        this.refrescarDocumentos();
+      },
+    });
+}
 
 
   private cargarSolicitudes(): void {
