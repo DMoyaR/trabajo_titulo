@@ -66,13 +66,37 @@
     </header>
 
     <div class="detail">
-      <div class="col">
-        <h4>Datos</h4>
-        <p><b>RUT:</b> {{ c.alumno.rut }}</p>
-        <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
-        <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
-        <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
-        <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+         <div class="col">
+        <div class="info-group">
+          <h4>Datos del alumno</h4>
+          <p><b>RUT:</b> {{ c.alumno.rut }}</p>
+          <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
+          <p><b>Fecha de solicitud:</b> {{ formatFecha(c.creadoEn) }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Datos de la práctica</h4>
+          <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+          <p><b>Cargo del estudiante:</b> {{ c.practica.cargoAlumno }}</p>
+          <p><b>Fecha de inicio:</b> {{ formatFecha(c.practica.fechaInicio) }}</p>
+          <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+          <p><b>RUT de la empresa:</b> {{ c.practica.empresaRut }}</p>
+          <p><b>Sector de la empresa:</b> {{ c.practica.sectorEmpresa }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Empresa / Destinatario</h4>
+          <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
+          <p><b>Contacto:</b> {{ c.destinatario.nombres }} {{ c.destinatario.apellidos }}</p>
+          <p><b>Cargo del contacto:</b> {{ c.destinatario.cargo }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Escuela asignada</h4>
+          <p><b>Escuela:</b> {{ c.escuela.nombre }}</p>
+          <p><b>Dirección:</b> {{ c.escuela.direccion }}</p>
+          <p><b>Teléfono:</b> {{ c.escuela.telefono }}</p>
+        </div>
 
         <div class="actions">
           <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">

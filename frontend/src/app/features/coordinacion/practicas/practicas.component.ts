@@ -184,6 +184,21 @@ export class PracticasComponent {
     }
   }
 
+  formatFecha(fecha: string | null | undefined): string {
+    if (!fecha) return '';
+
+    const parsed = new Date(fecha);
+    if (Number.isNaN(parsed.getTime())) {
+      return fecha;
+    }
+
+    return parsed.toLocaleDateString('es-CL', {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit',
+    });
+  }
+
   fechaHoy = computed(() => {
     const d = new Date();
     const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];

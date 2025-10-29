@@ -28,6 +28,10 @@
 .col { padding:20px; overflow:auto; }
 .carta { border-left:1px solid #e9eef6; background:#fafbff; }
 
+.info-group { margin-bottom:18px; }
+.info-group h4 { margin:0 0 8px; color:#0a244d; }
+.info-group p { margin:4px 0; }
+
 .actions form { display:flex; gap:8px; margin-bottom:10px; }
 .actions input { flex:1; height:40px; padding:0 10px; border:1px solid #dbe3ee; border-radius:8px; }
 
