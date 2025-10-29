@@ -358,6 +358,17 @@ def crear_solicitud_carta_practica(request):
 def listar_solicitudes_carta_practica(request):
     queryset = SolicitudCartaPractica.objects.all()
 
+    coordinador_param = request.query_params.get("coordinador")
+    if coordinador_param not in (None, ""):
+        try:
+            coordinador_id = int(coordinador_param)
+        except (TypeError, ValueError):
+            return Response(
+                {"coordinador": "Identificador de coordinador inválido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = queryset.filter(coordinador_id=coordinador_id)
+
     alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
     if alumno_rut:
         rut_limpio = _limpiar_rut(alumno_rut)

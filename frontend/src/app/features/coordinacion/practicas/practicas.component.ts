@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal, computed } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type Estado = 'pendiente' | 'aprobado' | 'rechazado';
 
@@ -51,6 +52,9 @@ interface SolicitudCarta {
 export class PracticasComponent {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
+  private currentUserService = inject(CurrentUserService);
+
+  private coordinadorId: number | null = null;
 
   estado = signal<Estado>('pendiente');
   query = signal<string>('');
@@ -71,17 +75,22 @@ export class PracticasComponent {
 
   // ====== Cargar datos ======
   ngOnInit() {
+    const profile = this.currentUserService.getProfile();
+    this.coordinadorId = profile?.id ?? null;
     this.cargarSolicitudes();
   }
 
   cargarSolicitudes() {
     this.loading.set(true);
-    const params = {
+    const params: Record<string, string> = {
       estado: this.estado(),
       q: this.query(),
       page: String(this.page()),
       size: String(this.size()),
     };
+    if (this.coordinadorId !== null) {
+      params['coordinador'] = String(this.coordinadorId);
+    }
     this.http.get<{ items: SolicitudCarta[]; total: number }>(
       '/api/coordinacion/solicitudes-carta',
       { params }
