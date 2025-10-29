@@ -135,6 +135,23 @@
   font-size: 13px;
 }
 
+.tema-autor {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.tema-autor__icon {
+  font-size: 16px;
+}
+
+.tema-autor__nombre {
+  color: #1a3e6a;
+}
+
 .alert-icon {
   color: #d97706;
   font-size: 13px;

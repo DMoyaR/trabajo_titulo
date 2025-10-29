@@ -32,6 +32,12 @@ interface Entrega {
 }
 
 /** Tema usado en la UI. Incluye id para poder eliminar en backend */
+interface TemaCreator {
+  nombre: string;
+  rol: string;
+  carrera: string | null;
+}
+
 interface TemaDisponible {
   id?: number;
   titulo: string;
@@ -41,6 +47,7 @@ interface TemaDisponible {
   cupos: number;
   requisitos: string;
   fecha: Date;             // Mapea a created_at
+  creadoPor: TemaCreator | null;
 }
 
 @Component({
@@ -205,7 +212,8 @@ export class DocenteTrabajoListComponent implements OnInit {
             rama: t.carrera,
             cupos: t.cupos,
             requisitos: (t.requisitos?.join(', ') ?? ''),
-            fecha: t.created_at ? new Date(t.created_at) : new Date()
+            fecha: t.created_at ? new Date(t.created_at) : new Date(),
+            creadoPor: t.creadoPor ?? null,
           }));
         },
         error: () => {
@@ -262,7 +270,8 @@ export class DocenteTrabajoListComponent implements OnInit {
             rama: temaCreado.carrera,
             cupos: temaCreado.cupos,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
-            fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date()
+            fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
+            creadoPor: temaCreado.creadoPor ?? null,
           };
           this.temas = [temaUI, ...this.temas];
           this.cerrarModalTema();

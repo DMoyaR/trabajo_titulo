@@ -171,6 +171,15 @@
                   <span class="badge">{{ tema.carrera }}</span>
                 </div>
                 <div class="grupo-alumnos">{{ tema.descripcion }}</div>
+                <div class="tema-autor" *ngIf="tema.creadoPor as autor">
+                  <span class="tema-autor__icon" aria-hidden="true">👤</span>
+                  <span>
+                    {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:
+                    <strong class="tema-autor__nombre">{{ autor.nombre }}</strong>
+                    · {{ autor.rol | titlecase }}
+                    <ng-container *ngIf="autor.carrera"> — {{ autor.carrera }}</ng-container>
+                  </span>
+                </div>
                 <div class="chips">
                   <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
                 </div>
