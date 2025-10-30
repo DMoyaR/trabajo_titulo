@@ -253,3 +253,28 @@ class Notificacion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.titulo} -> {self.usuario.nombre_completo}"
+
+
+class PracticaDocumento(models.Model):
+    carrera = models.CharField(
+        max_length=120,
+        choices=Usuario.CARRERA_CHOICES,
+    )
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    archivo = models.FileField(upload_to="practicas/documentos/%Y/%m/%d")
+    uploaded_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documentos_practica",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "practica_documentos"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.nombre} ({self.carrera})"

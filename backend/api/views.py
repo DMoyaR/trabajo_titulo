@@ -4,10 +4,11 @@ import unicodedata
 from django.shortcuts import get_object_or_404
 from django.db.models.functions import Replace
 from django.db.models import Value, Q
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status, generics
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .serializers import (
     LoginSerializer,
@@ -19,6 +20,7 @@ from .serializers import (
     PropuestaTemaDecisionSerializer,
     UsuarioResumenSerializer,
     NotificacionSerializer,
+    PracticaDocumentoSerializer,
 )
 from .models import (
     TemaDisponible,
@@ -26,6 +28,7 @@ from .models import (
     SolicitudCartaPractica,
     PropuestaTema,
     Notificacion,
+    PracticaDocumento,
 )
 from .notifications import (
     notificar_cupos_completados,
@@ -396,6 +399,127 @@ def marcar_notificacion_leida(request, pk: int):
     notificacion.save(update_fields=["leida"])
     serializer = NotificacionSerializer(notificacion)
     return Response(serializer.data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_documentos_practica(request):
+    queryset = PracticaDocumento.objects.select_related("uploaded_by")
+
+    if request.method == "GET":
+        coordinador_param = request.query_params.get("coordinador")
+        carrera_param = request.query_params.get("carrera")
+
+        if coordinador_param:
+            coordinador = _obtener_usuario_por_id(coordinador_param)
+            if not coordinador or coordinador.rol != "coordinador":
+                return Response(
+                    {"detail": "Coordinador no válido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(uploaded_by=coordinador)
+        elif carrera_param:
+            queryset = _filtrar_queryset_por_carrera(queryset, carrera_param)
+        else:
+            queryset = queryset.none()
+
+        try:
+            page = int(request.query_params.get("page", 1))
+        except (TypeError, ValueError):
+            page = 1
+        page = max(page, 1)
+
+        try:
+            size = int(request.query_params.get("size", 20))
+        except (TypeError, ValueError):
+            size = 20
+        size = max(1, min(size, 200))
+
+        total = queryset.count()
+        offset = (page - 1) * size
+        items = queryset[offset : offset + size]
+
+        serializer = PracticaDocumentoSerializer(
+            items,
+            many=True,
+            context={"request": request},
+        )
+        return Response({"items": serializer.data, "total": total})
+
+    coordinador = _obtener_usuario_por_id(request.data.get("coordinador"))
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
+    if not nombre:
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    descripcion = (request.data.get("descripcion") or "").strip() or None
+
+    documento = PracticaDocumento.objects.create(
+        carrera=carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaDocumentoSerializer(
+        documento,
+        context={"request": request},
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/documentos/{documento.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def eliminar_documento_practica(request, pk: int):
+    documento = get_object_or_404(
+        PracticaDocumento.objects.select_related("uploaded_by"), pk=pk
+    )
+
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if documento.uploaded_by_id != coordinador.pk:
+        return Response(
+            {"detail": "No tienes permisos para eliminar este documento."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if documento.archivo:
+        documento.archivo.delete(save=False)
+    documento.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
