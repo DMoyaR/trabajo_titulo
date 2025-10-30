@@ -194,7 +194,7 @@
                 type="button"
                 class="btn primary sm"
                 [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
-                (click)="pedirTema(tema)"
+                (click)="abrirConfirmacionTema(tema)"
               >
                 {{ etiquetaPedirTema(tema) }}
               </button>
@@ -205,6 +205,33 @@
 
 
       <!-- CORREGIDO: usa getter o bracket notation -->
+    <div class="backdrop" *ngIf="temaSeleccionado()" (click)="cerrarConfirmacionTema()"></div>
+    <div class="modal" *ngIf="temaSeleccionado() as temaEnConfirmacion" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h4 class="ttl" style="margin: 0">Confirmar reserva</h4>
+        <button class="icon" (click)="cerrarConfirmacionTema()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Estás a punto de reservar el tema <strong>{{ temaEnConfirmacion.titulo }}</strong>.</p>
+        <p class="muted">Profesor responsable: {{ temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</p>
+        <div class="chips meta">
+          <span class="chip ghost">Cupos disponibles: {{ temaEnConfirmacion.cuposDisponibles }}</span>
+        </div>
+        <p>¿Deseas continuar?</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn light" (click)="cerrarConfirmacionTema()">Cancelar</button>
+        <button
+          type="button"
+          class="btn primary"
+          [disabled]="reservandoTemaId() === temaEnConfirmacion.id"
+          (click)="confirmarReservaTema()"
+        >
+          {{ reservandoTemaId() === temaEnConfirmacion.id ? 'Reservando…' : 'Confirmar' }}
+        </button>
+      </div>
+    </div>
+
     <div class="backdrop" *ngIf="showPostulacion()" (click)="togglePostulacion(false)"></div>
         <div class="modal" *ngIf="showPostulacion()" role="dialog" aria-modal="true">
         <div class="modal-head">
