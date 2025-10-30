@@ -1,4 +1,4 @@
-/* Add your CSS styles for docente-notificaciones.component here */.notifications {
+.notifications {
   display: grid;
   gap: 18px;
 }
