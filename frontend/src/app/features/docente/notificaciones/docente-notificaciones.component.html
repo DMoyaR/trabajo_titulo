@@ -1,5 +1,5 @@
 <section class="notifications">
-  <h2 class="ttl">Solicitudes de reuniones</h2>
+  <h2 class="ttl">Solicitudes de estudiantes</h2>
 
   <p class="muted" *ngIf="cargando()">Cargando solicitudes...</p>
   <div class="alert error" *ngIf="error()">{{ error() }}</div>
@@ -10,7 +10,7 @@
   </div>
 
   <p class="muted" *ngIf="!cargando() && !error() && !solicitudes().length">
-    No hay solicitudes de reunión registradas por tus estudiantes.
+    No hay solicitudes pendientes de tus estudiantes.
   </p>
 
   <ul class="list" *ngIf="!cargando() && !error() && solicitudes().length">
