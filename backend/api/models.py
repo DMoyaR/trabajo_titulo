@@ -231,6 +231,8 @@ class Notificacion(models.Model):
     TIPOS = [
         ("propuesta", "Propuesta"),
         ("general", "General"),
+        ("tema", "Tema"),
+        ("inscripcion", "Inscripción"),
     ]
 
     usuario = models.ForeignKey(

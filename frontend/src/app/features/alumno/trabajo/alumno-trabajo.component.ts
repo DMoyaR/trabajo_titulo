@@ -334,7 +334,8 @@ export class AlumnoTrabajoComponent {
     this.temasCargando.set(true);
     this.temasError.set(null);
     const alumnoId = this.obtenerAlumnoIdActual();
-    this.temaService.getTemas(alumnoId ?? undefined).subscribe({
+    const opciones = alumnoId != null ? { usuarioId: alumnoId, alumnoId } : undefined;
+    this.temaService.getTemas(opciones).subscribe({
       next: temas => {
         this.temas.set(temas);
         this.temasCargados = true;

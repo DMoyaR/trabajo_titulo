@@ -1,9 +1,6 @@
 import json
 import re
 import unicodedata
-
-from django.db.models import Q, Value
-from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -28,6 +25,11 @@ from .models import (
     PropuestaTema,
     Notificacion,
 )
+from .notifications import (
+    notificar_cupos_completados,
+    notificar_reserva_tema,
+    notificar_tema_finalizado,
+)
 
 
 REDIRECTS = {
@@ -41,6 +43,64 @@ def _limpiar_rut(valor: str | None) -> str:
     if not valor:
         return ""
     return re.sub(r"[^0-9kK]", "", valor)
+
+
+def _parse_int(valor: str | None) -> int | None:
+    try:
+        return int(valor) if valor is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalizar_texto(valor: str | None) -> str:
+    if not valor:
+        return ""
+    texto = unicodedata.normalize("NFKD", valor)
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    return texto.casefold().strip()
+
+
+def _carreras_coinciden(a: str | None, b: str | None) -> bool:
+    if not a or not b:
+        return False
+    return _normalizar_texto(a) == _normalizar_texto(b)
+
+
+def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
+    if not carrera:
+        return queryset.none()
+
+    carrera_normalizada = _normalizar_texto(carrera)
+    if not carrera_normalizada:
+        return queryset.none()
+
+    matching_ids = [
+        pk
+        for pk, carrera_tema in queryset.values_list("pk", "carrera")
+        if _normalizar_texto(carrera_tema) == carrera_normalizada
+    ]
+
+    if not matching_ids:
+        return queryset.none()
+
+    return queryset.filter(pk__in=matching_ids)
+
+
+def _obtener_usuario_por_id(valor: str | None) -> Usuario | None:
+    usuario_id = _parse_int(valor)
+    if usuario_id is None:
+        return None
+    try:
+        return Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return None
+
+
+def _obtener_usuario_para_temas(request) -> Usuario | None:
+    usuario = _obtener_usuario_por_id(request.query_params.get("usuario"))
+    if usuario:
+        return usuario
+    return _obtener_usuario_por_id(request.query_params.get("alumno"))
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -71,11 +131,13 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        alumno = self.request.query_params.get("alumno")
-        try:
-            context["alumno_id"] = int(alumno) if alumno is not None else None
-        except (TypeError, ValueError):
-            context["alumno_id"] = None
+        alumno_param = self.request.query_params.get("alumno")
+        alumno_id = _parse_int(alumno_param)
+        if alumno_id is None:
+            usuario = _obtener_usuario_para_temas(self.request)
+            if usuario and usuario.rol == "alumno":
+                alumno_id = usuario.pk
+        context["alumno_id"] = alumno_id
         return context
 
     def perform_create(self, serializer):
@@ -84,6 +146,15 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             serializer.save(created_by=user)
         else:
             serializer.save()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        usuario = _obtener_usuario_para_temas(self.request)
+        if usuario and usuario.carrera:
+            return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+
+        carrera = self.request.query_params.get("carrera")
+        return _filtrar_queryset_por_carrera(queryset, carrera)
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
@@ -99,14 +170,24 @@ def tema_disponible_detalle(request, pk: int):
     tema = get_object_or_404(TemaDisponible, pk=pk)
 
     if request.method == "DELETE":
+        notificar_tema_finalizado(tema)
         tema.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    alumno = request.query_params.get("alumno")
-    try:
-        alumno_id = int(alumno) if alumno is not None else None
-    except (TypeError, ValueError):
-        alumno_id = None
+    usuario = _obtener_usuario_para_temas(request)
+    carrera = request.query_params.get("carrera")
+
+    if usuario and usuario.carrera:
+        carrera = usuario.carrera
+
+    if not carrera or not _carreras_coinciden(tema.carrera, carrera):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    alumno_id = None
+    if usuario and usuario.rol == "alumno":
+        alumno_id = usuario.pk
+    else:
+        alumno_id = _parse_int(request.query_params.get("alumno"))
 
     serializer = TemaDisponibleSerializer(
         tema,
@@ -119,6 +200,8 @@ def tema_disponible_detalle(request, pk: int):
 @permission_classes([AllowAny])
 def reservar_tema(request, pk: int):
     tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
 
     alumno_id = request.data.get("alumno")
     if not alumno_id:
@@ -142,7 +225,13 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if tema.cupos_disponibles <= 0:
+    if not _carreras_coinciden(alumno.carrera, tema.carrera):
+        return Response(
+            {"detail": "Este tema no pertenece a la carrera del estudiante."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if cupos_antes <= 0:
         return Response(
             {"detail": "Este tema ya no tiene cupos disponibles."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -156,9 +245,24 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    reactivada = False
     if not inscripcion.activo:
         inscripcion.activo = True
         inscripcion.save(update_fields=["activo", "updated_at"])
+        reactivada = True
+
+    cupos_despues = tema.cupos_disponibles
+
+    notificar_reserva_tema(
+        tema,
+        alumno,
+        cupos_disponibles=cupos_despues,
+        reactivada=reactivada,
+        inscripcion_id=inscripcion.pk,
+    )
+
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
 
     serializer = TemaDisponibleSerializer(
         tema,
