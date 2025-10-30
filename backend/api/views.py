@@ -166,17 +166,13 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         usuario = _obtener_usuario_para_temas(self.request)
 
         if usuario and usuario.carrera:
-            filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
-            if filtrado.exists():
-                return filtrado
+            return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
-            filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
-            if filtrado.exists():
-                return filtrado
+            return _filtrar_queryset_por_carrera(queryset, carrera)
 
-        return queryset
+        return queryset.none()
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
@@ -198,6 +194,11 @@ def tema_disponible_detalle(request, pk: int):
 
     usuario = _obtener_usuario_para_temas(request)
     carrera_param = request.query_params.get("carrera")
+
+    if usuario and usuario.carrera and not _carreras_coinciden(
+        tema.carrera, usuario.carrera
+    ):
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
     if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
         return Response(status=status.HTTP_404_NOT_FOUND)
@@ -241,6 +242,14 @@ def reservar_tema(request, pk: int):
     if alumno.rol != "alumno":
         return Response(
             {"detail": "Solo estudiantes pueden reservar un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {
+                "detail": "Solo puedes reservar temas asociados a tu carrera.",
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
