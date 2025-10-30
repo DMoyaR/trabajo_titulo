@@ -155,11 +155,17 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset = super().get_queryset()
         usuario = _obtener_usuario_para_temas(self.request)
-        if usuario and usuario.carrera:
-            return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+
+        if usuario:
+            if usuario.carrera:
+                return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+            return queryset
 
         carrera = self.request.query_params.get("carrera")
-        return _filtrar_queryset_por_carrera(queryset, carrera)
+        if carrera:
+            return _filtrar_queryset_por_carrera(queryset, carrera)
+
+        return queryset
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
@@ -180,12 +186,15 @@ def tema_disponible_detalle(request, pk: int):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     usuario = _obtener_usuario_para_temas(request)
-    carrera = request.query_params.get("carrera")
+    carrera_param = request.query_params.get("carrera")
 
+    carrera = None
     if usuario and usuario.carrera:
         carrera = usuario.carrera
+    elif carrera_param:
+        carrera = carrera_param
 
-    if not carrera or not _carreras_coinciden(tema.carrera, carrera):
+    if carrera and not _carreras_coinciden(tema.carrera, carrera):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     alumno_id = None
