@@ -789,7 +789,7 @@ def crear_solicitud_carta_practica(request):
         meta=meta,
     )
 
-    output = SolicitudCartaPracticaSerializer(solicitud)
+    output = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
     headers = {"Location": f"/api/practicas/solicitudes-carta/{solicitud.pk}"}
     return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -875,7 +875,9 @@ def listar_solicitudes_carta_practica(request):
     offset = (page - 1) * size
     items = queryset[offset : offset + size]
 
-    serializer = SolicitudCartaPracticaSerializer(items, many=True)
+    serializer = SolicitudCartaPracticaSerializer(
+        items, many=True, context={"request": request}
+    )
     return Response({"items": serializer.data, "total": total})
 
 
@@ -1025,14 +1027,48 @@ def _buscar_coordinador_por_carrera(carrera: str):
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
+    archivo = request.FILES.get("documento")
     url_param = (request.data.get("url") or "").strip()
 
-    solicitud.url_documento = url_param or None
-    
+    if archivo:
+        content_type = (archivo.content_type or "").lower()
+        if content_type and "pdf" not in content_type:
+            return Response(
+                {"documento": "El archivo debe estar en formato PDF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+
+        nombres = " ".join(
+            parte
+            for parte in [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+            if parte
+        ).strip()
+        slug = slugify(nombres or "carta practica") or "carta-practica"
+        timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d%H%M%S")
+        filename = f"carta-{slug}-{timestamp}.pdf"
+
+        solicitud.documento.save(filename, archivo, save=False)
+        solicitud.url_documento = solicitud.documento.url
+    elif url_param:
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+        solicitud.documento = None
+        solicitud.url_documento = url_param
+    else:
+        return Response(
+            {"documento": "Debe adjuntar el archivo PDF generado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok", "url": solicitud.url_documento})
+    solicitud.save()
+
+    serializer = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
+    return Response({"status": "ok", "url": serializer.data.get("url")})
 
 
 @api_view(["POST"])
@@ -1047,8 +1083,11 @@ def rechazar_solicitud_carta_practica(request, pk: int):
         )
     solicitud.motivo_rechazo = motivo
     solicitud.url_documento = None
+    if solicitud.documento:
+        solicitud.documento.delete(save=False)
+    solicitud.documento = None
     solicitud.estado = "rechazado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
+    solicitud.save()
     return Response({"status": "ok"})
 
 

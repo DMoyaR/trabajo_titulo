@@ -536,25 +536,40 @@ export class PracticasComponent {
   }
 
   // ====== Acciones ======
-  aprobar() {
+    aprobar() {
     const c = this.current();
     if (!c) return;
 
-    const body: { url?: string | null } = this.aprobarForm.value.urlFirmado
-      ? { url: this.aprobarForm.value.urlFirmado }
-      : {};
+    let archivo: File;
+    try {
+      archivo = this.generarArchivoCartaPdf(c);
+    } catch (err) {
+      console.error('No se pudo generar el PDF de la carta.', err);
+      this.toast.set('No se pudo generar el archivo PDF de la carta.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('documento', archivo, archivo.name);
+
+    const urlFirmado = this.aprobarForm.value.urlFirmado;
+    if (urlFirmado) {
+      formData.append('url', urlFirmado);
+    }
 
     this.http
-      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, body)
+      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, formData)
       .subscribe({
         next: (res) => {
           this.toast.set('Solicitud aprobada correctamente.');
-          const nuevaUrl = res?.url ?? (body['url'] as string | null | undefined) ?? null;
-          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl ?? undefined);
-          this.descargarCartaPdf(c);
+          const nuevaUrl = res?.url ?? null;
+          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
           this.cerrarDetalle();
         },
-        error: () => this.toast.set('Error al aprobar solicitud.'),
+        error: (err) => {
+          console.error('Error al aprobar solicitud:', err);
+          this.toast.set('Error al aprobar solicitud.');
+        },
       });
   }
 
@@ -578,11 +593,19 @@ export class PracticasComponent {
     });
   }
 
-  actualizarEstadoLocal(id: string, estado: Estado, url?: string | null, motivo?: string) {
+  actualizarEstadoLocal(id: string, estado: Estado, url?: string | null, motivo?: string | null) {
     const arr = this.solicitudes();
     const i = arr.findIndex((x) => x.id === id);
     if (i >= 0) {
-      arr[i] = { ...arr[i], estado, url: url || arr[i].url, motivoRechazo: motivo || arr[i].motivoRechazo };
+      const actualizado = { ...arr[i] };
+      actualizado.estado = estado;
+      if (url !== undefined) {
+        actualizado.url = url;
+      }
+      if (motivo !== undefined) {
+        actualizado.motivoRechazo = motivo;
+      }
+      arr[i] = actualizado;
       this.solicitudes.set([...arr]);
     }
   }
@@ -647,7 +670,7 @@ export class PracticasComponent {
     return this.firmasPorCarrera[clave] || this.firmaFallback;
   }
 
-  private descargarCartaPdf(solicitud: SolicitudCarta) {
+  private generarArchivoCartaPdf(solicitud: SolicitudCarta): File {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const preview = this.construirCartaPreviewData(solicitud);
     const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
@@ -728,7 +751,14 @@ export class PracticasComponent {
     doc.text(institucionLineas, margenX, cursorY);
 
     const nombreArchivo = this.construirNombreArchivoCarta(preview);
-    doc.save(nombreArchivo);
+    const arrayBuffer = doc.output('arraybuffer') as ArrayBuffer;
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+
+    if (typeof File === 'undefined') {
+      throw new Error('API File no disponible en este navegador.');
+    }
+
+    return new File([blob], nombreArchivo, { type: 'application/pdf' });
   }
 
   private construirNombreArchivoCarta(preview: CartaPreviewData): string {

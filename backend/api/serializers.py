@@ -125,6 +125,7 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             "id",
             "creado_en",
             "estado",
+            "documento",
             "url_documento",
             "motivo_rechazo",
             "alumno_rut",
@@ -150,11 +151,25 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         base = super().to_representation(instance)
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+
+        document_url = None
+        if instance.documento:
+            url = instance.documento.url
+            document_url = request.build_absolute_uri(url) if request else url
+        else:
+            url_documento = base.get("url_documento")
+            if url_documento:
+                if request and str(url_documento).startswith("/"):
+                    document_url = request.build_absolute_uri(url_documento)
+                else:
+                    document_url = url_documento
+
         return {
             "id": str(base["id"]),
             "creadoEn": instance.creado_en.isoformat(),
             "estado": base["estado"],
-            "url": base["url_documento"],
+            "url": document_url,
             "motivoRechazo": base["motivo_rechazo"],
             "alumno": {
                 "rut": base["alumno_rut"],
