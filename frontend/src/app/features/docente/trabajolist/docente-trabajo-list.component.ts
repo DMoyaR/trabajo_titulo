@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { HttpClientModule } from '@angular/common/http';
-import { TemaService, TemaDisponible as TemaAPI, CrearTemaPayload } from './tema.service';
+import { TemaService, TemaDisponible as TemaAPI, CrearTemaPayload, TemaInscripcionActiva } from './tema.service';
 import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 
@@ -49,6 +49,30 @@ interface TemaDisponible {
   requisitos: string;
   fecha: Date;             // Mapea a created_at
   creadoPor: TemaCreator | null;
+  inscripcionesActivas: TemaInscripcionActiva[];
+}
+
+interface TemaDetalleInscripcion {
+  id: number;
+  nombre: string;
+  correo: string;
+  carrera: string | null;
+  rut: string | null;
+  telefono: string | null;
+  reservadoEn: Date;
+}
+
+interface TemaDetalleDocente {
+  id: number;
+  titulo: string;
+  descripcion: string;
+  carrera: string;
+  cupos: number;
+  cuposDisponibles: number;
+  requisitos: string[];
+  creadoPor: TemaCreator | null;
+  inscripciones: TemaDetalleInscripcion[];
+  creadoEn: Date | null;
 }
 
 @Component({
@@ -182,8 +206,13 @@ export class DocenteTrabajoListComponent implements OnInit {
   enviarTemaError: string | null = null;
 
   nuevoTema: Partial<TemaDisponible> = {
-    titulo: '', objetivo: '', descripcion: '', rama: '', cupos: 1, requisitos: ''
+    titulo: '', objetivo: '', descripcion: '', rama: '', cupos: 1, requisitos: '', inscripcionesActivas: []
   };
+
+  showDetalleTema = false;
+  temaDetalle: TemaDetalleDocente | null = null;
+  temaDetalleCargando = false;
+  temaDetalleError: string | null = null;
 
    constructor(
     private temaService: TemaService,
@@ -219,6 +248,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             requisitos: (t.requisitos?.join(', ') ?? ''),
             fecha: t.created_at ? new Date(t.created_at) : new Date(),
             creadoPor: t.creadoPor ?? null,
+            inscripcionesActivas: t.inscripcionesActivas ?? [],
           }));
         },
         error: () => {
@@ -233,7 +263,7 @@ export class DocenteTrabajoListComponent implements OnInit {
   }
   cerrarModalTema() {
     this.showModalTema = false;
-    this.nuevoTema = { titulo: '', objetivo: '', descripcion: '', rama: '', cupos: 1, requisitos: '' };
+    this.nuevoTema = { titulo: '', objetivo: '', descripcion: '', rama: '', cupos: 1, requisitos: '', inscripcionesActivas: [] };
     this.enviarTema = false;
     this.enviarTemaError = null;
   }
@@ -292,6 +322,7 @@ export class DocenteTrabajoListComponent implements OnInit {
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
             fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
             creadoPor: autorRespuesta ?? autorActual ?? null,
+            inscripcionesActivas: temaCreado.inscripcionesActivas ?? [],
           };
           this.temas = [temaUI, ...this.temas];
           this.cerrarModalTema();
@@ -320,6 +351,70 @@ export class DocenteTrabajoListComponent implements OnInit {
         alert('No se pudo eliminar el tema. Inténtalo nuevamente.');
       }
     });
+  }
+
+  verDetalleTema(tema: TemaDisponible) {
+    if (!tema.id) {
+      return;
+    }
+
+    this.showDetalleTema = true;
+    this.temaDetalleError = null;
+    this.temaDetalleCargando = true;
+    this.temaDetalle = {
+      id: tema.id,
+      titulo: tema.titulo,
+      descripcion: tema.descripcion,
+      carrera: tema.rama,
+      cupos: tema.cupos,
+      cuposDisponibles: tema.cuposDisponibles,
+      requisitos: [],
+      creadoPor: tema.creadoPor,
+      inscripciones: [],
+      creadoEn: tema.fecha ?? null,
+    };
+
+    const perfil = this.currentUserService.getProfile();
+    const opciones = perfil?.id != null ? { usuarioId: perfil.id } : undefined;
+
+    this.temaService.obtenerTema(tema.id, opciones).subscribe({
+      next: temaApi => {
+        this.temaDetalle = {
+          id: temaApi.id,
+          titulo: temaApi.titulo,
+          descripcion: temaApi.descripcion,
+          carrera: temaApi.carrera,
+          cupos: temaApi.cupos,
+          cuposDisponibles: temaApi.cuposDisponibles,
+          requisitos: temaApi.requisitos ?? [],
+          creadoPor: temaApi.creadoPor ?? null,
+          inscripciones: (temaApi.inscripcionesActivas ?? []).map((ins): TemaDetalleInscripcion => ({
+            id: ins.id,
+            nombre: ins.nombre,
+            correo: ins.correo,
+            carrera: ins.carrera,
+            rut: ins.rut,
+            telefono: ins.telefono,
+            reservadoEn: new Date(ins.reservadoEn),
+          })),
+          creadoEn: temaApi.created_at ? new Date(temaApi.created_at) : null,
+        };
+        this.temaDetalleCargando = false;
+      },
+      error: () => {
+        this.temaDetalleError = 'No se pudo cargar el detalle del tema.';
+        this.temaDetalleCargando = false;
+      }
+    });
+  }
+
+  cerrarDetalleTema() {
+    if (this.temaDetalleCargando) {
+      return;
+    }
+    this.showDetalleTema = false;
+    this.temaDetalle = null;
+    this.temaDetalleError = null;
   }
 
   // ===== Propuestas (conectado a backend)

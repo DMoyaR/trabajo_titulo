@@ -41,6 +41,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(tema.cupos, data["cupos"])
         self.assertEqual(response.data["cuposDisponibles"], data["cupos"])
         self.assertFalse(response.data["tieneCupoPropio"])
+        self.assertEqual(response.data["inscripcionesActivas"], [])
 
     def test_create_tema_disponible_with_creator_id(self):
         data = {
@@ -62,6 +63,32 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(creador.get("nombre"), self.usuario.nombre_completo)
         self.assertEqual(creador.get("rol"), self.usuario.rol)
         self.assertEqual(creador.get("carrera"), self.usuario.carrera)
+        self.assertEqual(response.data.get("inscripcionesActivas"), [])
+
+    def test_create_tema_disponible_rechaza_creador_alumno(self):
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno creador",
+            correo="alumno.creador@example.com",
+            carrera="Computación",
+            rut="22222222-2",
+            telefono="",
+            rol="alumno",
+            contrasena="clave",
+        )
+
+        data = {
+            "titulo": "Tema inválido",
+            "carrera": "Computación",
+            "descripcion": "Descripción",
+            "requisitos": ["Req"],
+            "cupos": 1,
+            "created_by": alumno.pk,
+        }
+
+        response = self.client.post(self.list_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("created_by", response.data)
 
     def test_list_temas_disponibles(self):
         TemaDisponible.objects.create(
@@ -87,6 +114,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["titulo"], "Tema 1")
         self.assertTrue(all("cuposDisponibles" in item for item in response.data))
+        self.assertTrue(all("inscripcionesActivas" in item for item in response.data))
 
     def test_list_temas_disponibles_filtra_por_alumno(self):
         TemaDisponible.objects.create(
@@ -284,6 +312,8 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["titulo"], "Tema único")
+        self.assertIn("inscripcionesActivas", response.data)
+        self.assertEqual(response.data["inscripcionesActivas"], [])
 
     def test_retrieve_tema_disponible_usuario_sin_carrera(self):
         tema = TemaDisponible.objects.create(
@@ -309,6 +339,7 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["titulo"], "Tema sin filtro")
+        self.assertIn("inscripcionesActivas", response.data)
 
     def test_retrieve_tema_disponible_usuario_carrera_distinta_permitido(self):
         tema = TemaDisponible.objects.create(
@@ -335,6 +366,7 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["titulo"], "Tema restringido")
+        self.assertIn("inscripcionesActivas", response.data)
 
     def test_retrieve_tema_disponible_con_parametro_carrera_invalido(self):
         tema = TemaDisponible.objects.create(
@@ -354,6 +386,35 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_retrieve_tema_disponible_incluye_inscripciones_activas(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema con reservas",
+            carrera="Computación",
+            descripcion="Descripción",
+            requisitos=["Req"],
+            cupos=2,
+            created_by=self.usuario,
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno inscrito",
+            correo="alumno.inscrito@example.com",
+            carrera="Computación",
+            rut="99999999-9",
+            telefono="", 
+            rol="alumno",
+            contrasena="clave",
+        )
+        InscripcionTema.objects.create(tema=tema, alumno=alumno)
+
+        detail_url = reverse("tema-detalle", args=[tema.pk])
+        response = self.client.get(detail_url, {"usuario": self.usuario.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        inscritos = response.data.get("inscripcionesActivas", [])
+        self.assertEqual(len(inscritos), 1)
+        self.assertEqual(inscritos[0]["id"], alumno.id)
+        self.assertEqual(inscritos[0]["nombre"], alumno.nombre_completo)
+
     def test_reservar_tema_descuenta_cupo(self):
         tema = TemaDisponible.objects.create(
             titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=2
@@ -369,6 +430,8 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["cuposDisponibles"], 1)
         self.assertTrue(response.data["tieneCupoPropio"])
+        self.assertEqual(len(response.data["inscripcionesActivas"]), 1)
+        self.assertEqual(response.data["inscripcionesActivas"][0]["id"], alumno.id)
 
     def test_reservar_tema_otro_carrera_permitido(self):
         tema = TemaDisponible.objects.create(
@@ -394,6 +457,8 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["cuposDisponibles"], 1)
         self.assertTrue(response.data["tieneCupoPropio"])
+        self.assertEqual(len(response.data["inscripcionesActivas"]), 1)
+        self.assertEqual(response.data["inscripcionesActivas"][0]["id"], alumno.id)
 
     def test_no_permite_reservar_sin_cupos(self):
         tema = TemaDisponible.objects.create(

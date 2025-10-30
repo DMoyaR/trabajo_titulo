@@ -138,16 +138,95 @@
         <div class="temas-item__meta">
           <span class="chip ghost">Cupos: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
           <span class="chip ghost">Fecha de publicación: {{ tema.fecha | date:'shortDate' }}</span>
+          <span class="chip ghost">Reservas confirmadas: {{ tema.inscripcionesActivas.length }}</span>
           <span class="badge">{{ tema.rama }}</span>
         </div>
 
         <div class="temas-item__actions">
+          <button class="btn light" type="button" (click)="verDetalleTema(tema)">Ver detalle</button>
           <button class="btn danger" (click)="eliminarTema(tema)" >Eliminar</button>
         </div>
       </li>
     </ul>
   </ng-container>
   <ng-template #sinTemas><p class="muted">No hay temas disponibles por ahora.</p></ng-template>
+</div>
+
+<!-- MODAL DETALLE TEMA -->
+<div class="backdrop" *ngIf="showDetalleTema" (click)="cerrarDetalleTema()"></div>
+<div class="modal tema-detalle-modal" *ngIf="showDetalleTema" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h4 class="ttl" style="margin:0">Detalle del tema</h4>
+    <button type="button" class="icon" (click)="cerrarDetalleTema()">✕</button>
+  </div>
+
+  <div class="tema-detalle__body">
+    <div class="muted" *ngIf="temaDetalleCargando">Cargando información del tema…</div>
+    <div class="err" *ngIf="temaDetalleError">{{ temaDetalleError }}</div>
+
+    <ng-container *ngIf="!temaDetalleCargando && !temaDetalleError && temaDetalle as detalle">
+      <div class="chips meta">
+        <span class="chip ghost">Cupos disponibles: {{ detalle.cuposDisponibles }} / {{ detalle.cupos }}</span>
+        <span class="chip ghost">Carrera: {{ detalle.carrera }}</span>
+        <span class="chip ghost" *ngIf="detalle.creadoEn">Creado: {{ detalle.creadoEn | date:'shortDate' }}</span>
+      </div>
+
+      <div class="tema-detalle__descripcion">
+        <h4>{{ detalle.titulo }}</h4>
+        <p>{{ detalle.descripcion }}</p>
+      </div>
+
+      <div class="tema-detalle__autor" *ngIf="detalle.creadoPor as autor">
+        <span aria-hidden="true">👤</span>
+        <div>
+          <p class="tema-detalle__autor-nombre">{{ autor.nombre }}</p>
+          <p class="muted">
+            {{ autor.rol | titlecase }}
+            <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+          </p>
+        </div>
+      </div>
+
+      <section class="tema-detalle__seccion">
+        <h5>Requisitos del tema</h5>
+        <ng-container *ngIf="detalle.requisitos.length; else sinRequisitosDoc">
+          <ul>
+            <li *ngFor="let requisito of detalle.requisitos">{{ requisito }}</li>
+          </ul>
+        </ng-container>
+        <ng-template #sinRequisitosDoc>
+          <p class="muted">Este tema no especifica requisitos adicionales.</p>
+        </ng-template>
+      </section>
+
+      <section class="tema-detalle__seccion">
+        <h5>Alumnos con reserva confirmada</h5>
+        <ng-container *ngIf="detalle.inscripciones.length; else sinInscritos">
+          <ul class="tema-detalle__inscritos">
+            <li *ngFor="let alumno of detalle.inscripciones">
+              <div class="inscrito-nombre">{{ alumno.nombre }}</div>
+              <div class="inscrito-meta">
+                <span>{{ alumno.carrera || 'Carrera no registrada' }}</span>
+                <span *ngIf="alumno.rut"> · RUT: {{ alumno.rut }}</span>
+              </div>
+              <div class="inscrito-contacto">
+                <span>Correo: {{ alumno.correo }}</span>
+                <span *ngIf="alumno.telefono"> · Teléfono: {{ alumno.telefono }}</span>
+              </div>
+              <div class="inscrito-reserva muted">Reservado el {{ alumno.reservadoEn | date:'short' }}</div>
+            </li>
+          </ul>
+        </ng-container>
+        <ng-template #sinInscritos>
+          <p class="muted">Aún no hay alumnos inscritos en este tema.</p>
+        </ng-template>
+      </section>
+    </ng-container>
+  </div>
+
+  <div class="actions" style="padding:0 24px 12px;">
+    <button type="button" class="btn light" (click)="cerrarDetalleTema()">Cerrar</button>
+  </div>
 </div>
 
 <!-- MODAL PROPUESAS -->
