@@ -24,27 +24,27 @@
    
   </div>
 
-  <ul class="files">
-    <li *ngFor="let d of documentos()" [attr.title]="d.detalle || null">
-      <span>📄 {{ d.nombre }}</span>
-      <ng-container *ngIf="d.estado; else tipoSimple">
+<!-- Mensaje de vacío (solo si no hay error) -->
+<p class="muted solicitud-empty" *ngIf="!documentosOficialesError() && !oficiales().length">
+  aún no hay documentos disponibles
+</p>
 
-      </ng-container>
-      <ng-template #tipoSimple>
-        <small class="muted">{{ d.tipo }}</small>
-      </ng-template>
+<ul class="files" *ngIf="oficiales().length">
+  <li *ngFor="let d of oficiales()" [attr.title]="d.detalle || null">
+    <span>📄 {{ d.nombre }}</span>
 
-      <ng-container *ngIf="d.url; else docPendiente">
-        <a class="btn sm" [href]="d.url" target="_blank" rel="noopener">Descargar</a>
-      </ng-container>
-      <ng-template #docPendiente>
-        <button class="btn sm" disabled aria-disabled="true">Pendiente</button>
-      </ng-template>
-      <small class="muted" *ngIf="d.detalle">
-        {{ d.estado === 'Rechazado' ? ('Motivo: ' + d.detalle) : d.detalle }}
-      </small>
-    </li>
-  </ul>
+    <small class="muted">{{ d.tipo }}</small>
+
+    <ng-container *ngIf="d.url; else docPendiente">
+      <a class="btn sm" [href]="d.url" target="_blank" rel="noopener">Descargar</a>
+    </ng-container>
+    <ng-template #docPendiente>
+      <button class="btn sm" disabled aria-disabled="true">Pendiente</button>
+    </ng-template>
+
+    <small class="muted" *ngIf="d.detalle">{{ d.detalle }}</small>
+  </li>
+</ul>
 
 </div>
 
@@ -315,7 +315,7 @@
           <footer class="c-sign">
             <div class="c-firma-nombre">{{firmaActual().nombre}}</div>
             <div class="c-firma-cargo">{{firmaActual().cargo}}</div>
-            <div class="c-web">{{firmaActual().institucion || 'Universidad Tecnologica Metropolitana'}}</div>
+            <div class="c-web">{{firmaActual().institucion || 'Universidad Tecnológica Metropolitana'}}</div>
           </footer>
         </div>
         <div class="hint">Vista previa exacta — se enviará a Coordinación</div>

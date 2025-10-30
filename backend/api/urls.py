@@ -14,6 +14,8 @@ from .views import (
     DocenteListView,
     NotificacionListView,
     marcar_notificacion_leida,
+    gestionar_documentos_practica,
+    eliminar_documento_practica,
 )
 
 urlpatterns = [
@@ -70,5 +72,20 @@ urlpatterns = [
         r"^coordinacion/solicitudes-carta/(?P<pk>\d+)/rechazar/?$",
         rechazar_solicitud_carta_practica,
         name="rechazar-solicitud-carta-practica",
+    ),
+    path(
+        "coordinacion/practicas/documentos/",
+        gestionar_documentos_practica,
+        name="gestionar-documentos-practica",
+    ),
+    path(
+        "coordinacion/practicas/documentos/<int:pk>/",
+        eliminar_documento_practica,
+        name="eliminar-documento-practica",
+    ),
+    path(
+        "practicas/documentos/",
+        gestionar_documentos_practica,
+        name="listar-documentos-practica",
     ),
 ]
