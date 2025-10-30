@@ -3,8 +3,8 @@
   <h2 class="ttl">Trabajo de Título</h2>
 
   <div class="tabs">
-    <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
-    <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+    <button *ngIf="tieneNivel('i')" [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
+    <button *ngIf="tieneNivel('ii')" [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
     <button [class.active]="tab() === 'temas'" (click)="tab.set('temas')">Temas</button>
     <button [class.active]="tab() === 'propuestas'" (click)="tab.set('propuestas')">Propuestas</button>
 

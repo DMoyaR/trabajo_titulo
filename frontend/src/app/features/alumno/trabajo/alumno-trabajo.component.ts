@@ -52,6 +52,33 @@ interface Profesor {
 }
 
 
+const CARRERAS_SIN_TRABAJO_TITULO = new Set(
+  [
+    'Bachillerato en Ciencias de la Ingeniería',
+    'Dibujante Proyectista',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+const CARRERAS_SOLO_NIVEL_I = new Set(
+  [
+    'Ingeniería Civil Biomédica',
+    'Ingeniería Civil Electrónica',
+    'Ingeniería Civil en Mecánica',
+    'Ingeniería en Geomensura',
+    'Ingeniería en Informática',
+    'Ingeniería Civil Industrial',
+    'Ingeniería Industrial',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+const CARRERAS_NIVEL_I_Y_II = new Set(
+  [
+    'Ingeniería Civil en Ciencia de Datos',
+    'Ingeniería Civil en Computación mención Informática',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+
 
 @Component({
   selector: 'alumno-trabajo',
@@ -63,6 +90,7 @@ interface Profesor {
 export class AlumnoTrabajoComponent {
   // Data existente
   tab = signal<'i' | 'ii' | 'temas' | 'propuestas'>('i');
+  nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
 
   // Información de seguimiento por nivel
   entregas = signal<Record<Nivel, EntregaAlumno[]>>({
@@ -324,6 +352,8 @@ export class AlumnoTrabajoComponent {
       const shouldDisable = this.profesoresCargando() || !this.profesores().length;
       this.actualizarEstadoControlesProfesores(shouldDisable);
     });
+
+    this.configurarNivelesDisponibles();
   }
 
   // Getter para usar en template y evitar TS4111
@@ -338,6 +368,10 @@ export class AlumnoTrabajoComponent {
     if (!rama) return lista;
     return lista.filter(p => !p.ramas?.length || p.ramas.includes(rama as RamaCarrera));
   });
+
+  tieneNivel(nivel: Nivel): boolean {
+    return this.nivelesDisponibles().includes(nivel);
+  }
 
   togglePostulacion(open: boolean) {
     this.showPostulacion.set(open);
@@ -368,6 +402,46 @@ export class AlumnoTrabajoComponent {
         control.enable({ emitEvent: false });
       }
     });
+  }
+
+  private configurarNivelesDisponibles() {
+    const perfil = this.currentUserService.getProfile();
+    const niveles = this.determinarNivelesDisponibles(perfil?.carrera ?? null);
+    this.nivelesDisponibles.set(niveles);
+
+    const pestanaActual = this.tab();
+    const esNivel = pestanaActual === 'i' || pestanaActual === 'ii';
+
+    if (!niveles.length && esNivel) {
+      this.tab.set('temas');
+      return;
+    }
+
+    if (esNivel && !niveles.includes(pestanaActual)) {
+      this.tab.set(niveles[0]);
+    }
+  }
+
+  private determinarNivelesDisponibles(carrera: string | null): Nivel[] {
+    const normalizada = carrera?.trim().toLowerCase() ?? '';
+
+    if (!normalizada) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SIN_TRABAJO_TITULO.has(normalizada)) {
+      return [];
+    }
+
+    if (CARRERAS_NIVEL_I_Y_II.has(normalizada)) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SOLO_NIVEL_I.has(normalizada)) {
+      return ['i'];
+    }
+
+    return ['i', 'ii'];
   }
 
   private intentarCargarTemas() {
