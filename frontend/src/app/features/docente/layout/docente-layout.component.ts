@@ -26,6 +26,7 @@ export class DocenteLayoutComponent implements OnDestroy {
     { route: 'notificaciones', label: 'Notificaciones', icon: 'assets/Notificaciones.png', alt: 'Notificaciones' },
     { route: 'bandeja', label: 'Bandeja de Entrada', icon: 'assets/Bandeja_entrada.png', alt: 'Bandeja de entrada' },
     { route: 'dashboard', label: 'Panel Docente', icon: 'assets/Inicio.png', alt: 'Panel docente' },
+    { route: 'temas', label: 'Temas de Título', icon: 'assets/Temas.png', alt: 'Temas de título' },
     { route: 'trabajo', label: 'Trabajo de Título', icon: 'assets/Procesos.png', alt: 'Trabajo de título' },
     { route: 'evaluaciones', label: 'Evaluaciones', icon: 'assets/Evaluaciones.png', alt: 'Evaluaciones' },
     { route: 'calendario', label: 'Calendario', icon: 'assets/Calendario.png', alt: 'Calendario' },

@@ -32,6 +32,7 @@ export class AlumnoLayoutComponent implements OnDestroy {
     { route: 'reuniones', label: 'Reuniones', icon: 'assets/Calendario.png', alt: 'Reuniones' },
     { route: 'entrega', label: 'Entregas', icon: 'assets/Bandeja_entrada.png', alt: 'Entregas' },
     { route: 'evaluations', label: 'Evaluaciones', icon: 'assets/Evaluaciones.png', alt: 'Evaluaciones' },
+    { route: 'temas', label: 'Temas de Título', icon: 'assets/Temas.png', alt: 'Temas de Título' },
     { route: 'trabajo', label: 'Trabajo de Título', icon: 'assets/Procesos.png', alt: 'Trabajo de título' },
     { route: 'practica', label: 'Práctica', icon: 'assets/Docentes.png', alt: 'Práctica' },
 

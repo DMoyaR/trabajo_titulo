@@ -1,0 +1,114 @@
+<div class="card">
+  <div class="row-head">
+    <h2 class="ttl">Temas para Trabajo de Título</h2>
+    <button class="btn primary" (click)="togglePostulacion(true)">
+      + Postular / Proponer tema
+    </button>
+  </div>
+  <p class="muted">Completa el formulario para solicitar o proponer un tema.</p>
+
+  <ng-container *ngIf="temasCargando(); else temasContenido">
+    <p class="muted" style="margin-top: 1rem">Cargando temas disponibles...</p>
+  </ng-container>
+
+  <ng-template #temasContenido>
+    <div class="err" *ngIf="temasError(); else temasLista">{{ temasError() }}</div>
+  </ng-template>
+
+  <ng-template #sinTemas>
+    <p class="muted" style="margin-top: 1rem">Aún no hay temas disponibles.</p>
+  </ng-template>
+
+  <ng-template #temasLista>
+    <ul class="list topics" *ngIf="temas().length; else sinTemas">
+      <li *ngFor="let tema of temas()">
+        <div class="grupo-info">
+          <div class="grupo-nombre">
+            {{ tema.titulo }}
+            <span class="badge">{{ tema.carrera }}</span>
+          </div>
+          <div class="grupo-alumnos">{{ tema.descripcion }}</div>
+          <div class="chips">
+            <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
+          </div>
+        </div>
+        <button type="button" class="btn primary sm">Pedir tema</button>
+      </li>
+    </ul>
+  </ng-template>
+
+  <!-- Modal de postulación -->
+  <div class="backdrop" *ngIf="showPostulacion()" (click)="togglePostulacion(false)"></div>
+  <div class="modal" *ngIf="showPostulacion()" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h4 class="ttl" style="margin: 0">Solicitud de Tema</h4>
+      <button class="icon" (click)="togglePostulacion(false)" aria-label="Cerrar">✕</button>
+    </div>
+
+    <form [formGroup]="postulacionForm" (ngSubmit)="submitPostulacion()" class="grid" novalidate>
+      <div class="field full">
+        <label for="titulo">Nombre del tema <span class="req">*</span></label>
+        <input id="titulo" type="text" formControlName="titulo" />
+        <div class="err" *ngIf="hasError('titulo','required')">Obligatorio.</div>
+        <div class="err" *ngIf="hasError('titulo','maxlength')">Máx. 160 caracteres.</div>
+      </div>
+
+      <div class="field full">
+        <label for="objetivo">Objetivo <span class="req">*</span></label>
+        <input id="objetivo" type="text" formControlName="objetivo" />
+        <div class="err" *ngIf="hasError('objetivo','required')">Obligatorio.</div>
+        <div class="err" *ngIf="hasError('objetivo','maxlength')">Máx. 300 caracteres.</div>
+      </div>
+
+      <div class="field full">
+        <label for="descripcion">Breve descripción <span class="req">*</span></label>
+        <textarea id="descripcion" rows="5" formControlName="descripcion"></textarea>
+        <div class="err" *ngIf="hasError('descripcion','required')">Obligatorio.</div>
+        <div class="err" *ngIf="hasError('descripcion','maxlength')">Máx. 1200 caracteres.</div>
+      </div>
+
+      <div class="field">
+        <label for="rama">Rama de la carrera <span class="req">*</span></label>
+        <select id="rama" formControlName="rama">
+          <option value="" disabled>Selecciona una rama</option>
+          <option *ngFor="let r of ramas" [value]="r">{{ r }}</option>
+        </select>
+        <div class="err" *ngIf="hasError('rama','required')">Selecciona una rama.</div>
+      </div>
+
+      <div class="field">
+        <label for="prof1">Profesor guía (Preferencia 1) <span class="req">*</span></label>
+        <select id="prof1" formControlName="prof1">
+          <option value="" disabled>Selecciona</option>
+          <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
+        </select>
+        <div class="err" *ngIf="hasError('prof1','required')">Selecciona una opción.</div>
+      </div>
+
+      <div class="field">
+        <label for="prof2">Profesor guía (Preferencia 2)</label>
+        <select id="prof2" formControlName="prof2">
+          <option value="">(Opcional)</option>
+          <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="prof3">Profesor guía (Preferencia 3)</label>
+        <select id="prof3" formControlName="prof3">
+          <option value="">(Opcional)</option>
+          <option *ngFor="let p of profesoresFiltrados()" [value]="p.id">{{ p.nombre }}</option>
+        </select>
+      </div>
+
+      <div class="field full" *ngIf="profesoresDuplicados">
+        <span class="err">Las preferencias no pueden repetir al mismo profesor.</span>
+      </div>
+
+      <div class="actions full">
+        <button type="button" class="btn light" (click)="togglePostulacion(false)">Cancelar</button>
+        <button type="submit" class="btn primary">Enviar postulación</button>
+      </div>
+    </form>
+  </div>
+</div>

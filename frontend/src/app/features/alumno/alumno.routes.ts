@@ -7,6 +7,7 @@ import { AlumnoDashboardComponent } from './dashboard/alumno-dashboard.component
 import { AlumnoCalendarComponent } from './calendar/alumno-calendar.component';
 import { AlumnoNotificationsComponent } from './notifications/alumno-notifications.component';
 import { AlumnoTrabajoComponent } from './trabajo/alumno-trabajo.component';
+import { AlumnoTemasComponent } from './temas/alumno-temas.component';
 import { AlumnoPerfilComponent } from './perfil/alumno-perfil.component';
 import { AlumnoReunionesComponent } from './reuniones/alumno-reuniones.component';
 import { AlumnoBandejaComponent } from './bandeja/alumno-bandeja.component';
@@ -29,6 +30,7 @@ export const ALUMNO_ROUTES: Routes = [
       { path: 'calendar',       component: AlumnoCalendarComponent,      title: 'Alumno | Calendar' },
       { path: 'notifications',  component: AlumnoNotificationsComponent, title: 'Alumno | Notifications' },
       { path: 'trabajo',        component: AlumnoTrabajoComponent,       title: 'Alumno | Trabajo' },
+      { path: 'temas',          component: AlumnoTemasComponent,         title: 'Alumno | Temas' },
       { path: 'perfil',         component: AlumnoPerfilComponent,        title: 'Alumno | Perfil' },
       { path: 'reuniones',      component: AlumnoReunionesComponent,     title: 'Alumno | Reuniones' },
       { path: 'bandeja',        component: AlumnoBandejaComponent,       title: 'Alumno | Bandeja' },

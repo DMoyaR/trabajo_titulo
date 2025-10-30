@@ -1,0 +1,129 @@
+<h2 class="ttl">Temas de Trabajo de Título</h2>
+
+<div class="row-head">
+  <h3>Temas disponibles</h3>
+  <div style="display:flex; gap:10px;">
+    <button type="button" class="btn outline" (click)="togglePropuestasModal(true)">📄 Ver propuestas</button>
+    <button type="button" class="btn primary" (click)="abrirModalTema()">+ Agregar tema</button>
+  </div>
+</div>
+
+<ng-container *ngIf="temas.length > 0; else sinTemas">
+  <ul class="temas-list">
+    <li *ngFor="let tema of temas" class="temas-item">
+      <div class="temas-item__header">
+        <div>
+          <h4 class="temas-item__title">{{ tema.titulo }}</h4>
+          <p class="temas-item__objetivo">{{ tema.objetivo }}</p>
+        </div>
+      </div>
+
+      <div class="temas-item__meta">
+        <span class="chip ghost">Cupos: {{ tema.cupos }}</span>
+        <span class="chip ghost">Fecha de publicación: {{ tema.fecha | date:'shortDate' }}</span>
+        <span class="badge">{{ tema.rama }}</span>
+      </div>
+
+      <div class="temas-item__actions">
+        <button class="btn danger" (click)="eliminarTema(tema)">Eliminar</button>
+      </div>
+    </li>
+  </ul>
+</ng-container>
+<ng-template #sinTemas><p class="muted">No hay temas disponibles por ahora.</p></ng-template>
+
+<!-- MODAL PROPUESTAS -->
+<div class="backdrop" *ngIf="showPropuestasModal" (click)="togglePropuestasModal(false)"></div>
+<div class="modal" *ngIf="showPropuestasModal" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h4 class="ttl" style="margin:0">Propuestas de Trabajo de Título</h4>
+    <button type="button" class="icon" (click)="togglePropuestasModal(false)">✕</button>
+  </div>
+
+  <div class="tabla">
+    <div class="head">
+      <span>Alumno</span><span>Tema</span><span>Rama</span><span>Fecha</span><span>Estado</span><span></span>
+    </div>
+    <div *ngFor="let p of propuestas">
+      <div class="fila">
+        <div>{{ p.alumno }}</div>
+        <div>{{ p.tema }}</div>
+        <div>{{ p.rama }}</div>
+        <div>{{ p.fecha }}</div>
+        <div>
+          <span class="chip"
+            [class.chip-ok]="p.estado==='aceptada'"
+            [class.chip-bad]="p.estado==='rechazada'"
+            [class.chip-warn]="p.estado==='pendiente'">{{ p.estado | titlecase }}</span>
+        </div>
+        <div><button class="btn sm" (click)="seleccionarPropuesta(p)">Revisar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detalle" *ngIf="propuestaSeleccionada as sel">
+    <h4>{{ sel.tema }}</h4>
+    <p><b>Alumno:</b> {{ sel.alumno }}</p>
+    <p class="muted"><b>Rama:</b> {{ sel.rama }} — <b>Fecha:</b> {{ sel.fecha }}</p>
+    <p><b>Descripción:</b> {{ sel.descripcion }}</p>
+
+    <div class="form">
+      <label for="comentario">Comentario</label>
+      <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
+      <div class="actions">
+        <button class="btn primary" type="button" (click)="aceptarPropuesta()" [disabled]="!comentarioDecision">Aceptar</button>
+        <button class="btn danger"  type="button" (click)="rechazarPropuesta()" [disabled]="!comentarioDecision">Rechazar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO TEMA -->
+<div class="backdrop" *ngIf="showModalTema" (click)="cerrarModalTema()"></div>
+<div class="modal narrow" *ngIf="showModalTema" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h4 class="ttl" style="margin:0">Nuevo tema</h4>
+    <button type="button" class="icon" (click)="cerrarModalTema()">✕</button>
+  </div>
+
+  <form class="grid" (ngSubmit)="guardarTema()" novalidate>
+    <div class="field">
+      <label>Nombre del tema <span class="req">*</span></label>
+      <input type="text" [(ngModel)]="nuevoTema.titulo" name="titulo" required />
+    </div>
+
+    <div class="field">
+      <label>Objetivo <span class="req">*</span></label>
+      <input type="text" [(ngModel)]="nuevoTema.objetivo" name="objetivo" required />
+    </div>
+
+    <div class="field full">
+      <label>Breve descripción <span class="req">*</span></label>
+      <textarea [(ngModel)]="nuevoTema.descripcion" name="descripcion" required></textarea>
+    </div>
+
+    <div class="field">
+      <label>Rama de la carrera <span class="req">*</span></label>
+      <select [(ngModel)]="nuevoTema.rama" name="rama" required>
+        <option value="">Selecciona una rama</option>
+        <option *ngFor="let r of ramas" [value]="r">{{ r }}</option>
+      </select>
+      <div class="err" *ngIf="!nuevoTema.rama">Obligatorio.</div>
+    </div>
+
+    <div class="field">
+      <label>Cupos</label>
+      <input type="number" [(ngModel)]="nuevoTema.cupos" name="cupos" min="1" />
+    </div>
+
+    <div class="field full">
+      <label>Requisitos (separados por coma)</label>
+      <input type="text" [(ngModel)]="nuevoTema.requisitos" name="requisitos" placeholder="Ej: Linux, Git, Metodologías ágiles"/>
+    </div>
+
+    <div class="actions full">
+      <button type="button" class="btn light" (click)="cerrarModalTema()">Cancelar</button>
+      <button type="submit" class="btn primary">Guardar tema</button>
+    </div>
+  </form>
+</div>

@@ -37,6 +37,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/docente/notificaciones/docente-notificaciones.component')
             .then((m) => m.DocenteNotificacionesComponent), },
+        
+        { path: 'temas',
+        loadComponent: () =>
+          import('./features/docente/temas/docente-temas.component')
+            .then((m) => m.DocenteTemasComponent), },
 
         { path: 'trabajo',
         loadComponent: () =>
