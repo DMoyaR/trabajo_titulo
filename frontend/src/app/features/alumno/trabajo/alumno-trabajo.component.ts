@@ -206,19 +206,30 @@ export class AlumnoTrabajoComponent {
   propuestasError = signal<string | null>(null);
   private propuestasCargadas = false;
 
-  propuestasAceptadas = computed(() => {
-    return this.propuestas()
+  propuestasAceptadas = computed(() =>
+    this.propuestas()
       .filter((p) => p.estado === 'aceptada')
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  });
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+  );
 
-  propuestaAceptadaDestacada = computed(() => {
-    const aceptadas = this.propuestasAceptadas();
-    return aceptadas.length ? aceptadas[0] : null;
+  propuestasPendientes = computed(() =>
+    this.propuestas()
+      .filter((p) => p.estado === 'pendiente')
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+  );
+
+  propuestaDestacada = computed(() => {
+    const aceptada = this.propuestasAceptadas()[0];
+    if (aceptada) {
+      return aceptada;
+    }
+
+    const pendiente = this.propuestasPendientes()[0];
+    return pendiente ?? null;
   });
 
   propuestasEnHistorial = computed(() => {
-    const destacada = this.propuestaAceptadaDestacada();
+    const destacada = this.propuestaDestacada();
     return this.propuestas()
       .filter((propuesta) => !destacada || propuesta.id !== destacada.id)
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
@@ -238,6 +249,26 @@ export class AlumnoTrabajoComponent {
       return 'rechazada';
     }
     return 'pendiente';
+  }
+
+  etiquetaPropuestaDestacada(propuesta: Propuesta): string {
+    if (propuesta.estado === 'aceptada') {
+      return 'Propuesta aceptada';
+    }
+    if (propuesta.estado === 'pendiente') {
+      return 'Propuesta pendiente';
+    }
+    return 'Propuesta';
+  }
+
+  chipClasePropuesta(estado: Propuesta['estado']): string {
+    if (estado === 'aceptada') {
+      return 'success';
+    }
+    if (estado === 'pendiente') {
+      return 'pending';
+    }
+    return 'ghost';
   }
 
 

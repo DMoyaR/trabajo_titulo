@@ -247,6 +247,12 @@
   color: #047857;
 }
 
+.chip.pending {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #b45309;
+}
+
 .alert {
   margin-top: 12px;
   padding: 10px 14px;
