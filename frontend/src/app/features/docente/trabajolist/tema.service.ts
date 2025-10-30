@@ -2,6 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export interface TemaInscripcionActiva {
+  id: number;
+  nombre: string;
+  correo: string;
+  carrera: string | null;
+  rut: string | null;
+  telefono: string | null;
+  reservadoEn: string;
+}
+
 export interface TemaDisponible {
   id: number;
   titulo: string;
@@ -18,6 +28,7 @@ export interface TemaDisponible {
     rol: string;
     carrera: string | null;
   } | null;
+  inscripcionesActivas: TemaInscripcionActiva[];
 }
 
 export type CrearTemaPayload = Omit<
@@ -57,6 +68,27 @@ export class TemaService {
 
   crearTema(payload: CrearTemaPayload): Observable<TemaDisponible> {
     return this.http.post<TemaDisponible>(this.baseUrl, payload);
+  }
+
+  obtenerTema(
+    id: number,
+    options?: { usuarioId?: number | null; alumnoId?: number | null; carrera?: string | null }
+  ): Observable<TemaDisponible> {
+    const params: Record<string, string> = {};
+    const { usuarioId, alumnoId, carrera } = options ?? {};
+
+    if (usuarioId != null) {
+      params['usuario'] = String(usuarioId);
+    }
+    if (alumnoId != null) {
+      params['alumno'] = String(alumnoId);
+    }
+    if (carrera) {
+      params['carrera'] = carrera;
+    }
+
+    const httpOptions = Object.keys(params).length ? { params } : {};
+    return this.http.get<TemaDisponible>(`${this.baseUrl}${id}/`, httpOptions);
   }
 
   pedirTema(temaId: number, alumnoId: number): Observable<TemaDisponible> {

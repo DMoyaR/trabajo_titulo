@@ -43,6 +43,12 @@
   font-weight:700;
   font-size:.85rem;
 }
+.chips.meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
 /* ===== Modal base ===== */
 .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:900; }
 .modal {
@@ -54,6 +60,82 @@
   padding-bottom:18px;
 }
 .modal.narrow { width:min(92vw, 720px); }
+.tema-detalle-modal { width:min(92vw, 780px); }
+.tema-detalle__body {
+  padding:20px 24px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  max-height:calc(90vh - 120px);
+  overflow-y:auto;
+  box-sizing:border-box;
+}
+.tema-detalle__descripcion h4 {
+  margin:0 0 4px;
+  color:#1a3e6a;
+}
+.tema-detalle__descripcion p {
+  margin:0;
+  color:#1f2937;
+}
+.tema-detalle__autor {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  background:#f5f9ff;
+  border:1px solid #dbe3ee;
+  border-radius:10px;
+  padding:12px 14px;
+}
+.tema-detalle__autor span[aria-hidden="true"] {
+  font-size:1.4rem;
+}
+.tema-detalle__autor-nombre {
+  margin:0;
+  font-weight:700;
+  color:#1a3e6a;
+}
+.tema-detalle__seccion h5 {
+  margin:0 0 6px;
+  color:#1a3e6a;
+}
+.tema-detalle__seccion ul {
+  margin:0;
+  padding-left:18px;
+  color:#1f2937;
+}
+.tema-detalle__inscritos {
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.tema-detalle__inscritos li {
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:12px 14px;
+  background:#ffffff;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.inscrito-nombre {
+  font-weight:700;
+  color:#1a3e6a;
+}
+.inscrito-meta,
+.inscrito-contacto,
+.inscrito-reserva {
+  font-size:.9rem;
+  color:#4b5563;
+  margin-top:4px;
+}
+.inscrito-contacto span + span {
+  margin-left:4px;
+}
+.inscrito-meta span + span {
+  margin-left:4px;
+}
 .modal-head {
   display:flex; justify-content:space-between; align-items:center;
   padding:16px 18px; border-bottom:1px solid #e9eef6; background:#f8fbff;
@@ -198,6 +280,7 @@ select:focus {
   .grupo-card { flex-direction:column; align-items:flex-start; gap:10px; }
   .btn-ver { align-self:flex-end; }
   .entregas-grid { grid-template-columns:1fr; }
+  .tema-detalle-modal { width:min(92vw, 95vw); }
 }
 
 /* === Temas disponibles === */

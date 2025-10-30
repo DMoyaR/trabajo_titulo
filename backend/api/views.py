@@ -146,9 +146,18 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         return context
 
     def perform_create(self, serializer):
-        user = getattr(self.request, "user", None)
-        if isinstance(user, Usuario):
-            serializer.save(created_by=user)
+        creador = serializer.validated_data.get("created_by")
+
+        if not creador:
+            creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
+
+        if not creador:
+            potencial = _obtener_usuario_para_temas(self.request)
+            if potencial and potencial.rol in {"docente", "coordinador"}:
+                creador = potencial
+
+        if creador:
+            serializer.save(created_by=creador)
         else:
             serializer.save()
 
