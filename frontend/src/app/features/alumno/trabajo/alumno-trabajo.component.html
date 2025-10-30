@@ -109,10 +109,10 @@
         <div class="err" *ngIf="!propuestasCargando() && propuestasError()">{{ propuestasError() }}</div>
 
         <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
-          <div class="propuestas-historial" *ngIf="propuestas().length; else sinPropuestas">
+          <div class="propuestas-historial" *ngIf="propuestasEnHistorial().length; else sinPropuestas">
             <h4>Mis propuestas enviadas</h4>
             <ul class="list propuestas">
-              <li *ngFor="let propuesta of propuestas()">
+              <li *ngFor="let propuesta of propuestasEnHistorial()">
                 <div class="grupo-info">
                   <div class="grupo-nombre">
                     {{ propuesta.titulo }}

@@ -217,6 +217,13 @@ export class AlumnoTrabajoComponent {
     return aceptadas.length ? aceptadas[0] : null;
   });
 
+  propuestasEnHistorial = computed(() => {
+    const destacada = this.propuestaAceptadaDestacada();
+    return this.propuestas()
+      .filter((propuesta) => !destacada || propuesta.id !== destacada.id)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  });
+
   estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
     pendiente: 'Pendiente',
     aceptada: 'Aceptada',
