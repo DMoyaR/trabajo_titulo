@@ -206,18 +206,37 @@
 
       <!-- CORREGIDO: usa getter o bracket notation -->
     <div class="backdrop" *ngIf="temaSeleccionado()" (click)="cerrarConfirmacionTema()"></div>
-    <div class="modal" *ngIf="temaSeleccionado() as temaEnConfirmacion" role="dialog" aria-modal="true">
+    <div class="modal confirm-modal" *ngIf="temaSeleccionado() as temaEnConfirmacion" role="dialog" aria-modal="true">
       <div class="modal-head">
         <h4 class="ttl" style="margin: 0">Confirmar reserva</h4>
         <button class="icon" (click)="cerrarConfirmacionTema()" aria-label="Cerrar">✕</button>
       </div>
-      <div class="modal-body">
-        <p>Estás a punto de reservar el tema <strong>{{ temaEnConfirmacion.titulo }}</strong>.</p>
-        <p class="muted">Profesor responsable: {{ temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</p>
+      <div class="modal-body tema-confirmacion">
         <div class="chips meta">
-          <span class="chip ghost">Cupos disponibles: {{ temaEnConfirmacion.cuposDisponibles }}</span>
+          <span class="chip ghost">Cupos disponibles: {{ temaEnConfirmacion.cuposDisponibles }} / {{ temaEnConfirmacion.cupos }}</span>
+          <span class="chip ghost">Carrera: {{ temaEnConfirmacion.carrera }}</span>
         </div>
-        <p>¿Deseas continuar?</p>
+        <div>
+          <h5>{{ temaEnConfirmacion.titulo }}</h5>
+          <p class="descripcion">{{ temaEnConfirmacion.descripcion }}</p>
+        </div>
+        <div class="tema-confirmacion__autor">
+          <span aria-hidden="true">👤</span>
+          <span>
+            Profesor responsable:
+            <strong>{{ temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</strong>
+          </span>
+        </div>
+        <div class="tema-confirmacion__requisitos" *ngIf="temaEnConfirmacion.requisitos?.length; else sinRequisitos">
+          <h6>Requisitos del tema</h6>
+          <ul>
+            <li *ngFor="let requisito of temaEnConfirmacion.requisitos">{{ requisito }}</li>
+          </ul>
+        </div>
+        <ng-template #sinRequisitos>
+          <p class="muted" style="margin: 0">Este tema no especifica requisitos adicionales.</p>
+        </ng-template>
+        <p>¿Deseas continuar con la reserva?</p>
       </div>
       <div class="actions">
         <button type="button" class="btn light" (click)="cerrarConfirmacionTema()">Cancelar</button>
