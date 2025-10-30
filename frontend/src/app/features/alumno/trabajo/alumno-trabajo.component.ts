@@ -62,7 +62,7 @@ interface Profesor {
 })
 export class AlumnoTrabajoComponent {
   // Data existente
-  tab = signal<'i' | 'ii' | 'temas'>('i');
+  tab = signal<'i' | 'ii' | 'temas' | 'propuestas'>('i');
 
   // Información de seguimiento por nivel
   entregas = signal<Record<Nivel, EntregaAlumno[]>>({
@@ -155,7 +155,7 @@ export class AlumnoTrabajoComponent {
 
   nivelActual = computed<Nivel | null>(() => {
     const value = this.tab();
-    return value === 'temas' ? null : value;
+    return value === 'temas' || value === 'propuestas' ? null : value;
   });
 
   resumenNivel = computed<ResumenNivel | null>(() => {
@@ -270,10 +270,14 @@ export class AlumnoTrabajoComponent {
     }, { validators: this.profesoresDistintosValidator });
 
     effect(() => {
-      if (this.tab() === 'temas') {
+      const currentTab = this.tab();
+      if (currentTab === 'temas') {
         this.reservaMensaje.set(null);
         this.reservaError.set(null);
         this.intentarCargarTemas();
+      }
+
+      if (currentTab === 'temas' || currentTab === 'propuestas') {
         this.intentarCargarPropuestas();
       }
     });
