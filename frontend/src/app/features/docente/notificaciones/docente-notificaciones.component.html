@@ -1,35 +1,34 @@
-<section>
-  <h2 class="ttl">Notificaciones</h2>
-  <div class="filters">
-    <div class="filter-group">
-      <label>Tipo:</label>
-      <select [(ngModel)]="filtroTipo" (ngModelChange)="onFiltroTipoChange($event)">
-        <option value="todas">Todas</option>
-        <option value="entregas">Entregas</option>
-        <option value="retro">Retro</option>
-        <option value="reuniones">Reuniones</option>
-        <option value="estados">Estados</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>Fecha:</label>
-      <select [(ngModel)]="filtroFecha" (ngModelChange)="onFiltroFechaChange($event)">
-        <option value="todas">Todas</option>
-        <option value="hoy">Hoy</option>
-        <option value="ayer">Ayer</option>
-        <option value="semana">Esta semana</option>
-        <option value="mes">Este mes</option>
-      </select>
-    </div>
+<section class="notifications">
+  <h2 class="ttl">Solicitudes de reuniones</h2>
+
+  <p class="muted" *ngIf="cargando()">Cargando solicitudes...</p>
+  <div class="alert error" *ngIf="error()">{{ error() }}</div>
+
+  <div class="acciones" *ngIf="!cargando() && !error() && solicitudes().length">
+    <span class="contador" *ngIf="totalPendientes()">{{ totalPendientes() }} pendiente{{ totalPendientes() === 1 ? '' : 's' }}</span>
+    <button class="pill sm" type="button" (click)="marcarTodas()">Marcar todas como revisadas</button>
   </div>
-  <ul class="notis">
-    <li *ngFor="let n of list">
-      <span class="ic">{{ n.icon }}</span>
-      <div class="noti-content">
-        <span class="tx">{{ n.titulo }}</span>
-        <small class="tm">{{ n.hace }}</small>
+
+  <p class="muted" *ngIf="!cargando() && !error() && !solicitudes().length">
+    No hay solicitudes de reunión registradas por tus estudiantes.
+  </p>
+
+  <ul class="list" *ngIf="!cargando() && !error() && solicitudes().length">
+    <li class="item" *ngFor="let notificacion of solicitudes()" [class.leida]="notificacion.leida">
+      <div class="item-header">
+        <strong>{{ notificacion.titulo }}</strong>
+        <span class="chip" *ngIf="!notificacion.leida">Pendiente</span>
       </div>
+      <p>{{ notificacion.mensaje }}</p>
+      <small class="muted">{{ formatoFecha(notificacion.createdAt) }}</small>
+      <button
+        class="link"
+        type="button"
+        *ngIf="!notificacion.leida"
+        (click)="marcarComoLeida(notificacion)"
+      >
+        Marcar como revisada
+      </button>
     </li>
   </ul>
-  <a class="mark" href="javascript:void(0)" (click)="marcarComoLeido()">Marcar como leído</a>
 </section>
