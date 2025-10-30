@@ -464,6 +464,10 @@
   max-height: 90vh;
   overflow-y: auto;
 }
+.modal.confirm-modal {
+  width: min(520px, 92vw);
+  padding-bottom: 24px;
+}
 .modal-head {
   display: flex;
   align-items: center;
@@ -540,6 +544,39 @@ textarea {
 
 .actions.full {
   grid-column: 1 / -1;
+}
+
+.tema-confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tema-confirmacion h5 {
+  margin: 0;
+  font-size: 18px;
+  color: #1a3e6a;
+}
+
+.tema-confirmacion .descripcion {
+  margin: 0;
+}
+
+.tema-confirmacion__autor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.tema-confirmacion .chips.meta {
+  margin-top: 4px;
+}
+
+.tema-confirmacion .chips.requisitos {
+  margin-top: 0;
 }
 
 @media (max-width: 860px) {

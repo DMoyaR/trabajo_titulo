@@ -194,7 +194,7 @@
                 type="button"
                 class="btn primary sm"
                 [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
-                (click)="pedirTema(tema)"
+                (click)="abrirConfirmacionTema(tema)"
               >
                 {{ etiquetaPedirTema(tema) }}
               </button>
@@ -202,6 +202,70 @@
           </ul>
         </ng-template>
 
+
+
+    <div class="backdrop" *ngIf="temaSeleccionado()" (click)="cerrarConfirmacionTema()"></div>
+    <div
+      class="modal confirm-modal"
+      *ngIf="temaSeleccionado() as temaEnConfirmacion"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-head">
+        <h4 class="ttl" style="margin: 0">Confirmar reserva</h4>
+        <button class="icon" (click)="cerrarConfirmacionTema()" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="muted" style="margin-top: 0">
+        Revisa los detalles del tema antes de confirmar que deseas reservarlo.
+      </p>
+
+      <div class="tema-confirmacion">
+        <h5>{{ temaEnConfirmacion.titulo }}</h5>
+        <p class="muted descripcion">{{ temaEnConfirmacion.descripcion }}</p>
+
+        <div class="tema-confirmacion__autor" *ngIf="temaEnConfirmacion.creadoPor as autor">
+          <span class="tema-autor__icon" aria-hidden="true">👤</span>
+          <span>
+            {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:
+            <strong class="tema-autor__nombre">{{ autor.nombre }}</strong>
+            · {{ autor.rol | titlecase }}
+            <ng-container *ngIf="autor.carrera"> — {{ autor.carrera }}</ng-container>
+          </span>
+        </div>
+
+        <div class="chips meta">
+          <span class="chip ghost">
+            Cupos disponibles: {{ temaEnConfirmacion.cuposDisponibles }} / {{ temaEnConfirmacion.cupos }}
+          </span>
+          <span class="chip">Carrera: {{ temaEnConfirmacion.carrera }}</span>
+        </div>
+
+        <div class="chips requisitos" *ngIf="temaEnConfirmacion.requisitos?.length">
+          <span class="chip" *ngFor="let req of temaEnConfirmacion.requisitos">{{ req }}</span>
+        </div>
+      </div>
+
+      <div class="err" *ngIf="reservaError()">{{ reservaError() }}</div>
+
+      <div class="actions" style="margin-top: 16px;">
+        <button
+          type="button"
+          class="btn light"
+          (click)="cerrarConfirmacionTema()"
+          [disabled]="reservandoTemaId() === temaEnConfirmacion.id"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn primary"
+          (click)="confirmarReservaTema()"
+          [disabled]="reservandoTemaId() === temaEnConfirmacion.id"
+        >
+          {{ reservandoTemaId() === temaEnConfirmacion.id ? 'Reservando…' : 'Confirmar reserva' }}
+        </button>
+      </div>
+    </div>
 
 
       <!-- CORREGIDO: usa getter o bracket notation -->
