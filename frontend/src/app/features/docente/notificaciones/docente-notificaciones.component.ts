@@ -17,12 +17,10 @@ export class DocenteNotificacionesComponent {
   readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly solicitudes = computed(() =>
-    this.notificaciones().filter((notificacion) => this.esSolicitudReunion(notificacion)),
-  );
+  readonly solicitudes = computed(() => this.notificaciones());
 
   readonly totalPendientes = computed(() =>
-    this.solicitudes().filter((notificacion) => !notificacion.leida).length,
+    this.notificaciones().filter((notificacion) => !notificacion.leida).length,
   );
 
   constructor(
@@ -59,7 +57,7 @@ export class DocenteNotificacionesComponent {
   }
 
   marcarTodas(): void {
-    const pendientes = this.solicitudes().filter((notificacion) => !notificacion.leida);
+    const pendientes = this.notificaciones().filter((notificacion) => !notificacion.leida);
     if (!pendientes.length) {
       return;
     }
@@ -105,19 +103,4 @@ export class DocenteNotificacionesComponent {
     });
   }
 
-  private esSolicitudReunion(notificacion: Notificacion): boolean {
-    const tipo = notificacion.tipo?.toLowerCase();
-    if (tipo === 'reunion' || tipo === 'reuniones') {
-      return true;
-    }
-
-    const evento = (notificacion.meta?.['evento'] as string | undefined)?.toLowerCase();
-    if (evento === 'solicitud_reunion') {
-      return true;
-    }
-
-    const titulo = notificacion.titulo.toLowerCase();
-    const mensaje = notificacion.mensaje.toLowerCase();
-    return titulo.includes('reunión') || mensaje.includes('reunión');
-  }
 }
