@@ -806,7 +806,7 @@ private escribirBullet(
     cursorY += 3;
 
     const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
-    const parrafo2 = `Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
+    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
     cursorY = this.escribirTextoJustificado(doc, parrafo2, margenX, cursorY, anchoTexto, saltoLinea);
 
 // espacio pequeño antes de la lista (opcional)
@@ -823,6 +823,8 @@ objetivos.forEach((objetivo) => {
     6                // sangría del bullet (puedes ajustar a gusto)
   );
 });
+
+
 cursorY += saltoLinea;
 
     const parrafo3Lineas = doc.splitTextToSize('Le saluda atentamente,', anchoTexto);
