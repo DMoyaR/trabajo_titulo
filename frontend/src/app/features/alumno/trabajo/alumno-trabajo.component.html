@@ -240,8 +240,11 @@
           <span class="chip">Carrera: {{ temaEnConfirmacion.carrera }}</span>
         </div>
 
-        <div class="chips requisitos" *ngIf="temaEnConfirmacion.requisitos?.length">
-          <span class="chip" *ngFor="let req of temaEnConfirmacion.requisitos">{{ req }}</span>
+        <div class="tema-confirmacion__requisitos" *ngIf="temaEnConfirmacion.requisitos?.length">
+          <h6>Requisitos del tema</h6>
+          <ul>
+            <li *ngFor="let req of temaEnConfirmacion.requisitos">{{ req }}</li>
+          </ul>
         </div>
       </div>
 
