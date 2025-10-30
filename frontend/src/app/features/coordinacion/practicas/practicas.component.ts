@@ -665,10 +665,95 @@ export class PracticasComponent {
     };
   }
 
+
+
   private obtenerFirmaPorCarrera(carrera: string | null | undefined): Firma {
     const clave = carrera || '';
     return this.firmasPorCarrera[clave] || this.firmaFallback;
   }
+
+  private escribirTextoJustificado(
+    doc: jsPDF,
+    texto: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+  ): number {
+    if (!texto || !texto.trim()) {
+      return y;
+    }
+
+    const lineas = doc.splitTextToSize(texto, maxWidth);
+    const espacioBase = doc.getTextWidth(' ');
+
+    lineas.forEach((linea: string, index: number) => {
+      const lineaLimpia = linea.trim();
+      const palabras = lineaLimpia.split(/\s+/).filter(Boolean);
+      const esUltimaLinea = index === lineas.length - 1;
+
+      if (!palabras.length) {
+        y += lineHeight;
+        return;
+      }
+
+      if (esUltimaLinea || palabras.length === 1) {
+        doc.text(lineaLimpia, x, y);
+      } else {
+        const espacios = palabras.length - 1;
+        const anchoPalabras = palabras.reduce(
+          (acc: number, palabra: string) => acc + doc.getTextWidth(palabra),
+          0
+        );
+        const anchoActual = anchoPalabras + espacioBase * espacios;
+        const extraPorEspacio = espacios
+          ? Math.max(0, (maxWidth - anchoActual) / espacios)
+          : 0;
+
+        let cursorX = x;
+        palabras.forEach((palabra: string, palabraIndex: number) => {
+          doc.text(palabra, cursorX, y);
+          if (palabraIndex < espacios) {
+            cursorX += doc.getTextWidth(palabra) + espacioBase + extraPorEspacio;
+          }
+        });
+      }
+
+      y += lineHeight;
+    });
+
+    return y;
+  }
+
+
+private escribirBullet(
+  doc: jsPDF,
+  texto: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  indent = 6
+): number {
+  // ancho efectivo para el texto, dejando un margen para la sangría
+  const anchoTexto = maxWidth - indent;
+  const lineas = doc.splitTextToSize(texto, anchoTexto);
+
+  if (!lineas.length) return y;
+
+  // 1) Primera línea: dibuja el bullet y la primera línea sin justificar (mejor legibilidad)
+  doc.text('•', x, y);
+  doc.text(lineas[0], x + indent, y);
+  y += lineHeight;
+
+  // 2) Líneas de continuación: justificar con el helper que ya tienes
+  for (let i = 1; i < lineas.length; i++) {
+    y = this.escribirTextoJustificado(doc, lineas[i], x + indent, y, anchoTexto, lineHeight);
+  }
+
+  return y;
+}
+
 
   private generarArchivoCartaPdf(solicitud: SolicitudCarta): File {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -709,31 +794,42 @@ export class PracticasComponent {
       cursorY += saltoLinea;
     });
 
+    cursorY += 1;
+
     cursorY += 2;
 
     const alumnoNombre = `${preview.alumnoNombres} ${preview.alumnoApellidos}`.trim() || 'Alumno/a';
     const rutTexto = preview.alumnoRut === '—' ? '' : `, RUT ${preview.alumnoRut}`;
     const carreraTexto = preview.carrera === '—' ? '' : ` de la carrera de ${preview.carrera}`;
     const parrafo1 = `Me permito dirigirme a Ud. para presentar al Sr. ${alumnoNombre}${rutTexto}${carreraTexto} de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.`;
-    const parrafo1Lineas = doc.splitTextToSize(parrafo1, anchoTexto);
-    doc.text(parrafo1Lineas, margenX, cursorY);
-    cursorY += parrafo1Lineas.length * saltoLinea;
+    cursorY = this.escribirTextoJustificado(doc, parrafo1, margenX, cursorY, anchoTexto, saltoLinea);
+    cursorY += 3;
 
     const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
     const parrafo2 = `Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
-    const parrafo2Lineas = doc.splitTextToSize(parrafo2, anchoTexto);
-    doc.text(parrafo2Lineas, margenX, cursorY);
-    cursorY += parrafo2Lineas.length * saltoLinea;
+    cursorY = this.escribirTextoJustificado(doc, parrafo2, margenX, cursorY, anchoTexto, saltoLinea);
 
-    objetivos.forEach((objetivo) => {
-      const bullet = doc.splitTextToSize(`• ${objetivo}`, anchoTexto - 8);
-      doc.text(bullet, margenX + 4, cursorY);
-      cursorY += bullet.length * saltoLinea;
-    });
+// espacio pequeño antes de la lista (opcional)
+cursorY += 1;
+
+objetivos.forEach((objetivo) => {
+  cursorY = this.escribirBullet(
+    doc,
+    objetivo,        // sin el símbolo •, la función lo agrega
+    margenX,         // x inicial
+    cursorY,         // y actual
+    anchoTexto,      // mismo ancho que usas en párrafos
+    saltoLinea,      // mismo interlineado
+    6                // sangría del bullet (puedes ajustar a gusto)
+  );
+});
+cursorY += saltoLinea;
 
     const parrafo3Lineas = doc.splitTextToSize('Le saluda atentamente,', anchoTexto);
+    cursorY += saltoLinea;
     doc.text(parrafo3Lineas, margenX, cursorY);
-    cursorY += parrafo3Lineas.length * saltoLinea + 12;
+    //cursorY += parrafo3Lineas.length * saltoLinea + 12;
+    cursorY += saltoLinea;
 
     doc.setFont('Helvetica', 'bold');
     doc.text(firma.nombre, margenX, cursorY);

@@ -283,16 +283,66 @@ def _normalizar_texto_pdf(value: str) -> str:
     return texto
 
 
-def _pdf_wrap(texto: str, ancho: int = 88) -> list[str]:
+def _pdf_justificar_linea(linea: str, ancho: int) -> str:
+    if len(linea) >= ancho:
+        return linea
+
+    if " " not in linea.strip():
+        return linea
+
+    leading = len(linea) - len(linea.lstrip(" "))
+    contenido = linea.lstrip(" ")
+    palabras = contenido.split(" ")
+
+    huecos = len(palabras) - 1
+    if huecos <= 0:
+        return linea
+
+    deficit = ancho - len(linea)
+    if deficit <= 0:
+        return linea
+
+    espacio_base, extra = divmod(deficit, huecos)
+
+    espacios = []
+    for indice in range(huecos):
+        incremento = espacio_base + (1 if indice < extra else 0)
+        espacios.append(" " * (1 + incremento))
+
+    justificado = []
+    for palabra, separador in zip(palabras, espacios):
+        justificado.append(palabra)
+        justificado.append(separador)
+    justificado.append(palabras[-1])
+
+    return (" " * leading) + "".join(justificado)
+
+
+def _pdf_justificar_lineas(lineas: list[str], ancho: int) -> list[str]:
+    if len(lineas) <= 1:
+        return lineas
+    resultado: list[str] = []
+    for indice, linea in enumerate(lineas):
+        if indice == len(lineas) - 1:
+            resultado.append(linea)
+            continue
+        resultado.append(_pdf_justificar_linea(linea, ancho))
+    return resultado
+
+
+def _pdf_wrap(texto: str, ancho: int = 88, justificar: bool = False) -> list[str]:
     texto = _normalizar_texto_pdf(texto.strip())
     if not texto:
         return []
-    return textwrap.wrap(
+    lineas = textwrap.wrap(
         texto,
         width=ancho,
         break_long_words=False,
         break_on_hyphens=False,
     )
+    if justificar:
+        lineas = _pdf_justificar_lineas(lineas, ancho)
+    return lineas
 
 
 def _pdf_wrap_vineta(texto: str, ancho: int = 88, vineta: str = "-") -> list[str]:
@@ -435,14 +485,14 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         f"{carrera_texto} de la Universidad Tecnológica Metropolitana, "
         "y solicitar su aceptación en calidad de alumno en práctica."
     )
-    lineas.extend(_pdf_wrap(cuerpo_1))
+    lineas.extend(_pdf_wrap(cuerpo_1, justificar=True))
     lineas.append("")
 
     cuerpo_2 = (
         "Esta práctica tiene una duración de "
         f"{solicitud.practica_duracion_horas} horas cronológicas y sus objetivos son:"
     )
-    lineas.extend(_pdf_wrap(cuerpo_2))
+    lineas.extend(_pdf_wrap(cuerpo_2, justificar=True))
 
     for objetivo in objetivos:
         lineas.extend(_pdf_wrap_vineta(objetivo))
@@ -454,7 +504,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         "aprendizajes a la Coordinación de Carrera, quienes se pondrán en contacto "
         "para conocer los resultados de su desempeño."
     )
-    lineas.extend(_pdf_wrap(cuerpo_3))
+    lineas.extend(_pdf_wrap(cuerpo_3, justificar=True))
 
     lineas.append("")
     lineas.extend(_pdf_wrap("Le saluda atentamente,"))
