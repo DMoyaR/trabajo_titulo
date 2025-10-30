@@ -63,11 +63,6 @@ export const routes: Routes = [
           import('./features/docente/reunionesresumen/docente-reuniones.component')
             .then((m) => m.DocenteReunionesComponent),},
 
-        { path: 'bandeja',
-        loadComponent: () =>
-          import('./features/docente/bandejachat/docente-bandeja.component')
-            .then((m) => m.DocenteBandejaComponent), },
-
         { path: 'perfil',
         loadComponent: () =>
           import('./features/docente/perfil/docente-perfil.component')
