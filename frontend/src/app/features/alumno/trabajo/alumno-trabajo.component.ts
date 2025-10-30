@@ -198,7 +198,6 @@ export class AlumnoTrabajoComponent {
   private temasCargados = false;
   reservaMensaje = signal<string | null>(null);
   reservaError = signal<string | null>(null);
-  temaSeleccionado = signal<TemaDisponible | null>(null);
   reservandoTemaId = signal<number | null>(null);
   
   propuestas = signal<Propuesta[]>([]);
@@ -335,7 +334,8 @@ export class AlumnoTrabajoComponent {
     this.temasCargando.set(true);
     this.temasError.set(null);
     const alumnoId = this.obtenerAlumnoIdActual();
-    this.temaService.getTemas(alumnoId ?? undefined).subscribe({
+    const opciones = alumnoId != null ? { usuarioId: alumnoId, alumnoId } : undefined;
+    this.temaService.getTemas(opciones).subscribe({
       next: temas => {
         this.temas.set(temas);
         this.temasCargados = true;
@@ -366,33 +366,6 @@ export class AlumnoTrabajoComponent {
     return 'Pedir tema';
   }
 
-  abrirConfirmacionTema(tema: TemaDisponible) {
-    if (!this.puedePedirTema(tema)) {
-      return;
-    }
-
-    this.reservaError.set(null);
-    this.temaSeleccionado.set(tema);
-  }
-
-  cerrarConfirmacionTema() {
-    const seleccionado = this.temaSeleccionado();
-    if (seleccionado && this.reservandoTemaId() === seleccionado.id) {
-      return;
-    }
-
-    this.temaSeleccionado.set(null);
-  }
-
-  confirmarReservaTema() {
-    const tema = this.temaSeleccionado();
-    if (!tema) {
-      return;
-    }
-
-    this.pedirTema(tema);
-  }
-
   pedirTema(tema: TemaDisponible) {
     const alumnoId = this.obtenerAlumnoIdActual();
     if (!alumnoId || !tema.id) {
@@ -415,7 +388,6 @@ export class AlumnoTrabajoComponent {
         this.reservaMensaje.set('Cupo reservado correctamente.');
         this.reservaError.set(null);
         this.reservandoTemaId.set(null);
-        this.temaSeleccionado.set(null);
       },
       error: (err) => {
         const detail = err?.error?.detail ?? 'No fue posible reservar el tema. Intenta nuevamente.';

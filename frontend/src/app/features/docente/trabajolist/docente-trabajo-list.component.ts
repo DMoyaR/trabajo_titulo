@@ -200,7 +200,10 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.temasCargando = true;
     this.temasError = null;
 
-    this.temaService.getTemas()
+    const perfil = this.currentUserService.getProfile();
+    const opciones = perfil?.id != null ? { usuarioId: perfil.id } : undefined;
+
+    this.temaService.getTemas(opciones)
       .pipe(finalize(() => (this.temasCargando = false)))
       .subscribe({
         next: (temasApi: TemaAPI[]) => {

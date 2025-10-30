@@ -33,9 +33,26 @@ export class TemaService {
 
   constructor(private http: HttpClient) {}
 
-  getTemas(alumnoId?: number | null): Observable<TemaDisponible[]> {
-    const params = alumnoId ? { alumno: alumnoId } : undefined;
-    return this.http.get<TemaDisponible[]>(this.baseUrl, { params });
+  getTemas(options?: {
+    usuarioId?: number | null;
+    alumnoId?: number | null;
+    carrera?: string | null;
+  }): Observable<TemaDisponible[]> {
+    const params: Record<string, string> = {};
+    const { usuarioId, alumnoId, carrera } = options ?? {};
+
+    if (usuarioId != null) {
+      params['usuario'] = String(usuarioId);
+    }
+    if (alumnoId != null) {
+      params['alumno'] = String(alumnoId);
+    }
+    if (carrera) {
+      params['carrera'] = carrera;
+    }
+
+    const httpOptions = Object.keys(params).length ? { params } : {};
+    return this.http.get<TemaDisponible[]>(this.baseUrl, httpOptions);
   }
 
   crearTema(payload: CrearTemaPayload): Observable<TemaDisponible> {

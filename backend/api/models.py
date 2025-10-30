@@ -188,30 +188,6 @@ class SolicitudCartaPractica(models.Model):
         return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"
 
 
-class PracticaDocumento(models.Model):
-    """Documento oficial compartido para estudiantes de práctica."""
-
-    carrera = models.CharField(max_length=120, choices=Usuario.CARRERA_CHOICES)
-    nombre = models.CharField(max_length=255)
-    descripcion = models.TextField(blank=True, null=True)
-    archivo = models.FileField(upload_to="practicas/documentos/%Y/%m/%d")
-    uploaded_by = models.ForeignKey(
-        Usuario,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="documentos_practica",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "practica_documentos"
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:  # pragma: no cover - representación simple
-        return f"{self.nombre} ({self.carrera})"
-
-
 class PropuestaTema(models.Model):
     ESTADOS = [
         ("pendiente", "Pendiente"),
@@ -255,6 +231,8 @@ class Notificacion(models.Model):
     TIPOS = [
         ("propuesta", "Propuesta"),
         ("general", "General"),
+        ("tema", "Tema"),
+        ("inscripcion", "Inscripción"),
     ]
 
     usuario = models.ForeignKey(
