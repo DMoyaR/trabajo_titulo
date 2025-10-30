@@ -3,8 +3,8 @@
   <h2 class="ttl">Trabajo de Título</h2>
 
   <div class="tabs">
-    <button [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
-    <button [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
+    <button *ngIf="tieneNivel('i')" [class.active]="tab() === 'i'" (click)="tab.set('i')">T. Título I</button>
+    <button *ngIf="tieneNivel('ii')" [class.active]="tab() === 'ii'" (click)="tab.set('ii')">T. Título II</button>
     <button [class.active]="tab() === 'temas'" (click)="tab.set('temas')">Temas</button>
     <button [class.active]="tab() === 'propuestas'" (click)="tab.set('propuestas')">Propuestas</button>
 
@@ -20,6 +20,40 @@
         </button>
       </div>
       <p class="muted">Completa el formulario para solicitar o proponer un tema.</p>
+
+      <section class="mis-propuestas">
+        <p class="muted" *ngIf="propuestasCargando()">Actualizando el estado de tus propuestas…</p>
+        <div class="err" *ngIf="!propuestasCargando() && propuestasError()">{{ propuestasError() }}</div>
+
+        <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
+          <ng-container *ngIf="propuestaDestacada() as propuestaPrincipal; else sinPropuestaDestacada">
+            <div class="propuesta-highlight">
+              <div class="highlight-head">
+                <span class="chip" [ngClass]="chipClasePropuesta(propuestaPrincipal.estado)">
+                  {{ etiquetaPropuestaDestacada(propuestaPrincipal) }}
+                </span>
+                <span class="chip ghost">Actualizada {{ propuestaPrincipal.updatedAt | date:'dd MMM yyyy' }}</span>
+              </div>
+              <h4>{{ propuestaPrincipal.titulo }}</h4>
+              <p class="muted">{{ propuestaPrincipal.descripcion }}</p>
+              <div class="chips">
+                <span class="chip">Rama: {{ propuestaPrincipal.rama }}</span>
+                <span class="chip ghost" *ngIf="propuestaPrincipal.docente">
+                  Docente guía: {{ propuestaPrincipal.docente.nombre }}
+                </span>
+              </div>
+              <p class="comentario" *ngIf="propuestaPrincipal.comentarioDecision">
+                Comentario del docente:
+                <span>{{ propuestaPrincipal.comentarioDecision }}</span>
+              </p>
+            </div>
+          </ng-container>
+        </ng-container>
+      </section>
+
+      <ng-template #sinPropuestaDestacada>
+        <p class="muted">Aún no tienes propuestas aceptadas ni pendientes.</p>
+      </ng-template>
 
       <ng-container *ngIf="temasCargando(); else temasContenido">
         <p class="muted" style="margin-top: 1rem">Cargando temas disponibles...</p>
@@ -79,58 +113,35 @@
         <div class="err" *ngIf="!propuestasCargando() && propuestasError()">{{ propuestasError() }}</div>
 
         <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
-          <ng-container *ngIf="propuestaDestacada() as propuestaPrincipal; else sinPropuestas">
-            <div class="propuesta-highlight">
-              <div class="highlight-head">
-                <span class="chip" [ngClass]="chipClasePropuesta(propuestaPrincipal.estado)">
-                  {{ etiquetaPropuestaDestacada(propuestaPrincipal) }}
-                </span>
-                <span class="chip ghost">Actualizada {{ propuestaPrincipal.updatedAt | date:'dd MMM yyyy' }}</span>
-              </div>
-              <h4>{{ propuestaPrincipal.titulo }}</h4>
-              <p class="muted">{{ propuestaPrincipal.descripcion }}</p>
-              <div class="chips">
-                <span class="chip">Rama: {{ propuestaPrincipal.rama }}</span>
-                <span class="chip ghost" *ngIf="propuestaPrincipal.docente">
-                  Docente guía: {{ propuestaPrincipal.docente.nombre }}
-                </span>
-              </div>
-              <p class="comentario" *ngIf="propuestaPrincipal.comentarioDecision">
-                Comentario del docente:
-                <span>{{ propuestaPrincipal.comentarioDecision }}</span>
-              </p>
-            </div>
-
-            <div class="propuestas-historial" *ngIf="propuestasEnHistorial().length">
-              <h4>Historial de propuestas</h4>
-              <ul class="list propuestas">
-                <li *ngFor="let propuesta of propuestasEnHistorial()">
-                  <div class="grupo-info">
-                    <div class="grupo-nombre">
-                      {{ propuesta.titulo }}
-                      <span class="badge propuesta" [ngClass]="estadoPropuestaClase(propuesta.estado)">
-                        {{ estadoPropuestaTexto[propuesta.estado] }}
-                      </span>
-                    </div>
-                    <div class="grupo-alumnos">{{ propuesta.objetivo }}</div>
-                    <p class="comentario" *ngIf="propuesta.comentarioDecision">
-                      Comentario: <span>{{ propuesta.comentarioDecision }}</span>
-                    </p>
-                    <div class="chips">
-                      <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
-                      <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
-                    </div>
+          <div class="propuestas-historial" *ngIf="propuestasEnHistorial().length; else sinPropuestas">
+            <h4>Historial de propuestas</h4>
+            <ul class="list propuestas">
+              <li *ngFor="let propuesta of propuestasEnHistorial()">
+                <div class="grupo-info">
+                  <div class="grupo-nombre">
+                    {{ propuesta.titulo }}
+                    <span class="badge propuesta" [ngClass]="estadoPropuestaClase(propuesta.estado)">
+                      {{ estadoPropuestaTexto[propuesta.estado] }}
+                    </span>
                   </div>
-                </li>
-              </ul>
-            </div>
-          </ng-container>
+                  <div class="grupo-alumnos">{{ propuesta.objetivo }}</div>
+                  <p class="comentario" *ngIf="propuesta.comentarioDecision">
+                    Comentario: <span>{{ propuesta.comentarioDecision }}</span>
+                  </p>
+                  <div class="chips">
+                    <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
+                    <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <ng-template #sinPropuestas>
+            <p class="muted">Aún no envías propuestas personalizadas.</p>
+          </ng-template>
         </ng-container>
       </section>
-
-      <ng-template #sinPropuestas>
-        <p class="muted">Aún no envías propuestas personalizadas.</p>
-      </ng-template>
     </ng-container>
     <ng-container *ngSwitchDefault>
       <p class="subtitle">Tu progreso en {{ nivelTitulo() }}</p>
