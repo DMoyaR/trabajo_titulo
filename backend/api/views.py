@@ -156,14 +156,16 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         queryset = super().get_queryset()
         usuario = _obtener_usuario_para_temas(self.request)
 
-        if usuario:
-            if usuario.carrera:
-                return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
-            return queryset
+        if usuario and usuario.carrera:
+            filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+            if filtrado.exists():
+                return filtrado
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
-            return _filtrar_queryset_por_carrera(queryset, carrera)
+            filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
+            if filtrado.exists():
+                return filtrado
 
         return queryset
 
@@ -188,13 +190,7 @@ def tema_disponible_detalle(request, pk: int):
     usuario = _obtener_usuario_para_temas(request)
     carrera_param = request.query_params.get("carrera")
 
-    carrera = None
-    if usuario and usuario.carrera:
-        carrera = usuario.carrera
-    elif carrera_param:
-        carrera = carrera_param
-
-    if carrera and not _carreras_coinciden(tema.carrera, carrera):
+    if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     alumno_id = None
@@ -236,12 +232,6 @@ def reservar_tema(request, pk: int):
     if alumno.rol != "alumno":
         return Response(
             {"detail": "Solo estudiantes pueden reservar un tema."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if not _carreras_coinciden(alumno.carrera, tema.carrera):
-        return Response(
-            {"detail": "Este tema no pertenece a la carrera del estudiante."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
