@@ -35,6 +35,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
     creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
     cuposDisponibles = serializers.SerializerMethodField()
     tieneCupoPropio = serializers.SerializerMethodField()
+    inscripcionesActivas = serializers.SerializerMethodField()
 
     class Meta:
         model = TemaDisponible
@@ -50,6 +51,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "created_at",
             "created_by",
             "creadoPor",
+            "inscripcionesActivas",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -73,6 +75,37 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             return False
         return obj.inscripciones.filter(alumno_id=alumno_id, activo=True).exists()
 
+    def get_inscripcionesActivas(self, obj):
+        activos = (
+            obj.inscripciones.filter(activo=True)
+            .select_related("alumno")
+            .order_by("created_at")
+        )
+        resultado = []
+        for inscripcion in activos:
+            alumno = inscripcion.alumno
+            if not alumno:
+                continue
+            resultado.append(
+                {
+                    "id": alumno.id,
+                    "nombre": alumno.nombre_completo,
+                    "correo": alumno.correo,
+                    "carrera": alumno.carrera,
+                    "rut": alumno.rut,
+                    "telefono": alumno.telefono,
+                    "reservadoEn": inscripcion.created_at.isoformat(),
+                }
+            )
+        return resultado
+
+    def validate_created_by(self, usuario: Usuario | None) -> Usuario | None:
+        if usuario and usuario.rol not in {"docente", "coordinador"}:
+            raise serializers.ValidationError(
+                "Solo docentes o coordinación pueden registrarse como creadores del tema."
+            )
+        return usuario
+    
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)
     nombres = serializers.CharField(max_length=120)

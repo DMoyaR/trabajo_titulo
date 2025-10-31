@@ -52,6 +52,33 @@ interface Profesor {
 }
 
 
+const CARRERAS_SIN_TRABAJO_TITULO = new Set(
+  [
+    'Bachillerato en Ciencias de la Ingeniería',
+    'Dibujante Proyectista',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+const CARRERAS_SOLO_NIVEL_I = new Set(
+  [
+    'Ingeniería Civil Biomédica',
+    'Ingeniería Civil Electrónica',
+    'Ingeniería Civil en Mecánica',
+    'Ingeniería en Geomensura',
+    'Ingeniería en Informática',
+    'Ingeniería Civil Industrial',
+    'Ingeniería Industrial',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+const CARRERAS_NIVEL_I_Y_II = new Set(
+  [
+    'Ingeniería Civil en Ciencia de Datos',
+    'Ingeniería Civil en Computación mención Informática',
+  ].map((nombre) => nombre.toLowerCase())
+);
+
+
 
 @Component({
   selector: 'alumno-trabajo',
@@ -62,7 +89,8 @@ interface Profesor {
 })
 export class AlumnoTrabajoComponent {
   // Data existente
-  tab = signal<'i' | 'ii' | 'temas'>('i');
+  tab = signal<'i' | 'ii' | 'temas' | 'propuestas'>('i');
+  nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
 
   // Información de seguimiento por nivel
   entregas = signal<Record<Nivel, EntregaAlumno[]>>({
@@ -155,7 +183,7 @@ export class AlumnoTrabajoComponent {
 
   nivelActual = computed<Nivel | null>(() => {
     const value = this.tab();
-    return value === 'temas' ? null : value;
+    return value === 'temas' || value === 'propuestas' ? null : value;
   });
 
   resumenNivel = computed<ResumenNivel | null>(() => {
@@ -199,21 +227,40 @@ export class AlumnoTrabajoComponent {
   reservaMensaje = signal<string | null>(null);
   reservaError = signal<string | null>(null);
   reservandoTemaId = signal<number | null>(null);
+  temaPorConfirmar = signal<TemaDisponible | null>(null);
   
   propuestas = signal<Propuesta[]>([]);
   propuestasCargando = signal(false);
   propuestasError = signal<string | null>(null);
   private propuestasCargadas = false;
 
-  propuestasAceptadas = computed(() => {
-    return this.propuestas()
+  propuestasAceptadas = computed(() =>
+    this.propuestas()
       .filter((p) => p.estado === 'aceptada')
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+  );
+
+  propuestasPendientes = computed(() =>
+    this.propuestas()
+      .filter((p) => p.estado === 'pendiente')
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+  );
+
+  propuestaDestacada = computed(() => {
+    const aceptada = this.propuestasAceptadas()[0];
+    if (aceptada) {
+      return aceptada;
+    }
+
+    const pendiente = this.propuestasPendientes()[0];
+    return pendiente ?? null;
   });
 
-  propuestaAceptadaDestacada = computed(() => {
-    const aceptadas = this.propuestasAceptadas();
-    return aceptadas.length ? aceptadas[0] : null;
+  propuestasEnHistorial = computed(() => {
+    const destacada = this.propuestaDestacada();
+    return this.propuestas()
+      .filter((propuesta) => !destacada || propuesta.id !== destacada.id)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   });
 
   estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
@@ -230,6 +277,26 @@ export class AlumnoTrabajoComponent {
       return 'rechazada';
     }
     return 'pendiente';
+  }
+
+  etiquetaPropuestaDestacada(propuesta: Propuesta): string {
+    if (propuesta.estado === 'aceptada') {
+      return 'Propuesta aceptada';
+    }
+    if (propuesta.estado === 'pendiente') {
+      return 'Propuesta pendiente';
+    }
+    return 'Propuesta';
+  }
+
+  chipClasePropuesta(estado: Propuesta['estado']): string {
+    if (estado === 'aceptada') {
+      return 'success';
+    }
+    if (estado === 'pendiente') {
+      return 'pending';
+    }
+    return 'ghost';
   }
 
 
@@ -269,10 +336,14 @@ export class AlumnoTrabajoComponent {
     }, { validators: this.profesoresDistintosValidator });
 
     effect(() => {
-      if (this.tab() === 'temas') {
+      const currentTab = this.tab();
+      if (currentTab === 'temas') {
         this.reservaMensaje.set(null);
         this.reservaError.set(null);
         this.intentarCargarTemas();
+      }
+
+      if (currentTab === 'temas' || currentTab === 'propuestas') {
         this.intentarCargarPropuestas();
       }
     });
@@ -281,6 +352,8 @@ export class AlumnoTrabajoComponent {
       const shouldDisable = this.profesoresCargando() || !this.profesores().length;
       this.actualizarEstadoControlesProfesores(shouldDisable);
     });
+
+    this.configurarNivelesDisponibles();
   }
 
   // Getter para usar en template y evitar TS4111
@@ -295,6 +368,10 @@ export class AlumnoTrabajoComponent {
     if (!rama) return lista;
     return lista.filter(p => !p.ramas?.length || p.ramas.includes(rama as RamaCarrera));
   });
+
+  tieneNivel(nivel: Nivel): boolean {
+    return this.nivelesDisponibles().includes(nivel);
+  }
 
   togglePostulacion(open: boolean) {
     this.showPostulacion.set(open);
@@ -327,6 +404,46 @@ export class AlumnoTrabajoComponent {
     });
   }
 
+  private configurarNivelesDisponibles() {
+    const perfil = this.currentUserService.getProfile();
+    const niveles = this.determinarNivelesDisponibles(perfil?.carrera ?? null);
+    this.nivelesDisponibles.set(niveles);
+
+    const pestanaActual = this.tab();
+    const esNivel = pestanaActual === 'i' || pestanaActual === 'ii';
+
+    if (!niveles.length && esNivel) {
+      this.tab.set('temas');
+      return;
+    }
+
+    if (esNivel && !niveles.includes(pestanaActual)) {
+      this.tab.set(niveles[0]);
+    }
+  }
+
+  private determinarNivelesDisponibles(carrera: string | null): Nivel[] {
+    const normalizada = carrera?.trim().toLowerCase() ?? '';
+
+    if (!normalizada) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SIN_TRABAJO_TITULO.has(normalizada)) {
+      return [];
+    }
+
+    if (CARRERAS_NIVEL_I_Y_II.has(normalizada)) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SOLO_NIVEL_I.has(normalizada)) {
+      return ['i'];
+    }
+
+    return ['i', 'ii'];
+  }
+
   private intentarCargarTemas() {
     if (this.temasCargados || this.temasCargando()) {
       return;
@@ -334,7 +451,8 @@ export class AlumnoTrabajoComponent {
     this.temasCargando.set(true);
     this.temasError.set(null);
     const alumnoId = this.obtenerAlumnoIdActual();
-    this.temaService.getTemas(alumnoId ?? undefined).subscribe({
+    const opciones = alumnoId != null ? { usuarioId: alumnoId, alumnoId } : undefined;
+    this.temaService.getTemas(opciones).subscribe({
       next: temas => {
         this.temas.set(temas);
         this.temasCargados = true;
@@ -365,11 +483,43 @@ export class AlumnoTrabajoComponent {
     return 'Pedir tema';
   }
 
-  pedirTema(tema: TemaDisponible) {
+  abrirConfirmacionTema(tema: TemaDisponible) {
+    if (!this.puedePedirTema(tema)) {
+      return;
+    }
+
+    this.reservaError.set(null);
+    this.reservaMensaje.set(null);
+    this.temaPorConfirmar.set(tema);
+  }
+
+  temaSeleccionado(): TemaDisponible | null {
+    return this.temaPorConfirmar();
+  }
+
+  cerrarConfirmacionTema() {
+    if (this.reservandoTemaId()) {
+      return;
+    }
+
+    this.temaPorConfirmar.set(null);
+  }
+
+  confirmarReservaTema() {
+    const tema = this.temaPorConfirmar();
+    if (!tema) {
+      return;
+    }
+
+    this.pedirTema(tema);
+  }
+
+  private pedirTema(tema: TemaDisponible) {
     const alumnoId = this.obtenerAlumnoIdActual();
     if (!alumnoId || !tema.id) {
       this.reservaError.set('No se pudo identificar al alumno actual.');
       this.reservaMensaje.set(null);
+      this.temaPorConfirmar.set(null);
       return;
     }
 
@@ -387,12 +537,14 @@ export class AlumnoTrabajoComponent {
         this.reservaMensaje.set('Cupo reservado correctamente.');
         this.reservaError.set(null);
         this.reservandoTemaId.set(null);
+        this.temaPorConfirmar.set(null);
       },
       error: (err) => {
         const detail = err?.error?.detail ?? 'No fue posible reservar el tema. Intenta nuevamente.';
         this.reservaError.set(detail);
         this.reservaMensaje.set(null);
         this.reservandoTemaId.set(null);
+        this.temaPorConfirmar.set(null);
       }
     });
   }

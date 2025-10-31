@@ -12,30 +12,36 @@ from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import generics, status
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status, generics
 
-from .serializers import (
-    LoginSerializer,
-    TemaDisponibleSerializer,
-    SolicitudCartaPracticaCreateSerializer,
-    SolicitudCartaPracticaSerializer,
-    PracticaDocumentoSerializer,
-    PropuestaTemaSerializer,
-    PropuestaTemaCreateSerializer,
-    PropuestaTemaDecisionSerializer,
-    UsuarioResumenSerializer,
-    NotificacionSerializer,
-)
 from .models import (
-    TemaDisponible,
-    Usuario,
-    SolicitudCartaPractica,
+    Notificacion,
     PracticaDocumento,
     PropuestaTema,
-    Notificacion,
+    SolicitudCartaPractica,
+    TemaDisponible,
+    Usuario,
+)
+from .notifications import (
+    notificar_cupos_completados,
+    notificar_reserva_tema,
+    notificar_tema_finalizado,
+)
+from .serializers import (
+    LoginSerializer,
+    NotificacionSerializer,
+    PracticaDocumentoSerializer,
+    PropuestaTemaCreateSerializer,
+    PropuestaTemaDecisionSerializer,
+    PropuestaTemaSerializer,
+    SolicitudCartaPracticaCreateSerializer,
+    SolicitudCartaPracticaSerializer,
+    TemaDisponibleSerializer,
+    UsuarioResumenSerializer,
 )
 
 
@@ -221,6 +227,64 @@ def _limpiar_rut(valor: str | None) -> str:
     if not valor:
         return ""
     return re.sub(r"[^0-9kK]", "", valor)
+
+
+def _parse_int(valor: str | None) -> int | None:
+    try:
+        return int(valor) if valor is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalizar_texto(valor: str | None) -> str:
+    if not valor:
+        return ""
+    texto = unicodedata.normalize("NFKD", valor)
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    return texto.casefold().strip()
+
+
+def _carreras_coinciden(a: str | None, b: str | None) -> bool:
+    if not a or not b:
+        return False
+    return _normalizar_texto(a) == _normalizar_texto(b)
+
+
+def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
+    if not carrera:
+        return queryset.none()
+
+    carrera_normalizada = _normalizar_texto(carrera)
+    if not carrera_normalizada:
+        return queryset.none()
+
+    matching_ids = [
+        pk
+        for pk, carrera_tema in queryset.values_list("pk", "carrera")
+        if _normalizar_texto(carrera_tema) == carrera_normalizada
+    ]
+
+    if not matching_ids:
+        return queryset.none()
+
+    return queryset.filter(pk__in=matching_ids)
+
+
+def _obtener_usuario_por_id(valor: str | None) -> Usuario | None:
+    usuario_id = _parse_int(valor)
+    if usuario_id is None:
+        return None
+    try:
+        return Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return None
+
+
+def _obtener_usuario_para_temas(request) -> Usuario | None:
+    usuario = _obtener_usuario_por_id(request.query_params.get("usuario"))
+    if usuario:
+        return usuario
+    return _obtener_usuario_por_id(request.query_params.get("alumno"))
 
 
 def _formatear_rut(valor: str | None) -> str:
@@ -562,19 +626,55 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        alumno = self.request.query_params.get("alumno")
-        try:
-            context["alumno_id"] = int(alumno) if alumno is not None else None
-        except (TypeError, ValueError):
-            context["alumno_id"] = None
+        alumno_param = self.request.query_params.get("alumno")
+        alumno_id = _parse_int(alumno_param)
+        if alumno_id is None:
+            usuario = _obtener_usuario_para_temas(self.request)
+            if usuario and usuario.rol == "alumno":
+                alumno_id = usuario.pk
+        context["alumno_id"] = alumno_id
         return context
 
     def perform_create(self, serializer):
-        user = getattr(self.request, "user", None)
-        if isinstance(user, Usuario):
-            serializer.save(created_by=user)
+        creador = serializer.validated_data.get("created_by")
+
+        if not creador:
+            creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
+
+        if not creador:
+            potencial = _obtener_usuario_para_temas(self.request)
+            if potencial and potencial.rol in {"docente", "coordinador"}:
+                creador = potencial
+
+        if not creador:
+            user = getattr(self.request, "user", None)
+            if isinstance(user, Usuario):
+                creador = user
+
+        if creador:
+            serializer.save(created_by=creador)
         else:
             serializer.save()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        usuario = _obtener_usuario_para_temas(self.request)
+
+        if usuario:
+            if usuario.carrera:
+                filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                if filtrado.exists():
+                    return filtrado
+            return queryset
+
+        carrera = self.request.query_params.get("carrera")
+        if carrera:
+            filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
+            if filtrado.exists():
+                return filtrado
+            return queryset
+
+        return queryset
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
@@ -590,14 +690,28 @@ def tema_disponible_detalle(request, pk: int):
     tema = get_object_or_404(TemaDisponible, pk=pk)
 
     if request.method == "DELETE":
+        notificar_tema_finalizado(tema)
         tema.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    alumno = request.query_params.get("alumno")
-    try:
-        alumno_id = int(alumno) if alumno is not None else None
-    except (TypeError, ValueError):
-        alumno_id = None
+    usuario = _obtener_usuario_para_temas(request)
+    carrera_param = request.query_params.get("carrera")
+
+    if (
+        usuario
+        and usuario.rol == "alumno"
+        and usuario.carrera
+        and not _carreras_coinciden(tema.carrera, usuario.carrera)
+    ):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if usuario and usuario.rol == "alumno":
+        alumno_id = usuario.pk
+    else:
+        alumno_id = _parse_int(request.query_params.get("alumno"))
 
     serializer = TemaDisponibleSerializer(
         tema,
@@ -610,6 +724,8 @@ def tema_disponible_detalle(request, pk: int):
 @permission_classes([AllowAny])
 def reservar_tema(request, pk: int):
     tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
 
     alumno_id = request.data.get("alumno")
     if not alumno_id:
@@ -633,7 +749,15 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if tema.cupos_disponibles <= 0:
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {
+                "detail": "Solo puedes reservar temas asociados a tu carrera.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if cupos_antes <= 0:
         return Response(
             {"detail": "Este tema ya no tiene cupos disponibles."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -647,9 +771,24 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    reactivada = False
     if not inscripcion.activo:
         inscripcion.activo = True
         inscripcion.save(update_fields=["activo", "updated_at"])
+        reactivada = True
+
+    cupos_despues = tema.cupos_disponibles
+
+    notificar_reserva_tema(
+        tema,
+        alumno,
+        cupos_disponibles=cupos_despues,
+        reactivada=reactivada,
+        inscripcion_id=inscripcion.pk,
+    )
+
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
 
     serializer = TemaDisponibleSerializer(
         tema,
@@ -1143,126 +1282,116 @@ def rechazar_solicitud_carta_practica(request, pk: int):
 
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
 def gestionar_documentos_practica(request):
-    if request.method == "GET":
-        carrera_param = (request.query_params.get("carrera") or "").strip()
-        coordinador_param = request.query_params.get("coordinador")
+    queryset = PracticaDocumento.objects.select_related("uploaded_by")
 
-        carrera = None
-        if coordinador_param not in (None, ""):
-            try:
-                coordinador_id = int(coordinador_param)
-            except (TypeError, ValueError):
+    if request.method == "GET":
+        coordinador_param = request.query_params.get("coordinador")
+        carrera_param = request.query_params.get("carrera")
+
+        if coordinador_param:
+            coordinador = _obtener_usuario_por_id(coordinador_param)
+            if not coordinador or coordinador.rol != "coordinador":
                 return Response(
-                    {"coordinador": "Identificador de coordinador inválido."},
+                    {"detail": "Coordinador no válido."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
-            if not coordinador:
-                return Response(
-                    {"coordinador": "Coordinador no encontrado."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            carrera = coordinador.carrera
+            queryset = queryset.filter(uploaded_by=coordinador)
         elif carrera_param:
-            carrera = carrera_param
+            queryset = _filtrar_queryset_por_carrera(queryset, carrera_param)
         else:
-            return Response(
-                {"detail": "Debe indicar una carrera o coordinador."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            queryset = queryset.none()
 
-        documentos = PracticaDocumento.objects.filter(carrera=carrera).order_by("-created_at")
+        try:
+            page = int(request.query_params.get("page", 1))
+        except (TypeError, ValueError):
+            page = 1
+        page = max(page, 1)
+
+        try:
+            size = int(request.query_params.get("size", 20))
+        except (TypeError, ValueError):
+            size = 20
+        size = max(1, min(size, 200))
+
+        total = queryset.count()
+        offset = (page - 1) * size
+        items = queryset[offset : offset + size]
+
         serializer = PracticaDocumentoSerializer(
-            documentos,
+            items,
             many=True,
             context={"request": request},
         )
-        data = serializer.data
-        return Response({"items": data, "total": len(data)})
+        return Response({"items": serializer.data, "total": total})
 
-    coordinador_param = request.data.get("coordinador")
-    if coordinador_param in (None, ""):
+    coordinador = _obtener_usuario_por_id(request.data.get("coordinador"))
+    if not coordinador or coordinador.rol != "coordinador":
         return Response(
-            {"coordinador": "Debe indicar el coordinador que sube el archivo."},
+            {"detail": "Coordinador no válido."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        coordinador_id = int(coordinador_param)
-    except (TypeError, ValueError):
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
         return Response(
-            {"coordinador": "Identificador de coordinador inválido."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
-    if not coordinador:
-        return Response(
-            {"coordinador": "Coordinador no encontrado."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    if not coordinador.carrera:
-        return Response(
-            {"coordinador": "El coordinador no tiene una carrera asociada."},
+            {"detail": "El coordinador no tiene una carrera asignada."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     archivo = request.FILES.get("archivo")
     if not archivo:
         return Response(
-            {"archivo": "Debe adjuntar un archivo."},
+            {"archivo": ["Este campo es obligatorio."]},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    nombre = (request.data.get("nombre") or archivo.name).strip()
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
     if not nombre:
-        nombre = archivo.name
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     descripcion = (request.data.get("descripcion") or "").strip() or None
 
     documento = PracticaDocumento.objects.create(
-        carrera=coordinador.carrera,
+        carrera=carrera,
         nombre=nombre,
         descripcion=descripcion,
         archivo=archivo,
         uploaded_by=coordinador,
     )
 
-    serializer = PracticaDocumentoSerializer(documento, context={"request": request})
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    serializer = PracticaDocumentoSerializer(
+        documento,
+        context={"request": request},
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/documentos/{documento.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 @api_view(["DELETE"])
 @permission_classes([AllowAny])
 def eliminar_documento_practica(request, pk: int):
-    coordinador_param = request.query_params.get("coordinador")
-    if coordinador_param in (None, ""):
+    documento = get_object_or_404(
+        PracticaDocumento.objects.select_related("uploaded_by"), pk=pk
+    )
+
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
         return Response(
-            {"coordinador": "Debe indicar el coordinador."},
+            {"detail": "Coordinador no válido."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        coordinador_id = int(coordinador_param)
-    except (TypeError, ValueError):
+    if documento.uploaded_by_id != coordinador.pk:
         return Response(
-            {"coordinador": "Identificador de coordinador inválido."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    coordinador = Usuario.objects.filter(pk=coordinador_id, rol="coordinador").first()
-    if not coordinador:
-        return Response(
-            {"coordinador": "Coordinador no encontrado."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    documento = get_object_or_404(PracticaDocumento, pk=pk)
-    if documento.carrera != coordinador.carrera:
-        return Response(
-            {"detail": "No tiene permisos para eliminar este archivo."},
+            {"detail": "No tienes permisos para eliminar este documento."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
