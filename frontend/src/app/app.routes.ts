@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { ALUMNO_ROUTES } from './features/alumno/alumno.routes';
 export const routes: Routes = [
   // --- LOGIN ---
   {
@@ -10,9 +11,10 @@ export const routes: Routes = [
 
   // --- ALUMNO ---
   
-  { path: 'alumno', loadChildren: () => 
-      import('./features/alumno/alumno.routes')
-        .then(m => m.ALUMNO_ROUTES) },
+  {
+    path: 'alumno',
+    children: ALUMNO_ROUTES,
+  },
 
    // --- DOCENTE ---
   {

@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { AlumnoLayoutComponent } from './layout/alumno-layout.component';
-import { Component } from '@angular/core';
 // IMPORTA TUS COMPONENTES REALES SI YA EXISTEN.
 // Dejo placeholders con nombres claros por si aún no los tienes.
 import { AlumnoDashboardComponent } from './dashboard/alumno-dashboard.component';
@@ -19,10 +18,8 @@ import { AlumnoTemasComponent } from './temas/alumno-temas.component';
 
 export const ALUMNO_ROUTES: Routes = [
   {
-
     path: '',
     component: AlumnoLayoutComponent,
-    
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
