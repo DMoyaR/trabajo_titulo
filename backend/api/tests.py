@@ -6,6 +6,7 @@ from rest_framework.test import APITestCase, APIClient
 
 from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion, InscripcionTema
 
+
 class TemaDisponibleAPITestCase(APITestCase):
     def setUp(self):
         self.list_url = reverse("temas-disponibles")
@@ -400,7 +401,7 @@ class TemaDisponibleAPITestCase(APITestCase):
             correo="alumno.inscrito@example.com",
             carrera="Computación",
             rut="99999999-9",
-            telefono="", 
+            telefono="",
             rol="alumno",
             contrasena="clave",
         )

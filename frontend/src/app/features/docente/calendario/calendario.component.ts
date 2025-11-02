@@ -161,11 +161,25 @@ export class CalendarioComponent {
     return key ? (this._events()[key]?.length ?? 0) : 0;
   }
 
-  private keyFor(day: number | null = this.selectedDay()) {
-    if (!day) return '';
-    const y = this.year();
-    const m = this.month() + 1;
-    const dd = String(day).padStart(2, '0');
+  // CORRECCIÓN: Ahora acepta una fecha completa como parámetro opcional
+  private keyFor(day: number | null = this.selectedDay(), date?: Date) {
+    if (!day && !date) return '';
+    
+    let y: number, m: number, d: number;
+    
+    if (date) {
+      // Si se proporciona una fecha completa, usar sus valores
+      y = date.getFullYear();
+      m = date.getMonth() + 1;
+      d = date.getDate();
+    } else {
+      // Usar el mes/año actual del calendario
+      y = this.year();
+      m = this.month() + 1;
+      d = day!;
+    }
+    
+    const dd = String(d).padStart(2, '0');
     const mm = String(m).padStart(2, '0');
     return `${y}-${mm}-${dd}`;
   }
@@ -241,7 +255,8 @@ export class CalendarioComponent {
 
   submitAgendar() {
     const d = new Date(this.singleForm.fecha);
-    const key = this.keyFor(d.getDate());
+    // CORRECCIÓN: Pasar la fecha completa al keyFor
+    const key = this.keyFor(d.getDate(), d);
     if (!key) return;
     const evento: Evento = {
       id: (crypto as any).randomUUID?.() ?? Math.random().toString(36).slice(2),
@@ -300,6 +315,8 @@ export class CalendarioComponent {
 
     // Genera ocurrencias día por día, pero valida semana / intervalo
     const firstMondayBasedIndex = (d: Date) => Math.floor((d.getTime() - inicio.getTime()) / (7 * 24 * 3600 * 1000));
+    
+    // CORRECCIÓN: Iterar sobre todas las fechas entre inicio y fin
     for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
       const dow = (d.getDay() + 6) % 7; // 0=lun .. 6=dom
       if (!this.recurForm.dias.has(dow)) continue;
@@ -308,7 +325,8 @@ export class CalendarioComponent {
       const weeksFromStart = firstMondayBasedIndex(d);
       if (weeksFromStart % this.recurForm.intervaloSemanas !== 0) continue;
 
-      const key = this.keyFor(d.getDate());
+      // CORRECCIÓN: Pasar la fecha completa al keyFor
+      const key = this.keyFor(d.getDate(), new Date(d)); // Crear nueva instancia de la fecha
       if (!key) continue;
 
       const evento: Evento = {

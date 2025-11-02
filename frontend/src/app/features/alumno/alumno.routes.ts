@@ -43,5 +43,3 @@ export const ALUMNO_ROUTES: Routes = [
     ],
   },
 ];
-
-

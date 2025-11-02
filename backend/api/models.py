@@ -173,6 +173,11 @@ class SolicitudCartaPractica(models.Model):
     escuela_telefono = models.CharField(max_length=60)
 
     estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    documento = models.FileField(
+        upload_to="practicas/cartas/%Y/%m/%d",
+        blank=True,
+        null=True,
+    )
     url_documento = models.URLField(blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
     meta = models.JSONField(default=dict, blank=True)
@@ -256,6 +261,8 @@ class Notificacion(models.Model):
 
 
 class PracticaDocumento(models.Model):
+    """Documento oficial compartido para estudiantes de práctica."""
+
     carrera = models.CharField(
         max_length=120,
         choices=Usuario.CARRERA_CHOICES,

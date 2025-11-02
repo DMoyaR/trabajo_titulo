@@ -1,39 +1,47 @@
+import io
 import json
 import re
+import textwrap
 import unicodedata
-from django.shortcuts import get_object_or_404
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+from django.db.models import Q, Value
 from django.db.models.functions import Replace
-from django.db.models import Value, Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.text import slugify
+from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status, generics
-from rest_framework.parsers import MultiPartParser, FormParser
 
-from .serializers import (
-    LoginSerializer,
-    TemaDisponibleSerializer,
-    SolicitudCartaPracticaCreateSerializer,
-    SolicitudCartaPracticaSerializer,
-    PropuestaTemaSerializer,
-    PropuestaTemaCreateSerializer,
-    PropuestaTemaDecisionSerializer,
-    UsuarioResumenSerializer,
-    NotificacionSerializer,
-    PracticaDocumentoSerializer,
-)
 from .models import (
-    TemaDisponible,
-    Usuario,
-    SolicitudCartaPractica,
-    PropuestaTema,
     Notificacion,
     PracticaDocumento,
+    PropuestaTema,
+    SolicitudCartaPractica,
+    TemaDisponible,
+    Usuario,
 )
 from .notifications import (
     notificar_cupos_completados,
     notificar_reserva_tema,
     notificar_tema_finalizado,
+)
+from .serializers import (
+    LoginSerializer,
+    NotificacionSerializer,
+    PracticaDocumentoSerializer,
+    PropuestaTemaCreateSerializer,
+    PropuestaTemaDecisionSerializer,
+    PropuestaTemaSerializer,
+    SolicitudCartaPracticaCreateSerializer,
+    SolicitudCartaPracticaSerializer,
+    TemaDisponibleSerializer,
+    UsuarioResumenSerializer,
 )
 
 
@@ -41,6 +49,177 @@ REDIRECTS = {
     "alumno": "http://localhost:4200/alumno/dashboard",
     "docente": "http://localhost:4200/docente/dashboard",
     "coordinador": "http://localhost:4200/coordinacion/inicio",
+}
+
+
+FIRMA_FALLBACK = {
+    "nombre": "Coordinación de Carrera — UTEM",
+    "cargo": "",
+    "institucion": "Universidad Tecnológica Metropolitana",
+}
+
+
+FIRMAS_POR_CARRERA = {
+    "Ingeniería Civil en Computación mención Informática": {
+        "nombre": "Víctor Escobar Jeria",
+        "cargo": "Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería en Informática": {
+        "nombre": "Patricia Mellado Acevedo",
+        "cargo": "Jefa de Carrera Ingeniería en Informática",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil en Ciencia de Datos": {
+        "nombre": "Jorge Vergara Quezada",
+        "cargo": "Jefe de Carrera Ingeniería Civil en Ciencia de Datos",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Industrial": {
+        "nombre": "Evelyn Gajardo Gutiérrez",
+        "cargo": "Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Industrial": {
+        "nombre": "Alexis Rufatt Zafira",
+        "cargo": "Jefe de Carrera Ingeniería Industrial",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil en Mecánica": {
+        "nombre": "Christian Muñoz Valenzuela",
+        "cargo": "Director Escuela de Mecánica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería en Geomensura": {
+        "nombre": "Juan Toledo Ibarra",
+        "cargo": "Director Escuela de Geomensura",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Bachillerato en Ciencias de la Ingeniería": {
+        "nombre": "Rafael Loyola Berríos",
+        "cargo": "Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Dibujante Proyectista": {
+        "nombre": "Marcelo Borges Quintanilla",
+        "cargo": "Jefe de Carrera Dibujante Proyectista",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Biomédica": {
+        "nombre": "Raúl Caulier Cisterna",
+        "cargo": "Jefe de Carrera Ingeniería Civil Biomédica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+}
+
+
+OBJETIVOS_DEFECTO = [
+    "Aplicar conocimientos disciplinares en un contexto profesional real.",
+    "Integrarse a equipos de trabajo, comunicando avances y resultados.",
+    "Cumplir con normas de seguridad, calidad y medioambiente vigentes.",
+    "Elaborar informes técnicos con conclusiones basadas en evidencia.",
+]
+
+
+OBJETIVOS_POR_ESCUELA = {
+    "inf": [
+        "Interactuar con profesionales del área informática y con otros de áreas relacionadas.",
+        "Desarrollar capacidades informáticas que le permitan desenvolverse en el ámbito profesional.",
+        "Comprobar empíricamente la importancia de las tecnologías de información.",
+        "Participar en el diseño y/o implementación de soluciones informáticas.",
+    ],
+    "ind": [
+        "Aplicar metodologías de mejora continua (Lean/Seis Sigma) en procesos productivos o de servicios.",
+        "Levantar y analizar indicadores de gestión (KPI), costos y productividad.",
+        "Participar en la planificación de la cadena de suministro, logística y gestión de inventarios.",
+        "Colaborar en sistemas de gestión de calidad y seguridad industrial.",
+    ],
+    "elec": [
+        "Apoyar el diseño, simulación y pruebas de circuitos electrónicos y sistemas embebidos.",
+        "Implementar e integrar instrumentación, sensores y adquisición de datos.",
+        "Participar en el diseño/ensamble de PCB y protocolos de comunicación.",
+        "Aplicar normas de seguridad y estándares eléctricos en laboratorio y terreno.",
+    ],
+    "mec": [
+        "Apoyar el diseño y análisis mecánico mediante herramientas CAD/CAE.",
+        "Participar en procesos de manufactura, mantenimiento y confiabilidad.",
+        "Realizar análisis térmico y de fluidos en equipos/sistemas cuando aplique.",
+        "Aplicar normas de seguridad industrial en talleres y plantas.",
+    ],
+    "geo": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
+    "trans": [
+        "Apoyar estudios de tránsito: aforos, velocidad y nivel de servicio.",
+        "Analizar y modelar la demanda de transporte para la planificación de rutas.",
+        "Colaborar en medidas de seguridad vial e infraestructura asociada.",
+        "Contribuir a la gestión operativa del transporte público/privado.",
+    ],
+}
+
+
+OBJETIVOS_POR_CARRERA = {
+    "Ingeniería Civil Biomédica": [
+        "Apoyar la integración y validación de equipos biomédicos en entornos clínicos.",
+        "Aplicar normas y estándares de seguridad (IEC/ISO) y gestión de riesgos clínicos.",
+        "Desarrollar y/o mantener sistemas de bioinstrumentación y monitoreo.",
+        "Colaborar en interoperabilidad de sistemas de información en salud.",
+    ],
+    "Ingeniería en Alimentos": [
+        "Apoyar el control de calidad bajo BPM y sistema HACCP.",
+        "Realizar análisis fisicoquímicos y/o microbiológicos según protocolos.",
+        "Participar en mejora de procesos y trazabilidad en planta.",
+        "Colaborar en desarrollo o reformulación de productos alimentarios.",
+    ],
+    "Ingeniería Civil Química": [
+        "Participar en operaciones unitarias y control de procesos químicos.",
+        "Apoyar en control de calidad y cumplimiento normativo ambiental.",
+        "Realizar balances de materia y energía y análisis de datos de planta.",
+        "Contribuir a seguridad de procesos y gestión de residuos.",
+    ],
+    "Química Industrial": [
+        "Apoyar en control de calidad y análisis químico instrumental.",
+        "Participar en operación/optimización de procesos y seguridad industrial.",
+        "Gestionar documentación técnica y cumplimiento normativo.",
+        "Colaborar en implementación de mejoras de proceso.",
+    ],
+    "Ingeniería Civil Matemática": [
+        "Aplicar modelamiento matemático a problemas de ingeniería.",
+        "Desarrollar análisis estadístico y métodos de optimización.",
+        "Implementar soluciones computacionales para simulación numérica.",
+        "Elaborar reportes técnicos con interpretación de resultados.",
+    ],
+    "Ingeniería Civil en Ciencia de Datos": [
+        "Adquirir, depurar y preparar datos desde fuentes heterogéneas.",
+        "Construir modelos de analítica/aprendizaje supervisado y no supervisado.",
+        "Validar y evaluar modelos; comunicar hallazgos con visualizaciones.",
+        "Apoyar el despliegue y monitoreo de soluciones de data science.",
+    ],
+    "Ingeniería en Biotecnología": [
+        "Apoyar cultivos, bioprocesos y análisis en laboratorio biotecnológico.",
+        "Aplicar normas de bioseguridad y buenas prácticas de laboratorio.",
+        "Procesar y analizar datos experimentales para toma de decisiones.",
+        "Colaborar en escalamiento o transferencia tecnológica cuando aplique.",
+    ],
+    "Ingeniería en Geomensura": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
 }
 
 
@@ -107,6 +286,317 @@ def _obtener_usuario_para_temas(request) -> Usuario | None:
         return usuario
     return _obtener_usuario_por_id(request.query_params.get("alumno"))
 
+
+def _formatear_rut(valor: str | None) -> str:
+    limpio = _limpiar_rut(valor)
+    if not limpio:
+        return valor or ""
+
+    cuerpo, dv = limpio[:-1], limpio[-1].upper()
+    if not cuerpo:
+        return dv
+
+    partes = []
+    while len(cuerpo) > 3:
+        partes.insert(0, cuerpo[-3:])
+        cuerpo = cuerpo[:-3]
+    if cuerpo:
+        partes.insert(0, cuerpo)
+    cuerpo_formateado = ".".join(partes)
+    return f"{cuerpo_formateado}-{dv}"
+
+
+def _obtener_firma(carrera: str | None) -> dict[str, str]:
+    if carrera and carrera in FIRMAS_POR_CARRERA:
+        return FIRMAS_POR_CARRERA[carrera]
+    return FIRMA_FALLBACK
+
+
+def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]:
+    if carrera and carrera in OBJETIVOS_POR_CARRERA:
+        return OBJETIVOS_POR_CARRERA[carrera]
+    if escuela_id and escuela_id in OBJETIVOS_POR_ESCUELA:
+        return OBJETIVOS_POR_ESCUELA[escuela_id]
+    return OBJETIVOS_DEFECTO
+
+
+def _normalizar_texto_pdf(value: str) -> str:
+    if not value:
+        return ""
+
+    reemplazos = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2212": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u00b7": "-",
+    }
+
+    texto = unicodedata.normalize("NFKC", value)
+    texto = "".join(reemplazos.get(ch, ch) for ch in texto)
+
+    try:
+        texto.encode("latin-1")
+    except UnicodeEncodeError:
+        texto = texto.encode("latin-1", "replace").decode("latin-1")
+
+    return texto
+
+
+def _pdf_justificar_linea(linea: str, ancho: int) -> str:
+    if len(linea) >= ancho:
+        return linea
+
+    if " " not in linea.strip():
+        return linea
+
+    leading = len(linea) - len(linea.lstrip(" "))
+    contenido = linea.lstrip(" ")
+    palabras = contenido.split(" ")
+
+    huecos = len(palabras) - 1
+    if huecos <= 0:
+        return linea
+
+    deficit = ancho - len(linea)
+    if deficit <= 0:
+        return linea
+
+    espacio_base, extra = divmod(deficit, huecos)
+
+    espacios = []
+    for indice in range(huecos):
+        incremento = espacio_base + (1 if indice < extra else 0)
+        espacios.append(" " * (1 + incremento))
+
+    justificado = []
+    for palabra, separador in zip(palabras, espacios):
+        justificado.append(palabra)
+        justificado.append(separador)
+    justificado.append(palabras[-1])
+
+    return (" " * leading) + "".join(justificado)
+
+
+def _pdf_justificar_lineas(lineas: list[str], ancho: int) -> list[str]:
+    if len(lineas) <= 1:
+        return lineas
+    resultado: list[str] = []
+    for indice, linea in enumerate(lineas):
+        if indice == len(lineas) - 1:
+            resultado.append(linea)
+            continue
+        resultado.append(_pdf_justificar_linea(linea, ancho))
+    return resultado
+
+
+def _pdf_wrap(texto: str, ancho: int = 88, justificar: bool = False) -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    lineas = textwrap.wrap(
+        texto,
+        width=ancho,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if justificar:
+        lineas = _pdf_justificar_lineas(lineas, ancho)
+    return lineas
+
+
+def _pdf_wrap_vineta(texto: str, ancho: int = 88, vineta: str = "-") -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    prefijo = f"{vineta} "
+    return textwrap.wrap(
+        texto,
+        width=ancho,
+        initial_indent=prefijo,
+        subsequent_indent=" " * len(prefijo),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _pdf_escape_texto(texto: str) -> str:
+    return (
+        texto.replace("\\", "\\\\")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
+
+
+def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
+    leading = 16
+    inicio_x = 72
+    inicio_y = 770
+
+    texto_ops: list[str] = [
+        "BT",
+        "/F1 12 Tf",
+        f"1 0 0 1 {inicio_x} {inicio_y} Tm",
+        f"{leading} TL",
+    ]
+
+    for linea in lineas:
+        if not linea:
+            texto_ops.append("T*")
+            continue
+        texto_ops.append(f"({_pdf_escape_texto(_normalizar_texto_pdf(linea))}) Tj")
+        texto_ops.append("T*")
+
+    texto_ops.append("ET")
+
+    contenido = "\n".join(texto_ops).encode("latin-1")
+
+    buffer = io.BytesIO()
+    buffer.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+
+    offsets: list[int] = []
+
+    def escribir_objeto(data: bytes) -> None:
+        offsets.append(buffer.tell())
+        buffer.write(data)
+
+    escribir_objeto(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    escribir_objeto(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    escribir_objeto(
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+    )
+
+    flujo = (
+        b"4 0 obj\n<< /Length "
+        + str(len(contenido)).encode("ascii")
+        + b" >>\nstream\n"
+        + contenido
+        + b"\nendstream\nendobj\n"
+    )
+    escribir_objeto(flujo)
+
+    escribir_objeto(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    xref_pos = buffer.tell()
+    buffer.write(f"xref\n0 {len(offsets) + 1}\n".encode("ascii"))
+    buffer.write(b"0000000000 65535 f \n")
+    for offset in offsets:
+        buffer.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+
+    buffer.write(b"trailer\n<< /Size " + str(len(offsets) + 1).encode("ascii") + b" /Root 1 0 R >>\n")
+    buffer.write(b"startxref\n" + str(xref_pos).encode("ascii") + b"\n%%EOF")
+
+    return buffer.getvalue()
+
+
+def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
+    fecha = timezone.localtime(timezone.now())
+    meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
+    ]
+    fecha_texto = f"Santiago, {meses[fecha.month - 1]} {fecha.day} del {fecha.year}."
+
+    firma = _obtener_firma(solicitud.alumno_carrera)
+    objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
+
+    partes_alumno = [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+    alumno_nombre = " ".join(parte for parte in partes_alumno if parte).strip() or "Alumno"
+    rut_formateado = _formatear_rut(solicitud.alumno_rut) or (solicitud.alumno_rut or "")
+    carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
+
+    lineas: list[str] = []
+    lineas.extend(_pdf_wrap("Universidad Tecnológica Metropolitana", ancho=72))
+    encabezado = (
+        f"{solicitud.escuela_nombre or ''} — "
+        f"{solicitud.escuela_direccion or ''} — Tel. {solicitud.escuela_telefono or ''}"
+    )
+    lineas.extend(_pdf_wrap(encabezado, ancho=72))
+    lineas.append("")
+
+    lineas.extend(_pdf_wrap(fecha_texto, ancho=72))
+    lineas.append("")
+
+    lineas.extend(_pdf_wrap("Señor"))
+    destinatario = " ".join(
+        parte
+        for parte in [solicitud.dest_nombres or "", solicitud.dest_apellidos or ""]
+        if parte
+    )
+    lineas.extend(_pdf_wrap(destinatario))
+    lineas.extend(_pdf_wrap(solicitud.dest_cargo or ""))
+    lineas.extend(_pdf_wrap(solicitud.dest_empresa or ""))
+    lineas.extend(_pdf_wrap("Presente"))
+    lineas.append("")
+
+    cuerpo_1 = (
+        "Me permito dirigirme a Ud. para presentar al Sr. "
+        f"{alumno_nombre}, RUT {rut_formateado}, alumno regular de la carrera de "
+        f"{carrera_texto} de la Universidad Tecnológica Metropolitana, "
+        "y solicitar su aceptación en calidad de alumno en práctica."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_1, justificar=True))
+    lineas.append("")
+
+    cuerpo_2 = (
+        "Esta práctica tiene una duración de "
+        f"{solicitud.practica_duracion_horas} horas cronológicas y sus objetivos son:"
+    )
+    lineas.extend(_pdf_wrap(cuerpo_2, justificar=True))
+
+    for objetivo in objetivos:
+        lineas.extend(_pdf_wrap_vineta(objetivo))
+
+    lineas.append("")
+
+    cuerpo_3 = (
+        "Al término de la práctica, el estudiante deberá reportar sus avances y "
+        "aprendizajes a la Coordinación de Carrera, quienes se pondrán en contacto "
+        "para conocer los resultados de su desempeño."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_3, justificar=True))
+
+    lineas.append("")
+    lineas.extend(_pdf_wrap("Le saluda atentamente,"))
+    lineas.append("")
+
+    if firma.get("nombre"):
+        lineas.extend(_pdf_wrap(firma["nombre"]))
+    if firma.get("cargo"):
+        lineas.extend(_pdf_wrap(firma["cargo"]))
+    institucion = firma.get("institucion") or "Universidad Tecnológica Metropolitana"
+    lineas.extend(_pdf_wrap(institucion))
+
+    pdf_bytes = _renderizar_pdf_lineas(lineas)
+
+    base_nombre = f"carta {alumno_nombre}".strip()
+    slug = slugify(base_nombre) or "carta-practica"
+    ruta = f"practicas/cartas/{fecha.year}/carta-{slug}.pdf"
+    ruta_antigua_html = f"practicas/cartas/{fecha.year}/carta-{slug}.html"
+
+    if default_storage.exists(ruta):
+        default_storage.delete(ruta)
+    if default_storage.exists(ruta_antigua_html):
+        default_storage.delete(ruta_antigua_html)
+
+    archivo = ContentFile(pdf_bytes)
+    path = default_storage.save(ruta, archivo)
+    return default_storage.url(path)
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -156,6 +646,11 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             if potencial and potencial.rol in {"docente", "coordinador"}:
                 creador = potencial
 
+        if not creador:
+            user = getattr(self.request, "user", None)
+            if isinstance(user, Usuario):
+                creador = user
+
         if creador:
             serializer.save(created_by=creador)
         else:
@@ -165,14 +660,21 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         queryset = super().get_queryset()
         usuario = _obtener_usuario_para_temas(self.request)
 
-        if usuario and usuario.carrera:
-            return _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+        if usuario:
+            if usuario.carrera:
+                filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                if filtrado.exists():
+                    return filtrado
+            return queryset
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
-            return _filtrar_queryset_por_carrera(queryset, carrera)
+            filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
+            if filtrado.exists():
+                return filtrado
+            return queryset
 
-        return queryset.none()
+        return queryset
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
@@ -195,15 +697,17 @@ def tema_disponible_detalle(request, pk: int):
     usuario = _obtener_usuario_para_temas(request)
     carrera_param = request.query_params.get("carrera")
 
-    if usuario and usuario.carrera and not _carreras_coinciden(
-        tema.carrera, usuario.carrera
+    if (
+        usuario
+        and usuario.rol == "alumno"
+        and usuario.carrera
+        and not _carreras_coinciden(tema.carrera, usuario.carrera)
     ):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    alumno_id = None
     if usuario and usuario.rol == "alumno":
         alumno_id = usuario.pk
     else:
@@ -418,127 +922,6 @@ def marcar_notificacion_leida(request, pk: int):
     return Response(serializer.data)
 
 
-@api_view(["GET", "POST"])
-@permission_classes([AllowAny])
-@parser_classes([MultiPartParser, FormParser])
-def gestionar_documentos_practica(request):
-    queryset = PracticaDocumento.objects.select_related("uploaded_by")
-
-    if request.method == "GET":
-        coordinador_param = request.query_params.get("coordinador")
-        carrera_param = request.query_params.get("carrera")
-
-        if coordinador_param:
-            coordinador = _obtener_usuario_por_id(coordinador_param)
-            if not coordinador or coordinador.rol != "coordinador":
-                return Response(
-                    {"detail": "Coordinador no válido."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            queryset = queryset.filter(uploaded_by=coordinador)
-        elif carrera_param:
-            queryset = _filtrar_queryset_por_carrera(queryset, carrera_param)
-        else:
-            queryset = queryset.none()
-
-        try:
-            page = int(request.query_params.get("page", 1))
-        except (TypeError, ValueError):
-            page = 1
-        page = max(page, 1)
-
-        try:
-            size = int(request.query_params.get("size", 20))
-        except (TypeError, ValueError):
-            size = 20
-        size = max(1, min(size, 200))
-
-        total = queryset.count()
-        offset = (page - 1) * size
-        items = queryset[offset : offset + size]
-
-        serializer = PracticaDocumentoSerializer(
-            items,
-            many=True,
-            context={"request": request},
-        )
-        return Response({"items": serializer.data, "total": total})
-
-    coordinador = _obtener_usuario_por_id(request.data.get("coordinador"))
-    if not coordinador or coordinador.rol != "coordinador":
-        return Response(
-            {"detail": "Coordinador no válido."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    carrera = (coordinador.carrera or "").strip()
-    if not carrera:
-        return Response(
-            {"detail": "El coordinador no tiene una carrera asignada."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    archivo = request.FILES.get("archivo")
-    if not archivo:
-        return Response(
-            {"archivo": ["Este campo es obligatorio."]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    nombre = (request.data.get("nombre") or archivo.name or "").strip()
-    if not nombre:
-        return Response(
-            {"nombre": ["Este campo es obligatorio."]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    descripcion = (request.data.get("descripcion") or "").strip() or None
-
-    documento = PracticaDocumento.objects.create(
-        carrera=carrera,
-        nombre=nombre,
-        descripcion=descripcion,
-        archivo=archivo,
-        uploaded_by=coordinador,
-    )
-
-    serializer = PracticaDocumentoSerializer(
-        documento,
-        context={"request": request},
-    )
-    headers = {"Location": f"/api/coordinacion/practicas/documentos/{documento.pk}/"}
-    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-
-@api_view(["DELETE"])
-@permission_classes([AllowAny])
-def eliminar_documento_practica(request, pk: int):
-    documento = get_object_or_404(
-        PracticaDocumento.objects.select_related("uploaded_by"), pk=pk
-    )
-
-    coordinador_param = request.query_params.get("coordinador") or request.data.get(
-        "coordinador"
-    )
-    coordinador = _obtener_usuario_por_id(coordinador_param)
-    if not coordinador or coordinador.rol != "coordinador":
-        return Response(
-            {"detail": "Coordinador no válido."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if documento.uploaded_by_id != coordinador.pk:
-        return Response(
-            {"detail": "No tienes permisos para eliminar este documento."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    if documento.archivo:
-        documento.archivo.delete(save=False)
-    documento.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def crear_solicitud_carta_practica(request):
@@ -595,7 +978,7 @@ def crear_solicitud_carta_practica(request):
         meta=meta,
     )
 
-    output = SolicitudCartaPracticaSerializer(solicitud)
+    output = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
     headers = {"Location": f"/api/practicas/solicitudes-carta/{solicitud.pk}"}
     return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -604,6 +987,17 @@ def crear_solicitud_carta_practica(request):
 @permission_classes([AllowAny])
 def listar_solicitudes_carta_practica(request):
     queryset = SolicitudCartaPractica.objects.all()
+
+    coordinador_param = request.query_params.get("coordinador")
+    if coordinador_param not in (None, ""):
+        try:
+            coordinador_id = int(coordinador_param)
+        except (TypeError, ValueError):
+            return Response(
+                {"coordinador": "Identificador de coordinador inválido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = queryset.filter(coordinador_id=coordinador_id)
 
     alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
     if alumno_rut:
@@ -670,7 +1064,9 @@ def listar_solicitudes_carta_practica(request):
     offset = (page - 1) * size
     items = queryset[offset : offset + size]
 
-    serializer = SolicitudCartaPracticaSerializer(items, many=True)
+    serializer = SolicitudCartaPracticaSerializer(
+        items, many=True, context={"request": request}
+    )
     return Response({"items": serializer.data, "total": total})
 
 
@@ -820,12 +1216,48 @@ def _buscar_coordinador_por_carrera(carrera: str):
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
-    url = request.data.get("url")
-    solicitud.url_documento = url or None
+    archivo = request.FILES.get("documento")
+    url_param = (request.data.get("url") or "").strip()
+
+    if archivo:
+        content_type = (archivo.content_type or "").lower()
+        if content_type and "pdf" not in content_type:
+            return Response(
+                {"documento": "El archivo debe estar en formato PDF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+
+        nombres = " ".join(
+            parte
+            for parte in [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+            if parte
+        ).strip()
+        slug = slugify(nombres or "carta practica") or "carta-practica"
+        timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d%H%M%S")
+        filename = f"carta-{slug}-{timestamp}.pdf"
+
+        solicitud.documento.save(filename, archivo, save=False)
+        solicitud.url_documento = solicitud.documento.url
+    elif url_param:
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+        solicitud.documento = None
+        solicitud.url_documento = url_param
+    else:
+        return Response(
+            {"documento": "Debe adjuntar el archivo PDF generado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok"})
+    solicitud.save()
+
+    serializer = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
+    return Response({"status": "ok", "url": serializer.data.get("url")})
 
 
 @api_view(["POST"])
@@ -840,6 +1272,130 @@ def rechazar_solicitud_carta_practica(request, pk: int):
         )
     solicitud.motivo_rechazo = motivo
     solicitud.url_documento = None
+    if solicitud.documento:
+        solicitud.documento.delete(save=False)
+    solicitud.documento = None
     solicitud.estado = "rechazado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
+    solicitud.save()
     return Response({"status": "ok"})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_documentos_practica(request):
+    queryset = PracticaDocumento.objects.select_related("uploaded_by")
+
+    if request.method == "GET":
+        coordinador_param = request.query_params.get("coordinador")
+        carrera_param = request.query_params.get("carrera")
+
+        if coordinador_param:
+            coordinador = _obtener_usuario_por_id(coordinador_param)
+            if not coordinador or coordinador.rol != "coordinador":
+                return Response(
+                    {"detail": "Coordinador no válido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(uploaded_by=coordinador)
+        elif carrera_param:
+            queryset = _filtrar_queryset_por_carrera(queryset, carrera_param)
+        else:
+            queryset = queryset.none()
+
+        try:
+            page = int(request.query_params.get("page", 1))
+        except (TypeError, ValueError):
+            page = 1
+        page = max(page, 1)
+
+        try:
+            size = int(request.query_params.get("size", 20))
+        except (TypeError, ValueError):
+            size = 20
+        size = max(1, min(size, 200))
+
+        total = queryset.count()
+        offset = (page - 1) * size
+        items = queryset[offset : offset + size]
+
+        serializer = PracticaDocumentoSerializer(
+            items,
+            many=True,
+            context={"request": request},
+        )
+        return Response({"items": serializer.data, "total": total})
+
+    coordinador = _obtener_usuario_por_id(request.data.get("coordinador"))
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
+    if not nombre:
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    descripcion = (request.data.get("descripcion") or "").strip() or None
+
+    documento = PracticaDocumento.objects.create(
+        carrera=carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaDocumentoSerializer(
+        documento,
+        context={"request": request},
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/documentos/{documento.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def eliminar_documento_practica(request, pk: int):
+    documento = get_object_or_404(
+        PracticaDocumento.objects.select_related("uploaded_by"), pk=pk
+    )
+
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if documento.uploaded_by_id != coordinador.pk:
+        return Response(
+            {"detail": "No tienes permisos para eliminar este documento."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if documento.archivo:
+        documento.archivo.delete(save=False)
+    documento.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
