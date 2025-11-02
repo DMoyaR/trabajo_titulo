@@ -1,23 +1,22 @@
-import { Component, signal, computed, effect } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-import { TemaService, TemaDisponible } from '../../docente/trabajolist/tema.service';
-import { DocentesService, Docente } from '../../../shared/services/docentes.service';
-import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 
-type RamaCarrera =
-  | 'Desarrollo de Software' | 'Sistemas de Información'
-  | 'Inteligencia de Negocios' | 'Ciencia de Datos'
-  | 'Redes y Seguridad' | 'Otra';
-
 type Nivel = 'i' | 'ii';
-
 type EstadoEntrega = 'aprobado' | 'enRevision' | 'pendiente';
 
-interface EntregaAlumno {
+type ResumenNivel = {
+  avance: number;
+  aprobadas: number;
+  totales: number;
+  proximoHito: string;
+  ultimoFeedback: string;
+  profesorGuia: string;
+};
+
+type EntregaAlumno = {
   id: string;
   nombre: string;
   descripcion: string;
@@ -26,37 +25,19 @@ interface EntregaAlumno {
   badge: string;
   proximoPaso?: string;
   alerta?: string;
-}
+  expanded?: boolean;
+};
 
-interface EntregaDestacada extends EntregaAlumno {
+type EntregaDestacada = EntregaAlumno & {
   estadoEtiqueta: string;
   encabezado: string;
-}
-
-
-interface ResumenNivel {
-  avance: number;
-  aprobadas: number;
-  totales: number;
-  proximoHito: string;
-  ultimoFeedback: string;
-  profesorGuia: string;
-}
-
-interface Profesor {
-    id: number;
-  nombre: string;
-  carrera: string | null;
-  telefono: string | null;
-  ramas: RamaCarrera[] | null;
-}
-
+};
 
 const CARRERAS_SIN_TRABAJO_TITULO = new Set(
   [
     'Bachillerato en Ciencias de la Ingeniería',
     'Dibujante Proyectista',
-  ].map((nombre) => nombre.toLowerCase())
+  ].map(nombre => nombre.toLowerCase()),
 );
 
 const CARRERAS_SOLO_NIVEL_I = new Set(
@@ -68,32 +49,34 @@ const CARRERAS_SOLO_NIVEL_I = new Set(
     'Ingeniería en Informática',
     'Ingeniería Civil Industrial',
     'Ingeniería Industrial',
-  ].map((nombre) => nombre.toLowerCase())
+  ].map(nombre => nombre.toLowerCase()),
 );
 
 const CARRERAS_NIVEL_I_Y_II = new Set(
   [
     'Ingeniería Civil en Ciencia de Datos',
     'Ingeniería Civil en Computación mención Informática',
-  ].map((nombre) => nombre.toLowerCase())
+  ].map(nombre => nombre.toLowerCase()),
 );
-
-
 
 @Component({
   selector: 'alumno-trabajo',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, RouterLink],
   templateUrl: './alumno-trabajo.component.html',
-  styleUrls: ['./alumno-trabajo.component.css']
+  styleUrls: ['./alumno-trabajo.component.css'],
 })
 export class AlumnoTrabajoComponent {
-  // Data existente
-  tab = signal<'i' | 'ii' | 'temas' | 'propuestas'>('i');
-  nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
+  readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
+  readonly nivelSeleccionado = signal<Nivel>('i');
 
-  // Información de seguimiento por nivel
-  entregas = signal<Record<Nivel, EntregaAlumno[]>>({
+  readonly estadoTexto: Record<EstadoEntrega, string> = {
+    aprobado: 'Aprobado',
+    enRevision: 'En revisión',
+    pendiente: 'Pendiente',
+  };
+
+  readonly entregas = signal<Record<Nivel, EntregaAlumno[]>>({
     i: [
       {
         id: 'i-1',
@@ -156,7 +139,7 @@ export class AlumnoTrabajoComponent {
     ],
   });
 
-  resumen = signal<Record<Nivel, ResumenNivel>>({
+  readonly resumen = signal<Record<Nivel, ResumenNivel>>({
     i: {
       avance: 65,
       aprobadas: 3,
@@ -175,35 +158,29 @@ export class AlumnoTrabajoComponent {
     },
   });
 
-  estadoTexto: Record<EstadoEntrega, string> = {
-    aprobado: 'Aprobado',
-    enRevision: 'En revisión',
-    pendiente: 'Pendiente',
-  };
-
-  nivelActual = computed<Nivel | null>(() => {
-    const value = this.tab();
-    return value === 'temas' || value === 'propuestas' ? null : value;
+  readonly nivelActual = computed<Nivel | null>(() => {
+    const seleccionado = this.nivelSeleccionado();
+    return this.tieneNivel(seleccionado) ? seleccionado : null;
   });
 
-  resumenNivel = computed<ResumenNivel | null>(() => {
+  readonly resumenNivel = computed<ResumenNivel | null>(() => {
     const nivel = this.nivelActual();
     return nivel ? this.resumen()[nivel] : null;
   });
 
-  entregasPorNivel = computed<EntregaAlumno[]>(() => {
+  readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
     const nivel = this.nivelActual();
     return nivel ? this.entregas()[nivel] : [];
   });
 
-  entregaDestacada = computed<EntregaDestacada | null>(() => {
-    const entregas = this.entregasPorNivel();
-    if (!entregas.length) {
+  readonly entregaDestacada = computed<EntregaDestacada | null>(() => {
+    const items = this.entregasPorNivel();
+    if (!items.length) {
       return null;
     }
 
-    const pendiente = entregas.find((entrega) => entrega.estado === 'pendiente');
-    const seleccionada = pendiente ?? entregas[entregas.length - 1];
+    const pendiente = items.find(entrega => entrega.estado === 'pendiente');
+    const seleccionada = pendiente ?? items[items.length - 1];
     const encabezado = pendiente ? 'Entrega pendiente' : 'Actividad más reciente';
 
     return {
@@ -213,195 +190,31 @@ export class AlumnoTrabajoComponent {
     };
   });
 
-
-  nivelTitulo = computed(() => {
+  readonly nivelTitulo = computed(() => {
     const nivel = this.nivelActual();
-    if (!nivel) return '';
+    if (!nivel) {
+      return '';
+    }
     return nivel === 'i' ? 'T. Título I' : 'T. Título II';
   });
 
-  temas = signal<TemaDisponible[]>([]);
-  temasCargando = signal(false);
-  temasError = signal<string | null>(null);
-  private temasCargados = false;
-  reservaMensaje = signal<string | null>(null);
-  reservaError = signal<string | null>(null);
-  reservandoTemaId = signal<number | null>(null);
-  temaPorConfirmar = signal<TemaDisponible | null>(null);
-  
-  propuestas = signal<Propuesta[]>([]);
-  propuestasCargando = signal(false);
-  propuestasError = signal<string | null>(null);
-  private propuestasCargadas = false;
-
-  propuestasAceptadas = computed(() =>
-    this.propuestas()
-      .filter((p) => p.estado === 'aceptada')
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-  );
-
-  propuestasPendientes = computed(() =>
-    this.propuestas()
-      .filter((p) => p.estado === 'pendiente')
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-  );
-
-  propuestaDestacada = computed(() => {
-    const aceptada = this.propuestasAceptadas()[0];
-    if (aceptada) {
-      return aceptada;
-    }
-
-    const pendiente = this.propuestasPendientes()[0];
-    return pendiente ?? null;
-  });
-
-  propuestasEnHistorial = computed(() => {
-    const destacada = this.propuestaDestacada();
-    return this.propuestas()
-      .filter((propuesta) => !destacada || propuesta.id !== destacada.id)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  });
-
-  estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
-    pendiente: 'Pendiente',
-    aceptada: 'Aceptada',
-    rechazada: 'Rechazada',
-  };
-
-  estadoPropuestaClase(estado: Propuesta['estado']): string {
-    if (estado === 'aceptada') {
-      return 'aceptada';
-    }
-    if (estado === 'rechazada') {
-      return 'rechazada';
-    }
-    return 'pendiente';
-  }
-
-  etiquetaPropuestaDestacada(propuesta: Propuesta): string {
-    if (propuesta.estado === 'aceptada') {
-      return 'Propuesta aceptada';
-    }
-    if (propuesta.estado === 'pendiente') {
-      return 'Propuesta pendiente';
-    }
-    return 'Propuesta';
-  }
-
-  chipClasePropuesta(estado: Propuesta['estado']): string {
-    if (estado === 'aceptada') {
-      return 'success';
-    }
-    if (estado === 'pendiente') {
-      return 'pending';
-    }
-    return 'ghost';
-  }
-
-
-  // Estado modal
-  showPostulacion = signal(false);
-
-  // Catálogos
-  ramas: RamaCarrera[] = [
-    'Desarrollo de Software','Sistemas de Información','Inteligencia de Negocios',
-    'Ciencia de Datos','Redes y Seguridad','Otra'
-  ];
-
-  profesores = signal<Profesor[]>([]);
-  profesoresCargando = signal(false);
-  profesoresError = signal<string | null>(null);
-
-  postulacionForm: FormGroup;
-
-  enviandoPropuesta = signal(false);
-  postulacionError = signal<string | null>(null);
-
-  constructor(
-    private fb: FormBuilder,
-    private temaService: TemaService,
-    private propuestaService: PropuestaService,
-    private docentesService: DocentesService,
-    private currentUserService: CurrentUserService,
-  ) {
-    this.postulacionForm = this.fb.group({
-      titulo: ['', [Validators.required, Validators.maxLength(160)]],
-      objetivo: ['', [Validators.required, Validators.maxLength(300)]],
-      descripcion: ['', [Validators.required, Validators.maxLength(1200)]],
-      rama: ['', Validators.required],
-      prof1: ['', Validators.required],
-      prof2: [''],
-      prof3: ['']
-    }, { validators: this.profesoresDistintosValidator });
-
-    effect(() => {
-      const currentTab = this.tab();
-      if (currentTab === 'temas') {
-        this.reservaMensaje.set(null);
-        this.reservaError.set(null);
-        this.intentarCargarTemas();
-      }
-
-      if (currentTab === 'temas' || currentTab === 'propuestas') {
-        this.intentarCargarPropuestas();
-      }
-    });
-
-    effect(() => {
-      const shouldDisable = this.profesoresCargando() || !this.profesores().length;
-      this.actualizarEstadoControlesProfesores(shouldDisable);
-    });
-
+  constructor(private readonly currentUserService: CurrentUserService) {
     this.configurarNivelesDisponibles();
   }
-
-  // Getter para usar en template y evitar TS4111
-  get profesoresDuplicados() {
-    return this.postulacionForm.errors?.['profesoresDuplicados'];
-  }
-
-  // Filtra profesores por rama seleccionada
-  profesoresFiltrados = computed(() => {
-    const rama = this.postulacionForm.get('rama')?.value as RamaCarrera | '';
-    const lista = this.profesores();
-    if (!rama) return lista;
-    return lista.filter(p => !p.ramas?.length || p.ramas.includes(rama as RamaCarrera));
-  });
 
   tieneNivel(nivel: Nivel): boolean {
     return this.nivelesDisponibles().includes(nivel);
   }
 
-  togglePostulacion(open: boolean) {
-    this.showPostulacion.set(open);
-    if (open) {
-      this.cargarProfesores();
-    } else {
-      this.postulacionForm.reset();
-      this.postulacionError.set(null);
+  seleccionarNivel(nivel: Nivel) {
+    if (!this.tieneNivel(nivel)) {
+      return;
     }
+    this.nivelSeleccionado.set(nivel);
   }
 
-  private actualizarEstadoControlesProfesores(desactivar: boolean) {
-    const controles = ['prof1', 'prof2', 'prof3'];
-    controles.forEach((nombre) => {
-      const control = this.postulacionForm.get(nombre);
-      if (!control) {
-        return;
-      }
-
-      if (desactivar) {
-        if (control.enabled) {
-          control.disable({ emitEvent: false });
-        }
-        return;
-      }
-
-      if (control.disabled) {
-        control.enable({ emitEvent: false });
-      }
-    });
+  toggleResumen(entrega: EntregaAlumno) {
+    entrega.expanded = !entrega.expanded;
   }
 
   private configurarNivelesDisponibles() {
@@ -409,16 +222,12 @@ export class AlumnoTrabajoComponent {
     const niveles = this.determinarNivelesDisponibles(perfil?.carrera ?? null);
     this.nivelesDisponibles.set(niveles);
 
-    const pestanaActual = this.tab();
-    const esNivel = pestanaActual === 'i' || pestanaActual === 'ii';
-
-    if (!niveles.length && esNivel) {
-      this.tab.set('temas');
+    if (!niveles.length) {
       return;
     }
 
-    if (esNivel && !niveles.includes(pestanaActual)) {
-      this.tab.set(niveles[0]);
+    if (!niveles.includes(this.nivelSeleccionado())) {
+      this.nivelSeleccionado.set(niveles[0]);
     }
   }
 
@@ -442,242 +251,5 @@ export class AlumnoTrabajoComponent {
     }
 
     return ['i', 'ii'];
-  }
-
-  private intentarCargarTemas() {
-    if (this.temasCargados || this.temasCargando()) {
-      return;
-    }
-    this.temasCargando.set(true);
-    this.temasError.set(null);
-    const alumnoId = this.obtenerAlumnoIdActual();
-    const opciones = alumnoId != null ? { usuarioId: alumnoId, alumnoId } : undefined;
-    this.temaService.getTemas(opciones).subscribe({
-      next: temas => {
-        this.temas.set(temas);
-        this.temasCargados = true;
-        this.temasCargando.set(false);
-      },
-      error: err => {
-        console.error('Error al cargar temas disponibles', err);
-        this.temasError.set('No fue posible cargar los temas disponibles. Intenta nuevamente más tarde.');
-        this.temasCargando.set(false);
-      },
-    });
-  }
-
-  puedePedirTema(tema: TemaDisponible): boolean {
-    return tema.cuposDisponibles > 0 && !tema.tieneCupoPropio;
-  }
-
-  etiquetaPedirTema(tema: TemaDisponible): string {
-    if (tema.tieneCupoPropio) {
-      return 'Cupo reservado';
-    }
-    if (tema.cuposDisponibles === 0) {
-      return 'Sin cupos';
-    }
-    if (this.reservandoTemaId() === tema.id) {
-      return 'Reservando…';
-    }
-    return 'Pedir tema';
-  }
-
-  abrirConfirmacionTema(tema: TemaDisponible) {
-    if (!this.puedePedirTema(tema)) {
-      return;
-    }
-
-    this.reservaError.set(null);
-    this.reservaMensaje.set(null);
-    this.temaPorConfirmar.set(tema);
-  }
-
-  temaSeleccionado(): TemaDisponible | null {
-    return this.temaPorConfirmar();
-  }
-
-  cerrarConfirmacionTema() {
-    if (this.reservandoTemaId()) {
-      return;
-    }
-
-    this.temaPorConfirmar.set(null);
-  }
-
-  confirmarReservaTema() {
-    const tema = this.temaPorConfirmar();
-    if (!tema) {
-      return;
-    }
-
-    this.pedirTema(tema);
-  }
-
-  private pedirTema(tema: TemaDisponible) {
-    const alumnoId = this.obtenerAlumnoIdActual();
-    if (!alumnoId || !tema.id) {
-      this.reservaError.set('No se pudo identificar al alumno actual.');
-      this.reservaMensaje.set(null);
-      this.temaPorConfirmar.set(null);
-      return;
-    }
-
-    if (!this.puedePedirTema(tema)) {
-      return;
-    }
-
-    this.reservaMensaje.set(null);
-    this.reservandoTemaId.set(tema.id);
-    this.reservaError.set(null);
-
-    this.temaService.pedirTema(tema.id, alumnoId).subscribe({
-      next: (actualizado) => {
-        this.actualizarTemaEnLista(actualizado);
-        this.reservaMensaje.set('Cupo reservado correctamente.');
-        this.reservaError.set(null);
-        this.reservandoTemaId.set(null);
-        this.temaPorConfirmar.set(null);
-      },
-      error: (err) => {
-        const detail = err?.error?.detail ?? 'No fue posible reservar el tema. Intenta nuevamente.';
-        this.reservaError.set(detail);
-        this.reservaMensaje.set(null);
-        this.reservandoTemaId.set(null);
-        this.temaPorConfirmar.set(null);
-      }
-    });
-  }
-
-  private actualizarTemaEnLista(actualizado: TemaDisponible) {
-    this.temas.update((lista) =>
-      lista.map((tema) => (tema.id === actualizado.id ? actualizado : tema))
-    );
-  }
-
-  private obtenerAlumnoIdActual(): number | null {
-    const perfil = this.currentUserService.getProfile();
-    if (!perfil?.id || perfil.rol !== 'alumno') {
-      return null;
-    }
-    return perfil.id;
-  }
-
- private intentarCargarPropuestas() {
-    if (this.propuestasCargadas || this.propuestasCargando()) {
-      return;
-    }
-
-    const perfil = this.currentUserService.getProfile();
-    const alumnoId = perfil?.id ?? null;
-    if (!alumnoId) {
-      this.propuestasCargadas = true;
-      this.propuestas.set([]);
-      return;
-    }
-
-    this.propuestasCargando.set(true);
-    this.propuestasError.set(null);
-
-    this.propuestaService.listarPorAlumno(alumnoId).subscribe({
-      next: (propuestas) => {
-        this.propuestas.set(propuestas);
-        this.propuestasCargadas = true;
-        this.propuestasCargando.set(false);
-      },
-      error: (err) => {
-        console.error('Error al cargar tus propuestas', err);
-        this.propuestasError.set('No fue posible cargar tus propuestas. Intenta nuevamente.');
-        this.propuestasCargando.set(false);
-      },
-    });
-  }
-
-  private profesoresDistintosValidator = (group: FormGroup) => {
-    const p1 = group.get('prof1')?.value;
-    const p2 = group.get('prof2')?.value;
-    const p3 = group.get('prof3')?.value;
-    const arr = [p1, p2, p3].filter(Boolean);
-    return (new Set(arr).size !== arr.length) ? { profesoresDuplicados: true } : null;
-  };
-
-  submitPostulacion() {
-    if (this.postulacionForm.invalid) {
-      this.postulacionForm.markAllAsTouched();
-      return;
-    }
-const titulo = this.postulacionForm.value.titulo.trim();
-    const objetivo = this.postulacionForm.value.objetivo.trim();
-    const descripcion = this.postulacionForm.value.descripcion.trim();
-    const rama = this.postulacionForm.value.rama;
-    const preferenciasValores = [
-      this.postulacionForm.value.prof1,
-      this.postulacionForm.value.prof2,
-      this.postulacionForm.value.prof3
-    ].filter((v): v is string | number => v !== null && v !== '');
-    const preferencias = preferenciasValores.map((id) => Number(id));
-    const perfil = this.currentUserService.getProfile();
-
-    this.enviandoPropuesta.set(true);
-    this.postulacionError.set(null);
-
-    this.propuestaService.crearPropuesta({
-      alumnoId: perfil?.id ?? null,
-      titulo,
-      objetivo,
-      descripcion,
-      rama,
-      preferenciasDocentes: preferencias,
-      docenteId: preferencias.length ? preferencias[0] : null,
-    }).subscribe({
-      next: () => {
-        alert('Tu postulación fue enviada para revisión.');
-        this.togglePostulacion(false);
-        this.enviandoPropuesta.set(false);
-        this.propuestasCargadas = false;
-        this.intentarCargarPropuestas();
-      },
-      error: (err) => {
-        console.error('No fue posible enviar la propuesta', err);
-        this.postulacionError.set('No fue posible enviar la postulación. Intenta nuevamente.');
-        this.enviandoPropuesta.set(false);
-      }
-    });
-  }
-
-  hasError(ctrl: string, err: string) {
-    const c = this.postulacionForm.get(ctrl);
-    return !!(c && c.touched && c.hasError(err));
-  }
-  
-  private cargarProfesores() {
-    if (this.profesores().length || this.profesoresCargando()) {
-      return;
-    }
-
-    const perfil = this.currentUserService.getProfile();
-    const carrera = perfil?.carrera ?? undefined;
-
-    this.profesoresCargando.set(true);
-    this.profesoresError.set(null);
-
-    this.docentesService.listar(carrera ?? undefined).subscribe({
-      next: (docentes: Docente[]) => {
-        const mapped: Profesor[] = docentes.map((doc) => ({
-          id: doc.id,
-          nombre: doc.nombre,
-          carrera: doc.carrera,
-          telefono: doc.telefono,
-          ramas: null,
-        }));
-        this.profesores.set(mapped);
-        this.profesoresCargando.set(false);
-      },
-      error: (err) => {
-        console.error('No fue posible cargar los docentes', err);
-        this.profesoresError.set('No fue posible cargar el listado de docentes.');
-        this.profesoresCargando.set(false);
-      }
-    });
   }
 }
