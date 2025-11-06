@@ -529,6 +529,9 @@ label {
 
 input[type='text'],
 input[type='email'],
+input[type='number'],
+input[type='number'],
+
 textarea,
 select {
   border: 1px solid #e1e7f0;
