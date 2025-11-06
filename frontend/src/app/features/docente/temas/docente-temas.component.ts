@@ -30,6 +30,8 @@ type TemaDisponible = {
   requisitos: string;
   fecha: Date | null;
   creadoPor: TemaCreator | null;
+  docenteACargo: TemaCreator | null;
+  docenteResponsableId: number | null;
   inscripcionesActivas: TemaInscripcionActiva[];
 };
 
@@ -52,6 +54,8 @@ type TemaDetalleDocente = {
   cuposDisponibles: number;
   requisitos: string[];
   creadoPor: TemaCreator | null;
+  docenteACargo: TemaCreator | null;
+  docenteResponsableId: number | null;
   inscripciones: TemaDetalleInscripcion[];
   creadoEn: Date | null;
 };
@@ -81,6 +85,8 @@ export class DocenteTemasComponent implements OnInit {
     rama: '',
     cupos: 1,
     requisitos: '',
+    docenteACargo: null,
+    docenteResponsableId: null,
     inscripcionesActivas: [],
   };
 
@@ -126,6 +132,8 @@ export class DocenteTemasComponent implements OnInit {
       rama: '',
       cupos: 1,
       requisitos: '',
+      docenteACargo: null,
+      docenteResponsableId: null,
       inscripcionesActivas: [],
     };
     this.enviarTema = false;
@@ -184,6 +192,8 @@ export class DocenteTemasComponent implements OnInit {
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
             fecha: temaCreado.created_at ? new Date(temaCreado.created_at) : new Date(),
             creadoPor: temaCreado.creadoPor ?? autorActual ?? null,
+            docenteACargo: temaCreado.docenteACargo ?? (autorActual?.rol === 'docente' ? autorActual : null),
+            docenteResponsableId: temaCreado.docente_responsable ?? (perfil?.id ?? null),
             inscripcionesActivas: temaCreado.inscripcionesActivas ?? [],
           };
           this.temas = [temaUI, ...this.temas];
@@ -233,6 +243,8 @@ export class DocenteTemasComponent implements OnInit {
       cuposDisponibles: tema.cuposDisponibles,
       requisitos: [],
       creadoPor: tema.creadoPor,
+      docenteACargo: tema.docenteACargo,
+      docenteResponsableId: tema.docenteResponsableId ?? null,
       inscripciones: [],
       creadoEn: tema.fecha ?? null,
     };
@@ -251,6 +263,8 @@ export class DocenteTemasComponent implements OnInit {
           cuposDisponibles: temaApi.cuposDisponibles,
           requisitos: temaApi.requisitos ?? [],
           creadoPor: temaApi.creadoPor ?? null,
+          docenteACargo: temaApi.docenteACargo ?? null,
+          docenteResponsableId: temaApi.docente_responsable ?? null,
           inscripciones: (temaApi.inscripcionesActivas ?? []).map((ins): TemaDetalleInscripcion => ({
             id: ins.id,
             nombre: ins.nombre,
@@ -435,6 +449,8 @@ export class DocenteTemasComponent implements OnInit {
             requisitos: (t.requisitos?.join(', ') ?? ''),
             fecha: t.created_at ? new Date(t.created_at) : new Date(),
             creadoPor: t.creadoPor ?? null,
+            docenteACargo: t.docenteACargo ?? null,
+            docenteResponsableId: t.docente_responsable ?? null,
             inscripcionesActivas: t.inscripcionesActivas ?? [],
           }));
         },
@@ -511,7 +527,11 @@ export class DocenteTemasComponent implements OnInit {
           this.propuestaSeleccionada = actualizada;
           this.comentarioDecision = actualizada.comentarioDecision ?? '';
           this.cuposAutorizados = actualizada.cuposMaximoAutorizado ?? actualizada.cuposRequeridos;
-          if (actualizada.estado === 'aceptada' || actualizada.estado === 'rechazada') {
+          if (
+            actualizada.estado === 'aceptada' ||
+            actualizada.estado === 'rechazada' ||
+            actualizada.estado === 'pendiente_ajuste'
+          ) {
             this.togglePropuestasModal(false);
           }
         },

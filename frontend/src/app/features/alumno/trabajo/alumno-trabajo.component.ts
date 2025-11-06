@@ -183,7 +183,10 @@ export class AlumnoTrabajoComponent {
 
   readonly profesorAsignado = computed(() => {
     const tema = this.temaAsignado();
-    return tema?.creadoPor ?? null;
+    if (!tema) {
+      return null;
+    }
+    return tema.docenteACargo ?? tema.creadoPor ?? null;
   });
 
   readonly puedeGestionarCupos = computed(() => {
