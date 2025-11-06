@@ -20,6 +20,8 @@ export interface Propuesta {
   estado: 'pendiente' | 'aceptada' | 'rechazada';
   comentarioDecision: string | null;
   preferenciasDocentes: number[];
+  cuposRequeridos: number;
+  correosCompaneros: string[];
   createdAt: Date;
   updatedAt: Date;
   alumno: PersonaResumen | null;
@@ -35,6 +37,8 @@ interface PropuestaApi {
   estado: 'pendiente' | 'aceptada' | 'rechazada';
   comentario_decision: string | null;
   preferencias_docentes: number[];
+  cupos_requeridos: number;
+  correos_companeros: string[];
   created_at: string;
   updated_at: string;
   alumno: PersonaApi | null;
@@ -57,6 +61,8 @@ export interface CrearPropuestaPayload {
   descripcion: string;
   rama: string;
   preferenciasDocentes: number[];
+  cuposRequeridos: number;
+  correosCompaneros: string[];
   docenteId?: number | null;
 }
 
@@ -79,6 +85,8 @@ export class PropuestaService {
       descripcion: payload.descripcion,
       rama: payload.rama,
       preferencias_docentes: payload.preferenciasDocentes,
+      cupos_requeridos: payload.cuposRequeridos,
+      correos_companeros: payload.correosCompaneros,
     };
 
     if (payload.alumnoId != null) {
@@ -136,6 +144,8 @@ export class PropuestaService {
       estado: api.estado,
       comentarioDecision: api.comentario_decision,
       preferenciasDocentes: api.preferencias_docentes ?? [],
+      cuposRequeridos: api.cupos_requeridos ?? 1,
+      correosCompaneros: api.correos_companeros ?? [],
       createdAt: api.created_at ? new Date(api.created_at) : new Date(),
       updatedAt: api.updated_at ? new Date(api.updated_at) : new Date(),
       alumno: this.mapPersona(api.alumno),

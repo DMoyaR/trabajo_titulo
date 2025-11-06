@@ -7,6 +7,7 @@ import unicodedata
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
+from django.db import transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
@@ -19,6 +20,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import (
+    InscripcionTema,
     Notificacion,
     PracticaDocumento,
     PropuestaTema,
@@ -1089,6 +1091,8 @@ class PropuestaTemaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         serializer.is_valid(raise_exception=True)
         propuesta = serializer.save()
         if estado_anterior != propuesta.estado:
+            if propuesta.estado == "aceptada" and estado_anterior != "aceptada":
+                _crear_tema_desde_propuesta(propuesta)
             _notificar_decision_propuesta(propuesta)
         output_serializer = PropuestaTemaSerializer(propuesta)
         return Response(output_serializer.data)
@@ -1384,6 +1388,67 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
             "docente_id": propuesta.docente_id,
         },
     )
+
+
+def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return None
+
+    cupos = propuesta.cupos_requeridos or 1
+    if cupos < 1:
+        cupos = 1
+
+    carrera = alumno.carrera or ""
+    if not carrera and propuesta.docente and propuesta.docente.carrera:
+        carrera = propuesta.docente.carrera
+
+    requisitos = []
+    if propuesta.objetivo:
+        requisitos.append(propuesta.objetivo)
+
+    created_by = propuesta.docente or alumno
+
+    with transaction.atomic():
+        tema = TemaDisponible.objects.create(
+            titulo=propuesta.titulo,
+            carrera=carrera,
+            descripcion=propuesta.descripcion,
+            requisitos=requisitos,
+            cupos=cupos,
+            created_by=created_by,
+        )
+
+        participantes: list[tuple[Usuario, bool]] = [(alumno, True)]
+
+        for correo in propuesta.correos_companeros or []:
+            usuario = Usuario.objects.filter(correo__iexact=correo, rol="alumno").first()
+            if not usuario:
+                continue
+            if carrera and usuario.carrera and not _carreras_coinciden(carrera, usuario.carrera):
+                continue
+            if any(existing.pk == usuario.pk for existing, _ in participantes):
+                continue
+            participantes.append((usuario, False))
+
+        for usuario, es_responsable in participantes[:cupos]:
+            inscripcion = InscripcionTema.objects.create(
+                tema=tema,
+                alumno=usuario,
+                es_responsable=es_responsable,
+            )
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=False,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    if tema.cupos_disponibles == 0:
+        notificar_cupos_completados(tema)
+
+    return tema
 
 
 def _normalizar_carrera(nombre: str) -> str:
