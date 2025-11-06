@@ -195,7 +195,7 @@ export class AlumnoTemasComponent {
       return 'pending';
     }
     if (estado === 'pendiente_ajuste') {
-      return 'warn';
+      return 'pending';
     }
     return 'ghost';
   }
@@ -234,7 +234,7 @@ export class AlumnoTemasComponent {
       return 'pending';
     }
     if (estado === 'pendiente_ajuste') {
-      return 'warn';
+      return 'pending';
     }
     if (estado === 'rechazada') {
       return 'error';
