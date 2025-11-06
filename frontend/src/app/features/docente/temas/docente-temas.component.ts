@@ -312,35 +312,6 @@ export class DocenteTemasComponent implements OnInit {
     this.cuposAutorizados = p.cuposMaximoAutorizado ?? p.cuposRequeridos;
   }
 
-  autorizarCupos() {
-    if (!this.propuestaSeleccionada) {
-      return;
-    }
-
-    const cupos = this.obtenerCuposAutorizados();
-    if (cupos == null) {
-      this.propuestasError = 'Indica la cantidad de cupos autorizados.';
-      return;
-    }
-
-    if (cupos < this.propuestaSeleccionada.cuposRequeridos) {
-      this.propuestasError = 'Para autorizar debes igualar o superar los cupos solicitados.';
-      return;
-    }
-
-    const comentario = this.comentarioDecision.trim();
-    if (!comentario) {
-      this.propuestasError = 'Agrega un comentario con tu decisión.';
-      return;
-    }
-
-    this.enviarAccion({
-      accion: 'autorizar',
-      cuposAutorizados: cupos,
-      comentarioDecision: comentario,
-    });
-  }
-
   solicitarAjuste() {
     if (!this.propuestaSeleccionada) {
       return;
@@ -527,6 +498,10 @@ export class DocenteTemasComponent implements OnInit {
           this.propuestaSeleccionada = actualizada;
           this.comentarioDecision = actualizada.comentarioDecision ?? '';
           this.cuposAutorizados = actualizada.cuposMaximoAutorizado ?? actualizada.cuposRequeridos;
+          if (payload.accion === 'solicitar_ajuste') {
+            this.togglePropuestasModal(false);
+            return;
+          }
           if (
             actualizada.estado === 'aceptada' ||
             actualizada.estado === 'rechazada' ||

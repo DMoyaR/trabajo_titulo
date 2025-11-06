@@ -250,17 +250,11 @@
       <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
       <div class="actions">
         <button
-          class="btn outline"
-          type="button"
-          (click)="autorizarCupos()"
-          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
-        >Autorizar cupos</button>
-        <button
           class="btn light"
           type="button"
           (click)="solicitarAjuste()"
           [disabled]="decisionEnCurso || !comentarioDecision.trim()"
-        >Solicitar ajuste</button>
+        >Solicitar ajuste de cupos</button>
         <button
           class="btn primary"
           type="button"
