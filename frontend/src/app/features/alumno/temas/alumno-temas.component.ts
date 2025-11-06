@@ -226,6 +226,22 @@ export class AlumnoTemasComponent {
     return 'Propuesta';
   }
 
+  clasePropuestaDestacadaEstado(estado: Propuesta['estado']): string {
+    if (estado === 'aceptada') {
+      return 'success';
+    }
+    if (estado === 'pendiente' || estado === 'pendiente_aprobacion') {
+      return 'pending';
+    }
+    if (estado === 'pendiente_ajuste') {
+      return 'warn';
+    }
+    if (estado === 'rechazada') {
+      return 'error';
+    }
+    return '';
+  }
+
   togglePostulacion(open: boolean) {
     this.showPostulacion.set(open);
     if (open) {

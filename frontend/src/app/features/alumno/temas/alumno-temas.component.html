@@ -105,7 +105,10 @@
 
         <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
           <ng-container *ngIf="propuestaDestacada() as propuestaPrincipal">
-            <div class="propuesta-highlight">
+            <div
+              class="propuesta-highlight"
+              [ngClass]="clasePropuestaDestacadaEstado(propuestaPrincipal.estado)"
+            >
               <div class="highlight-head">
                 <span class="chip" [ngClass]="chipClasePropuesta(propuestaPrincipal.estado)">
                   {{ etiquetaPropuestaDestacada(propuestaPrincipal) }}
