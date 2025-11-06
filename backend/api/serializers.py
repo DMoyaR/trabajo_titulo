@@ -95,6 +95,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
                     "rut": alumno.rut,
                     "telefono": alumno.telefono,
                     "reservadoEn": inscripcion.created_at.isoformat(),
+                    "esResponsable": inscripcion.es_responsable,
                 }
             )
         return resultado
