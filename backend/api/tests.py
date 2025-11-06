@@ -932,6 +932,27 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
         self.assertEqual(notif.usuario, self.alumno)
         self.assertEqual(notif.meta.get("cupos_maximo_autorizado"), 2)
 
+    def test_solicitar_ajuste_guarda_comentario(self):
+        payload = {
+            "accion": "solicitar_ajuste",
+            "comentario_decision": "  Solo puedo aceptar 2 integrantes  ",
+            "docente_id": self.docente.id,
+            "cupos_autorizados": 2,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.propuesta.refresh_from_db()
+        self.assertEqual(
+            self.propuesta.comentario_decision,
+            "Solo puedo aceptar 2 integrantes",
+        )
+        self.assertEqual(
+            response.data.get("comentario_decision"),
+            "Solo puedo aceptar 2 integrantes",
+        )
+
     def test_alumno_confirma_cupos_notifica_docente(self):
         self.client.patch(
             self.url,
