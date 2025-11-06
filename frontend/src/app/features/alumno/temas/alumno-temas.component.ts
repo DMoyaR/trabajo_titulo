@@ -79,6 +79,12 @@ export class AlumnoTemasComponent {
 
   readonly postulacionForm: FormGroup;
   readonly cuposForm: FormGroup;
+  readonly ajusteForm: FormGroup;
+
+  readonly propuestaParaAjuste = signal<Propuesta | null>(null);
+  readonly showAjustePropuesta = signal(false);
+  readonly ajusteError = signal<string | null>(null);
+  readonly ajusteEnCurso = signal(false);
 
   readonly profesoresFiltrados = computed(() => {
     const rama = this.postulacionForm.get('rama')?.value as RamaCarrera | '';
@@ -97,7 +103,11 @@ export class AlumnoTemasComponent {
 
   readonly propuestasPendientes = computed(() =>
     this.propuestas()
-      .filter((p) => p.estado === 'pendiente')
+      .filter((p) =>
+        p.estado === 'pendiente' ||
+        p.estado === 'pendiente_ajuste' ||
+        p.estado === 'pendiente_aprobacion'
+      )
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
   );
 
@@ -119,6 +129,8 @@ export class AlumnoTemasComponent {
 
   readonly estadoPropuestaTexto: Record<Propuesta['estado'], string> = {
     pendiente: 'Pendiente',
+    pendiente_ajuste: 'Pendiente de ajuste',
+    pendiente_aprobacion: 'Pendiente aprobación',
     aceptada: 'Aceptada',
     rechazada: 'Rechazada',
   };
@@ -145,6 +157,10 @@ export class AlumnoTemasComponent {
       { validators: this.profesoresDistintosValidator },
     );
     this.cuposForm = this.fb.group({
+      correos: this.fb.array<FormControl<string>>([]),
+    });
+    this.ajusteForm = this.fb.group({
+      cupos: [1, [Validators.required, Validators.min(1), Validators.max(6)]],
       correos: this.fb.array<FormControl<string>>([]),
     });
 
@@ -175,8 +191,11 @@ export class AlumnoTemasComponent {
     if (estado === 'aceptada') {
       return 'success';
     }
-    if (estado === 'pendiente') {
+    if (estado === 'pendiente' || estado === 'pendiente_aprobacion') {
       return 'pending';
+    }
+    if (estado === 'pendiente_ajuste') {
+      return 'warn';
     }
     return 'ghost';
   }
@@ -194,6 +213,12 @@ export class AlumnoTemasComponent {
   etiquetaPropuestaDestacada(propuesta: Propuesta): string {
     if (propuesta.estado === 'aceptada') {
       return 'Propuesta aceptada';
+    }
+    if (propuesta.estado === 'pendiente_ajuste') {
+      return 'Ajusta los cupos del grupo';
+    }
+    if (propuesta.estado === 'pendiente_aprobacion') {
+      return 'Esperando aprobación del docente';
     }
     if (propuesta.estado === 'pendiente') {
       return 'Propuesta pendiente';
@@ -269,6 +294,10 @@ export class AlumnoTemasComponent {
     return this.cuposForm.get('correos') as FormArray<FormControl<string>>;
   }
 
+  get correosAjuste(): FormArray<FormControl<string>> {
+    return this.ajusteForm.get('correos') as FormArray<FormControl<string>>;
+  }
+
   get companerosPostulacion(): FormArray<FormControl<string>> {
     return this.postulacionForm.get('companeros') as FormArray<FormControl<string>>;
   }
@@ -306,6 +335,13 @@ export class AlumnoTemasComponent {
     return this.companerosPostulacion.length < max;
   }
 
+  puedeAgregarCorreoAjuste(): boolean {
+    const cuposControl = this.ajusteForm.get('cupos');
+    const cupos = Number(cuposControl?.value ?? 1);
+    const max = Math.max(cupos - 1, 0);
+    return this.correosAjuste.length < max;
+  }
+
   correoControlTieneError(index: number, error: string): boolean {
     const control = this.correosForm.at(index);
     return !!(control && control.touched && control.hasError(error));
@@ -313,6 +349,11 @@ export class AlumnoTemasComponent {
 
   companeroControlTieneError(index: number, error: string): boolean {
     const control = this.companerosPostulacion.at(index);
+    return !!(control && control.touched && control.hasError(error));
+  }
+
+  correoAjusteTieneError(index: number, error: string): boolean {
+    const control = this.correosAjuste.at(index);
     return !!(control && control.touched && control.hasError(error));
   }
 
@@ -349,6 +390,13 @@ export class AlumnoTemasComponent {
     this.companerosPostulacion.push(this.crearCorreoControl(''));
   }
 
+  agregarCorreoAjuste() {
+    if (!this.puedeAgregarCorreoAjuste()) {
+      return;
+    }
+    this.correosAjuste.push(this.crearCorreoControl(''));
+  }
+
   removerCampoCorreo(index: number) {
     if (this.guardandoCompaneros()) {
       return;
@@ -361,6 +409,143 @@ export class AlumnoTemasComponent {
       return;
     }
     this.companerosPostulacion.removeAt(index);
+  }
+
+  removerCorreoAjuste(index: number) {
+    if (this.ajusteEnCurso()) {
+      return;
+    }
+    if (index < 0 || index >= this.correosAjuste.length) {
+      return;
+    }
+    this.correosAjuste.removeAt(index);
+  }
+
+  abrirAjustePropuesta(propuesta: Propuesta) {
+    this.propuestaParaAjuste.set(propuesta);
+    this.showAjustePropuesta.set(true);
+    this.ajusteError.set(null);
+    this.ajusteEnCurso.set(false);
+
+    const autorizado = propuesta.cuposMaximoAutorizado ?? propuesta.cuposRequeridos;
+    const cuposIniciales = Math.min(propuesta.cuposRequeridos, autorizado || propuesta.cuposRequeridos) || 1;
+    this.ajusteForm.reset({ cupos: cuposIniciales });
+    this.correosAjuste.clear();
+
+    const existentes = propuesta.correosCompaneros ?? [];
+    const max = Math.max(cuposIniciales - 1, 0);
+    existentes.slice(0, max).forEach((correo) => this.correosAjuste.push(this.crearCorreoControl(correo)));
+    if (this.correosAjuste.length === 0 && max > 0) {
+      this.correosAjuste.push(this.crearCorreoControl(''));
+    }
+  }
+
+  cerrarAjustePropuesta() {
+    if (this.ajusteEnCurso()) {
+      return;
+    }
+    this.showAjustePropuesta.set(false);
+    this.propuestaParaAjuste.set(null);
+    this.ajusteError.set(null);
+    this.correosAjuste.clear();
+    this.ajusteForm.reset({ cupos: 1 });
+  }
+
+  ajustarCorreosAjustePorCupos() {
+    const cupos = Number(this.ajusteForm.get('cupos')?.value ?? 1);
+    const max = Math.max(cupos - 1, 0);
+    while (this.correosAjuste.length > max) {
+      this.correosAjuste.removeAt(this.correosAjuste.length - 1);
+    }
+  }
+
+  guardarAjustePropuesta() {
+    const propuesta = this.propuestaParaAjuste();
+    if (!propuesta) {
+      return;
+    }
+
+    this.ajusteForm.markAllAsTouched();
+    const cuposControl = this.ajusteForm.get('cupos');
+    const cupos = Number(cuposControl?.value ?? 1);
+    if (!cuposControl || cuposControl.invalid || !Number.isFinite(cupos) || cupos < 1) {
+      this.ajusteError.set('Revisa la cantidad de cupos solicitados.');
+      return;
+    }
+
+    if (propuesta.cuposMaximoAutorizado && cupos > propuesta.cuposMaximoAutorizado) {
+      this.ajusteError.set(`El docente autorizó como máximo ${propuesta.cuposMaximoAutorizado} integrantes.`);
+      return;
+    }
+
+    let correosInvalidos = false;
+    this.correosAjuste.controls.forEach((ctrl) => {
+      ctrl.markAsTouched();
+      if (ctrl.invalid && (ctrl.value ?? '').trim().length > 0) {
+        correosInvalidos = true;
+      }
+    });
+    if (correosInvalidos) {
+      this.ajusteError.set('Revisa que los correos ingresados sean válidos.');
+      return;
+    }
+
+    const perfil = this.currentUserService.getProfile();
+    const correoPropio = perfil?.correo?.toLowerCase() ?? null;
+    const maxCompaneros = Math.max(cupos - 1, 0);
+    const seleccionados = new Map<string, string>();
+
+    for (const control of this.correosAjuste.controls) {
+      const valor = (control.value ?? '').trim();
+      if (!valor) {
+        continue;
+      }
+      const normalizado = valor.toLowerCase();
+      if ((correoPropio && normalizado === correoPropio) || seleccionados.has(normalizado)) {
+        continue;
+      }
+      seleccionados.set(normalizado, valor);
+      if (seleccionados.size >= maxCompaneros) {
+        break;
+      }
+    }
+
+    const correos = Array.from(seleccionados.values());
+
+    this.ajusteEnCurso.set(true);
+    this.ajusteError.set(null);
+
+    this.propuestaService
+      .actualizarPropuesta(propuesta.id, {
+        accion: 'confirmar_cupos',
+        cuposRequeridos: cupos,
+        correosCompaneros: correos,
+      })
+      .subscribe({
+        next: (actualizada) => {
+          this.propuestas.set(
+            this.propuestas().map((p) => (p.id === actualizada.id ? actualizada : p)),
+          );
+          this.ajusteEnCurso.set(false);
+          this.showAjustePropuesta.set(false);
+          this.propuestaParaAjuste.set(null);
+          this.ajusteForm.reset({ cupos: 1 });
+        },
+        error: (err) => {
+          console.error('No fue posible confirmar los cupos de la propuesta', err);
+          this.ajusteError.set('No fue posible confirmar los cupos. Intenta nuevamente.');
+          this.ajusteEnCurso.set(false);
+        },
+      });
+  }
+
+  puedeAjustarPropuesta(propuesta: Propuesta): boolean {
+    return propuesta.estado === 'pendiente_ajuste';
+  }
+
+  maxCorreosPermitidosAjuste(): number {
+    const cupos = Number(this.ajusteForm.get('cupos')?.value ?? 1);
+    return Math.max(cupos - 1, 0);
   }
 
   guardarCompaneros() {

@@ -197,6 +197,8 @@ class SolicitudCartaPractica(models.Model):
 class PropuestaTema(models.Model):
     ESTADOS = [
         ("pendiente", "Pendiente"),
+        ("pendiente_ajuste", "Pendiente ajuste"),
+        ("pendiente_aprobacion", "Pendiente aprobación"),
         ("aceptada", "Aceptada"),
         ("rechazada", "Rechazada"),
     ]
@@ -224,6 +226,7 @@ class PropuestaTema(models.Model):
     preferencias_docentes = models.JSONField(default=list, blank=True)
     cupos_requeridos = models.PositiveIntegerField(default=1)
     correos_companeros = models.JSONField(default=list, blank=True)
+    cupos_maximo_autorizado = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

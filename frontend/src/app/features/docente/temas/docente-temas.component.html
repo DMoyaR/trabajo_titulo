@@ -153,10 +153,7 @@
         <div>{{ p.rama }}</div>
         <div>{{ p.createdAt | date:'shortDate' }}</div>
         <div>
-          <span class="chip"
-            [class.chip-ok]="p.estado==='aceptada'"
-            [class.chip-bad]="p.estado==='rechazada'"
-            [class.chip-warn]="p.estado==='pendiente'">{{ p.estado | titlecase }}</span>
+          <span class="chip" [ngClass]="estadoChipClase(p.estado)">{{ estadoChipTexto(p.estado) }}</span>
         </div>
         <div><button class="btn sm" type="button" (click)="seleccionarPropuesta(p)">Revisar</button></div>
       </div>
@@ -172,11 +169,59 @@
     <p *ngIf="sel.comentarioDecision" class="muted">Último comentario registrado: {{ sel.comentarioDecision }}</p>
 
     <div class="form">
+      <div class="grid ajuste-cupos">
+        <div>
+          <label for="cuposAutorizados">Cupos autorizados <span class="req">*</span></label>
+          <input
+            type="number"
+            id="cuposAutorizados"
+            name="cuposAutorizados"
+            min="1"
+            [(ngModel)]="cuposAutorizados"
+            [disabled]="decisionEnCurso || sel.estado === 'aceptada' || sel.estado === 'rechazada'"
+          />
+          <p class="muted small">
+            Solicitados: {{ sel.cuposRequeridos }} · Último máximo: {{ sel.cuposMaximoAutorizado || '—' }}
+          </p>
+        </div>
+        <div class="estado-detalle">
+          <span class="chip" [ngClass]="estadoChipClase(sel.estado)">{{ estadoChipTexto(sel.estado) }}</span>
+          <p class="muted" *ngIf="sel.estado === 'pendiente_ajuste'">
+            El alumno debe ajustar su propuesta al nuevo máximo autorizado.
+          </p>
+          <p class="muted" *ngIf="sel.estado === 'pendiente_aprobacion'">
+            El alumno confirmó los cupos, puedes aprobar definitivamente cuando corresponda.
+          </p>
+        </div>
+      </div>
+
       <label for="comentario">Comentario</label>
       <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
       <div class="actions">
-        <button class="btn primary" type="button" (click)="aceptarPropuesta()" [disabled]="!comentarioDecision || decisionEnCurso">Aceptar</button>
-        <button class="btn danger" type="button" (click)="rechazarPropuesta()" [disabled]="!comentarioDecision || decisionEnCurso">Rechazar</button>
+        <button
+          class="btn outline"
+          type="button"
+          (click)="autorizarCupos()"
+          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+        >Autorizar cupos</button>
+        <button
+          class="btn light"
+          type="button"
+          (click)="solicitarAjuste()"
+          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+        >Solicitar ajuste</button>
+        <button
+          class="btn primary"
+          type="button"
+          (click)="aprobarDefinitivo()"
+          [disabled]="decisionEnCurso || sel.estado !== 'pendiente_aprobacion'"
+        >Aprobar definitivamente</button>
+        <button
+          class="btn danger"
+          type="button"
+          (click)="rechazarPropuesta()"
+          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+        >Rechazar</button>
       </div>
       <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>
     </div>

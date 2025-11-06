@@ -323,6 +323,22 @@
   color: #1a3e6a;
 }
 
+.acciones-propuesta {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.acciones-propuesta .btn {
+  align-self: flex-start;
+}
+
+.acciones-propuesta .muted.small {
+  font-size: 0.8rem;
+}
+
 .list.propuestas li {
   border-color: #e5e7eb;
 }
@@ -485,6 +501,9 @@
 .modal.cupos-modal {
   width: min(640px, 92vw);
 }
+.modal.ajuste-modal {
+  width: min(560px, 92vw);
+}
 .modal-head {
   display: flex;
   align-items: center;
@@ -508,12 +527,44 @@
 .grid.cupos-grid {
   grid-template-columns: 1fr;
 }
+.grid.ajuste-form {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
 .field {
   display: flex;
   flex-direction: column;
 }
 .field.full {
   grid-column: 1 / -1;
+}
+
+.correos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.correo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.correo-item input {
+  flex: 1;
+}
+
+.correo-item .icon {
+  background: #eef2f7;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
 /* Inputs */
@@ -529,9 +580,6 @@ label {
 
 input[type='text'],
 input[type='email'],
-input[type='number'],
-input[type='number'],
-
 textarea,
 select {
   border: 1px solid #e1e7f0;

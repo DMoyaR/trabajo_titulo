@@ -103,6 +103,14 @@
                 Comentario del docente:
                 <span>{{ propuestaPrincipal.comentarioDecision }}</span>
               </p>
+              <div class="acciones-propuesta" *ngIf="puedeAjustarPropuesta(propuestaPrincipal)">
+                <p class="muted small">
+                  El docente autorizó un máximo de {{ propuestaPrincipal.cuposMaximoAutorizado }} integrantes.
+                </p>
+                <button class="btn primary" type="button" (click)="abrirAjustePropuesta(propuestaPrincipal)">
+                  Ajustar cupos
+                </button>
+              </div>
             </div>
           </ng-container>
 
@@ -125,6 +133,12 @@
                     <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
                     <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
                   </div>
+                  <div class="acciones-propuesta" *ngIf="puedeAjustarPropuesta(propuesta)">
+                    <button class="btn primary sm" type="button" (click)="abrirAjustePropuesta(propuesta)">
+                      Ajustar cupos
+                    </button>
+                    <span class="muted small">Máximo {{ propuesta.cuposMaximoAutorizado }} integrantes.</span>
+                  </div>
                 </div>
               </li>
             </ul>
@@ -137,6 +151,73 @@
       </section>
     </ng-container>
   </ng-container>
+</div>
+
+<div class="backdrop" *ngIf="showAjustePropuesta()" (click)="cerrarAjustePropuesta()"></div>
+<div
+  class="modal ajuste-modal"
+  *ngIf="showAjustePropuesta() && propuestaParaAjuste() as propuestaAjuste"
+  role="dialog"
+  aria-modal="true"
+>
+  <div class="modal-head">
+    <h4 class="ttl" style="margin: 0">Ajustar cupos del grupo</h4>
+    <button class="icon" type="button" (click)="cerrarAjustePropuesta()" aria-label="Cerrar">✕</button>
+  </div>
+
+  <form class="grid ajuste-form" [formGroup]="ajusteForm" (ngSubmit)="guardarAjustePropuesta()" novalidate>
+    <div class="field">
+      <label for="ajusteCupos">Integrantes del grupo <span class="req">*</span></label>
+      <input
+        type="number"
+        id="ajusteCupos"
+        formControlName="cupos"
+        min="1"
+        (change)="ajustarCorreosAjustePorCupos()"
+      />
+      <div class="err" *ngIf="ajusteForm.get('cupos')?.touched && ajusteForm.get('cupos')?.hasError('required')">
+        Debes indicar la cantidad de integrantes.
+      </div>
+      <div class="err" *ngIf="ajusteForm.get('cupos')?.touched && ajusteForm.get('cupos')?.hasError('min')">
+        El grupo debe tener al menos 1 integrante.
+      </div>
+      <div class="err" *ngIf="ajusteForm.get('cupos')?.touched && ajusteForm.get('cupos')?.hasError('max')">
+        Puedes solicitar hasta 6 integrantes.
+      </div>
+      <p class="muted small" *ngIf="propuestaAjuste.cuposMaximoAutorizado">
+        Máximo autorizado por el docente: {{ propuestaAjuste.cuposMaximoAutorizado }} integrantes.
+      </p>
+    </div>
+
+    <div class="field full">
+      <label>Correos de tus compañeros</label>
+      <p class="muted small">
+        Opcional: ingresa hasta {{ maxCorreosPermitidosAjuste() }} correos distintos.
+      </p>
+      <div formArrayName="correos" class="correos-list">
+        <div class="correo-item" *ngFor="let ctrl of correosAjuste.controls; let i = index">
+          <input type="email" [formControlName]="i" placeholder="correo@ejemplo.cl" />
+          <button type="button" class="icon" (click)="removerCorreoAjuste(i)" aria-label="Eliminar correo">✕</button>
+          <div class="err" *ngIf="correoAjusteTieneError(i, 'email')">Ingresa un correo válido.</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="btn light sm"
+        (click)="agregarCorreoAjuste()"
+        [disabled]="!puedeAgregarCorreoAjuste() || ajusteEnCurso()"
+      >Agregar correo</button>
+    </div>
+
+    <div class="err full" *ngIf="ajusteError()">{{ ajusteError() }}</div>
+
+    <div class="actions full">
+      <button type="button" class="btn light" (click)="cerrarAjustePropuesta()" [disabled]="ajusteEnCurso()">Cancelar</button>
+      <button type="submit" class="btn primary" [disabled]="ajusteEnCurso()">
+        {{ ajusteEnCurso() ? 'Guardando…' : 'Confirmar cupos' }}
+      </button>
+    </div>
+  </form>
 </div>
 
 <div class="backdrop" *ngIf="temaSeleccionado()" (click)="cerrarConfirmacionTema()"></div>

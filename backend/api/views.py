@@ -37,8 +37,9 @@ from .serializers import (
     LoginSerializer,
     NotificacionSerializer,
     PracticaDocumentoSerializer,
+    PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
-    PropuestaTemaDecisionSerializer,
+    PropuestaTemaDocenteDecisionSerializer,
     PropuestaTemaSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
@@ -1080,20 +1081,37 @@ class PropuestaTemaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_serializer_class(self):
         if self.request.method in {"PUT", "PATCH"}:
-            return PropuestaTemaDecisionSerializer
+            accion = None
+            if hasattr(self.request, "data"):
+                accion = self.request.data.get("accion")
+            if accion == "confirmar_cupos":
+                return PropuestaTemaAlumnoAjusteSerializer
+            return PropuestaTemaDocenteDecisionSerializer
         return PropuestaTemaSerializer
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         estado_anterior = instance.estado
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         propuesta = serializer.save()
+
         if estado_anterior != propuesta.estado:
             if propuesta.estado == "aceptada" and estado_anterior != "aceptada":
                 _crear_tema_desde_propuesta(propuesta)
-            _notificar_decision_propuesta(propuesta)
+            if propuesta.estado in {"aceptada", "rechazada"}:
+                _notificar_decision_propuesta(propuesta)
+            elif propuesta.estado == "pendiente_ajuste":
+                _notificar_solicitud_ajuste_cupos(propuesta)
+            elif propuesta.estado == "pendiente_aprobacion":
+                if estado_anterior == "pendiente_ajuste":
+                    _notificar_confirmacion_alumno(propuesta)
+                elif estado_anterior == "pendiente":
+                    _notificar_autorizacion_cupos(propuesta)
+
         output_serializer = PropuestaTemaSerializer(propuesta)
         return Response(output_serializer.data)
 
@@ -1390,12 +1408,106 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
     )
 
 
+def _notificar_solicitud_ajuste_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    maximo = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} solicitó ajustar los cupos"
+    else:
+        encabezado = "Se solicitó ajustar los cupos de tu propuesta"
+
+    mensaje = (
+        f"{encabezado} del tema \"{propuesta.titulo}\" a un máximo de {maximo} integrante(s)."
+    )
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Ajusta los cupos de tu propuesta",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_maximo_autorizado": maximo,
+        },
+    )
+
+
+def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} autorizó los cupos del grupo"
+    else:
+        encabezado = "Se autorizaron los cupos solicitados para tu propuesta"
+
+    mensaje = f"{encabezado} del tema \"{propuesta.titulo}\"."
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Cupos autorizados",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_autorizados": propuesta.cupos_maximo_autorizado,
+        },
+    )
+
+
+def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
+    docente = propuesta.docente
+    if docente is None:
+        return
+
+    alumno = propuesta.alumno
+    if alumno:
+        alumno_nombre = alumno.nombre_completo
+    else:
+        alumno_nombre = "El alumno"
+
+    mensaje = (
+        f"{alumno_nombre} confirmó los cupos del tema \"{propuesta.titulo}\" y ahora espera tu aprobación definitiva."
+    )
+
+    Notificacion.objects.create(
+        usuario=docente,
+        titulo="Confirmación de cupos recibida",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_requeridos": propuesta.cupos_requeridos,
+        },
+    )
+
+
 def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | None:
     alumno = propuesta.alumno
     if alumno is None:
         return None
 
+    cupos_autorizados = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
     cupos = propuesta.cupos_requeridos or 1
+    if cupos_autorizados:
+        cupos = min(cupos, cupos_autorizados)
     if cupos < 1:
         cupos = 1
 

@@ -801,9 +801,25 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
         )
         self.url = reverse("detalle-propuesta", args=[self.propuesta.pk])
 
-    def test_crea_notificacion_al_aceptar_propuesta(self):
+    def autorizar_cupos(self, cupos: int | None = None, comentario: str = "Autorizado"):
         payload = {
-            "estado": "aceptada",
+            "accion": "autorizar",
+            "comentario_decision": comentario,
+            "docente_id": self.docente.id,
+            "cupos_autorizados": cupos or self.propuesta.cupos_requeridos,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.propuesta.refresh_from_db()
+        self.assertEqual(self.propuesta.estado, "pendiente_aprobacion")
+
+    def test_crea_notificacion_al_aceptar_propuesta(self):
+        self.autorizar_cupos()
+        Notificacion.objects.all().delete()
+
+        payload = {
+            "accion": "aprobar_final",
             "comentario_decision": "Felicitaciones",
             "docente_id": self.docente.id,
         }
@@ -817,9 +833,18 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
         self.assertEqual(notif.meta.get("estado"), "aceptada")
         self.assertIn("aceptada", notif.titulo.lower())
 
+    def test_notifica_al_autorizar_cupos(self):
+        self.autorizar_cupos()
+
+        notifs = Notificacion.objects.filter(usuario=self.alumno)
+        self.assertEqual(notifs.count(), 1)
+        notif = notifs.get()
+        self.assertEqual(notif.meta.get("estado"), "pendiente_aprobacion")
+        self.assertIn("autoriz", notif.titulo.lower())
+
     def test_crea_notificacion_al_rechazar_propuesta(self):
         payload = {
-            "estado": "rechazada",
+            "accion": "rechazar",
             "comentario_decision": "Se requiere más detalle",
             "docente_id": self.docente.id,
         }
@@ -838,7 +863,7 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
         self.propuesta.save(update_fields=["estado"])
 
         payload = {
-            "estado": "rechazada",
+            "accion": "rechazar",
             "comentario_decision": "Falta información",
             "docente_id": self.docente.id,
         }
@@ -864,8 +889,10 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
             contrasena="pass",
         )
 
+        self.autorizar_cupos()
+
         payload = {
-            "estado": "aceptada",
+            "accion": "aprobar_final",
             "comentario_decision": "Vamos adelante",
             "docente_id": self.docente.id,
         }
@@ -885,6 +912,81 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
         self.assertIn(self.alumno.correo, correos)
         self.assertIn(companero1.correo, correos)
         self.assertEqual(tema.cupos_disponibles, 0)
+
+    def test_solicitar_ajuste_envia_notificacion(self):
+        payload = {
+            "accion": "solicitar_ajuste",
+            "comentario_decision": "Solo puedo aceptar 2 integrantes",
+            "docente_id": self.docente.id,
+            "cupos_autorizados": 2,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.propuesta.refresh_from_db()
+        self.assertEqual(self.propuesta.estado, "pendiente_ajuste")
+        self.assertEqual(self.propuesta.cupos_maximo_autorizado, 2)
+        self.assertEqual(Notificacion.objects.count(), 1)
+        notif = Notificacion.objects.get()
+        self.assertEqual(notif.usuario, self.alumno)
+        self.assertEqual(notif.meta.get("cupos_maximo_autorizado"), 2)
+
+    def test_alumno_confirma_cupos_notifica_docente(self):
+        self.client.patch(
+            self.url,
+            {
+                "accion": "solicitar_ajuste",
+                "comentario_decision": "Solo puedo aceptar 2",
+                "docente_id": self.docente.id,
+                "cupos_autorizados": 2,
+            },
+            format="json",
+        )
+        self.propuesta.refresh_from_db()
+        Notificacion.objects.all().delete()
+
+        payload = {
+            "accion": "confirmar_cupos",
+            "cupos_requeridos": 2,
+            "correos_companeros": ["companero1@example.com"],
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.propuesta.refresh_from_db()
+        self.assertEqual(self.propuesta.estado, "pendiente_aprobacion")
+        self.assertEqual(self.propuesta.cupos_requeridos, 2)
+        self.assertEqual(len(self.propuesta.correos_companeros), 1)
+        self.assertEqual(Notificacion.objects.count(), 1)
+        notif = Notificacion.objects.get()
+        self.assertEqual(notif.usuario, self.docente)
+        self.assertEqual(notif.meta.get("estado"), "pendiente_aprobacion")
+
+    def test_aprobar_final_falla_si_supera_cupos_autorizados(self):
+        self.client.patch(
+            self.url,
+            {
+                "accion": "solicitar_ajuste",
+                "comentario_decision": "Solo 2",
+                "docente_id": self.docente.id,
+                "cupos_autorizados": 2,
+            },
+            format="json",
+        )
+        self.propuesta.refresh_from_db()
+
+        payload = {
+            "accion": "aprobar_final",
+            "docente_id": self.docente.id,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.propuesta.refresh_from_db()
+        self.assertEqual(self.propuesta.estado, "pendiente_ajuste")
 
 
 class ReservaTemaNotificationTests(APITestCase):

@@ -30,6 +30,7 @@
 .chip-ok { background:#e7f9ef; color:#0a7a3a; }
 .chip-bad { background:#fde8e8; color:#9a1b1b; }
 .chip-warn { background:#fff7ed; color:#9a3412; }
+.chip-info { background:#eef7ff; color:#0b5ed7; }
 .chip.ghost { background:#f4f7fb; color:#1a3e6a; border:1px solid #dbe3ee; }
 
 .badge {
@@ -215,6 +216,10 @@ select:focus {
 .detalle h4 { margin:0 0 6px; color:#1a3e6a; }
 .form { display:flex; flex-direction:column; gap:10px; }
 .form textarea { min-height:110px; }
+.ajuste-cupos { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:flex-start; }
+.ajuste-cupos .small { font-size:.8rem; margin-top:4px; }
+.estado-detalle { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+.estado-detalle .chip { margin-bottom:4px; }
 
 /* === TARJETAS DE GRUPOS ASIGNADOS === */
 .grupos-container {
