@@ -15,4 +15,34 @@ class Migration(migrations.Migration):
             name="es_responsable",
             field=models.BooleanField(default=False),
         ),
+        migrations.AddField(
+            model_name="propuestatema",
+            name="correos_companeros",
+            field=models.JSONField(blank=True, default=list),
+        ),
+        migrations.AddField(
+            model_name="propuestatema",
+            name="cupos_requeridos",
+            field=models.PositiveIntegerField(default=1),
+        ),
+        migrations.AddField(
+            model_name="propuestatema",
+            name="cupos_maximo_autorizado",
+            field=models.PositiveIntegerField(blank=True, null=True),
+        ),
+        migrations.AlterField(
+            model_name="propuestatema",
+            name="estado",
+            field=models.CharField(
+                choices=[
+                    ("pendiente", "Pendiente"),
+                    ("pendiente_ajuste", "Pendiente ajuste"),
+                    ("pendiente_aprobacion", "Pendiente aprobación"),
+                    ("aceptada", "Aceptada"),
+                    ("rechazada", "Rechazada"),
+                ],
+                default="pendiente",
+                max_length=20,
+            ),
+        ),
     ]
