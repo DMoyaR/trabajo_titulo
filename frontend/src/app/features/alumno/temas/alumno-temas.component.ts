@@ -1,6 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, signal } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 
 import { TemaService, TemaDisponible } from '../../docente/trabajolist/tema.service';
 import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
@@ -47,6 +54,11 @@ export class AlumnoTemasComponent {
   readonly reservandoTemaId = signal<number | null>(null);
   readonly temaPorConfirmar = signal<TemaDisponible | null>(null);
 
+  readonly temaParaCupos = signal<TemaDisponible | null>(null);
+  readonly gestionCuposError = signal<string | null>(null);
+  readonly gestionCuposMensaje = signal<string | null>(null);
+  readonly guardandoCompaneros = signal(false);
+
   readonly showPostulacion = signal(false);
 
   readonly ramas: RamaCarrera[] = [
@@ -66,6 +78,7 @@ export class AlumnoTemasComponent {
   readonly postulacionError = signal<string | null>(null);
 
   readonly postulacionForm: FormGroup;
+  readonly cuposForm: FormGroup;
 
   readonly profesoresFiltrados = computed(() => {
     const rama = this.postulacionForm.get('rama')?.value as RamaCarrera | '';
@@ -129,6 +142,9 @@ export class AlumnoTemasComponent {
       },
       { validators: this.profesoresDistintosValidator },
     );
+    this.cuposForm = this.fb.group({
+      correos: this.fb.array<FormControl<string>>([]),
+    });
 
     effect(() => {
       const currentTab = this.tab();
@@ -245,6 +261,135 @@ export class AlumnoTemasComponent {
   hasError(ctrl: string, err: string) {
     const c = this.postulacionForm.get(ctrl);
     return !!(c && c.touched && c.hasError(err));
+  }
+
+  get correosForm(): FormArray<FormControl<string>> {
+    return this.cuposForm.get('correos') as FormArray<FormControl<string>>;
+  }
+
+  puedeMostrarGestionCupos(tema: TemaDisponible): boolean {
+    return tema.tieneCupoPropio && tema.cupos > 1;
+  }
+
+  puedeAgregarOtroCorreo(tema?: TemaDisponible | null): boolean {
+    const objetivo = tema ?? this.temaParaCupos();
+    if (!objetivo) {
+      return false;
+    }
+    const max = Math.max((objetivo.cupos ?? 1) - 1, 0);
+    return this.correosForm.length < max;
+  }
+
+  correoControlTieneError(index: number, error: string): boolean {
+    const control = this.correosForm.at(index);
+    return !!(control && control.touched && control.hasError(error));
+  }
+
+  abrirGestionCupos(tema: TemaDisponible) {
+    if (!this.puedeMostrarGestionCupos(tema)) {
+      return;
+    }
+
+    this.temaParaCupos.set(tema);
+    this.gestionCuposError.set(null);
+    this.gestionCuposMensaje.set(null);
+    this.construirFormularioCupos(tema);
+  }
+
+  cerrarGestionCupos() {
+    if (this.guardandoCompaneros()) {
+      return;
+    }
+
+    this.temaParaCupos.set(null);
+  }
+
+  agregarCampoCorreo() {
+    if (!this.puedeAgregarOtroCorreo()) {
+      return;
+    }
+    this.correosForm.push(this.crearCorreoControl(''));
+  }
+
+  removerCampoCorreo(index: number) {
+    if (this.guardandoCompaneros()) {
+      return;
+    }
+    this.correosForm.removeAt(index);
+  }
+
+  guardarCompaneros() {
+    const tema = this.temaParaCupos();
+    if (!tema) {
+      return;
+    }
+
+    const alumnoId = this.obtenerAlumnoIdActual();
+    if (!alumnoId) {
+      this.gestionCuposError.set('No fue posible identificar al alumno actual.');
+      return;
+    }
+
+    let correosInvalidos = false;
+    this.correosForm.controls.forEach((ctrl) => {
+      ctrl.markAsTouched();
+      if (ctrl.invalid && ctrl.value.trim().length > 0) {
+        correosInvalidos = true;
+      }
+    });
+
+    if (correosInvalidos) {
+      this.gestionCuposError.set('Revisa que los correos ingresados sean válidos.');
+      return;
+    }
+
+    const valores = this.correosForm.controls
+      .map((ctrl) => ctrl.value.trim())
+      .filter((valor) => valor.length > 0);
+
+    const emailsNormalizados = new Map<string, string>();
+    for (const correo of valores) {
+      const normalizado = correo.toLowerCase();
+      if (!emailsNormalizados.has(normalizado)) {
+        emailsNormalizados.set(normalizado, correo);
+      }
+    }
+
+    const correos = Array.from(emailsNormalizados.values());
+    const maxCompaneros = Math.max((tema.cupos ?? 1) - 1, 0);
+    if (correos.length > maxCompaneros) {
+      this.gestionCuposError.set('No hay cupos suficientes para agregar a todos los compañeros.');
+      return;
+    }
+
+    this.guardandoCompaneros.set(true);
+    this.gestionCuposError.set(null);
+    this.gestionCuposMensaje.set(null);
+
+    this.temaService.asignarCompaneros(tema.id, alumnoId, correos).subscribe({
+      next: (actualizado) => {
+        this.temas.set(
+          this.temas().map((t) => (t.id === actualizado.id ? actualizado : t)),
+        );
+        this.temaParaCupos.set(actualizado);
+        this.construirFormularioCupos(actualizado);
+        this.gestionCuposMensaje.set('Los cupos del tema fueron actualizados.');
+        this.guardandoCompaneros.set(false);
+      },
+      error: (err) => {
+        console.error('No fue posible actualizar los cupos', err);
+        const error = err?.error;
+        if (error?.errores) {
+          const mensajes = Object.values(error.errores as Record<string, string>);
+          this.gestionCuposError.set(mensajes.join(' '));
+        } else if (error?.detail) {
+          this.gestionCuposError.set(String(error.detail));
+        } else {
+          this.gestionCuposError.set('No fue posible actualizar los cupos. Intenta nuevamente.');
+        }
+        this.guardandoCompaneros.set(false);
+      },
+    });
   }
 
   private pedirTema(tema: TemaDisponible) {
@@ -439,6 +584,41 @@ export class AlumnoTemasComponent {
     return new Set(arr).size !== arr.length ? { profesoresDuplicados: true } : null;
   };
 
+  private construirFormularioCupos(tema: TemaDisponible) {
+    const max = Math.max((tema.cupos ?? 1) - 1, 0);
+    const existentes = this.obtenerCorreosIntegrantes(tema).slice(0, max);
+    const controles = existentes.map((correo) => this.crearCorreoControl(correo));
+    if (!controles.length && max > 0) {
+      controles.push(this.crearCorreoControl(''));
+    }
+
+    const array = this.fb.array<FormControl<string>>(controles);
+    this.cuposForm.setControl('correos', array);
+  }
+
+  private crearCorreoControl(valor: string): FormControl<string> {
+    return this.fb.control<string>(valor, {
+      validators: [Validators.email],
+      nonNullable: true,
+    });
+  }
+
+  private obtenerCorreosIntegrantes(tema: TemaDisponible): string[] {
+    const correoActual = this.obtenerAlumnoCorreoActual();
+    const actuales = tema.inscripcionesActivas ?? [];
+    return actuales
+      .map((inscripcion) => inscripcion.correo?.trim() ?? '')
+      .filter((correo) => {
+        if (!correo) {
+          return false;
+        }
+        if (!correoActual) {
+          return true;
+        }
+        return correo.toLowerCase() !== correoActual.toLowerCase();
+      });
+  }
+
   private obtenerAlumnoIdActual(): number | null {
     const perfil = this.currentUserService.getProfile();
     if (!perfil?.id || perfil.rol !== 'alumno') {
@@ -446,4 +626,13 @@ export class AlumnoTemasComponent {
     }
     return perfil.id;
   }
+
+  private obtenerAlumnoCorreoActual(): string | null {
+    const perfil = this.currentUserService.getProfile();
+    if (!perfil?.correo) {
+      return null;
+    }
+    return perfil.correo;
+  }
 }
+

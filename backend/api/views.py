@@ -797,6 +797,148 @@ def reservar_tema(request, pk: int):
     return Response(serializer.data)
 
 
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def asignar_companeros(request, pk: int):
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
+
+    alumno_id = request.data.get("alumno")
+    if not alumno_id:
+        return Response(
+            {"detail": "Debe indicar el alumno responsable del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        alumno_id_int = int(alumno_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "El identificador de alumno es inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = get_object_or_404(Usuario, pk=alumno_id_int)
+    if alumno.rol != "alumno":
+        return Response(
+            {"detail": "Solo estudiantes pueden gestionar los cupos de un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    max_companeros = max(tema.cupos - 1, 0)
+    correos = request.data.get("correos") or request.data.get("companeros") or []
+    if not isinstance(correos, list):
+        return Response(
+            {"detail": "Debe proporcionar una lista de correos electrónicos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    correos_limpios: list[str] = []
+    correos_registrados: set[str] = set()
+    correo_alumno = alumno.correo.lower() if alumno.correo else ""
+    for correo in correos:
+        if not isinstance(correo, str):
+            continue
+        normalizado = correo.strip()
+        if not normalizado:
+            continue
+        normalizado_lower = normalizado.lower()
+        if normalizado_lower == correo_alumno:
+            continue
+        if normalizado_lower in correos_registrados:
+            continue
+        correos_registrados.add(normalizado_lower)
+        correos_limpios.append(normalizado)
+
+    if len(correos_limpios) > max_companeros:
+        return Response(
+            {
+                "detail": (
+                    "No hay cupos suficientes para registrar a todos los compañeros."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    companeros: list[Usuario] = []
+    errores: dict[str, str] = {}
+    for correo in correos_limpios:
+        usuario = Usuario.objects.filter(correo__iexact=correo).first()
+        if not usuario:
+            errores[correo] = "No se encontró un usuario con este correo electrónico."
+            continue
+        if usuario.rol != "alumno":
+            errores[correo] = "Solo puedes agregar estudiantes a tu grupo."
+            continue
+        if usuario.carrera and not _carreras_coinciden(tema.carrera, usuario.carrera):
+            errores[correo] = "El estudiante no pertenece a la carrera del tema."
+            continue
+        companeros.append(usuario)
+
+    if errores:
+        return Response({"errores": errores}, status=status.HTTP_400_BAD_REQUEST)
+
+    participantes_ids = {alumno.pk}
+    participantes_ids.update(usuario.pk for usuario in companeros)
+
+    if len(participantes_ids) > tema.cupos:
+        return Response(
+            {"detail": "El número total de participantes supera los cupos del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripciones = {
+        inscripcion.alumno_id: inscripcion
+        for inscripcion in tema.inscripciones.select_related("alumno")
+    }
+
+    for inscripcion in list(inscripciones.values()):
+        if inscripcion.alumno_id in participantes_ids:
+            continue
+        if inscripcion.activo:
+            inscripcion.activo = False
+            inscripcion.save(update_fields=["activo", "updated_at"])
+
+    for usuario in [alumno, *companeros]:
+        inscripcion = inscripciones.get(usuario.pk)
+        creado = False
+        reactivada = False
+        if not inscripcion:
+            inscripcion = tema.inscripciones.create(alumno=usuario, activo=True)
+            inscripciones[usuario.pk] = inscripcion
+            creado = True
+        elif not inscripcion.activo:
+            inscripcion.activo = True
+            inscripcion.save(update_fields=["activo", "updated_at"])
+            reactivada = True
+
+        if usuario.pk != alumno.pk and (creado or reactivada):
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=reactivada,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    cupos_despues = tema.cupos_disponibles
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno.pk},
+    )
+    return Response(serializer.data)
+
+
 class DocenteListView(generics.ListAPIView):
     serializer_class = UsuarioResumenSerializer
     permission_classes = [AllowAny]

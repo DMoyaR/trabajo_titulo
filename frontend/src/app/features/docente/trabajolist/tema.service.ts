@@ -97,6 +97,17 @@ export class TemaService {
     });
   }
 
+  asignarCompaneros(
+    temaId: number,
+    alumnoId: number,
+    correos: string[],
+  ): Observable<TemaDisponible> {
+    return this.http.post<TemaDisponible>(`${this.baseUrl}${temaId}/companeros/`, {
+      alumno: alumnoId,
+      correos,
+    });
+  }
+
   eliminarTema(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}${id}/`);
   }

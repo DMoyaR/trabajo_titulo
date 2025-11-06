@@ -54,14 +54,24 @@
                 <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
               </div>
             </div>
-            <button
-              type="button"
-              class="btn primary sm"
-              [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
-              (click)="abrirConfirmacionTema(tema)"
-            >
-              {{ etiquetaPedirTema(tema) }}
-            </button>
+            <div class="tema-actions">
+              <button
+                type="button"
+                class="btn primary sm"
+                [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
+                (click)="abrirConfirmacionTema(tema)"
+              >
+                {{ etiquetaPedirTema(tema) }}
+              </button>
+              <button
+                type="button"
+                class="btn light sm"
+                *ngIf="puedeMostrarGestionCupos(tema)"
+                (click)="abrirGestionCupos(tema)"
+              >
+                Gestionar cupos
+              </button>
+            </div>
           </li>
         </ul>
       </ng-template>
@@ -172,6 +182,80 @@
     >
       {{ reservandoTemaId() === temaEnConfirmacion.id ? 'Reservando…' : 'Confirmar' }}
     </button>
+  </div>
+</div>
+
+<div class="backdrop" *ngIf="temaParaCupos()" (click)="cerrarGestionCupos()"></div>
+<div class="modal cupos-modal" *ngIf="temaParaCupos() as temaGestion" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h4 class="ttl" style="margin: 0">Gestionar cupos</h4>
+    <button class="icon" type="button" (click)="cerrarGestionCupos()" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="modal-body">
+    <p class="muted" style="margin-top: 0">
+      Ingresa los correos electrónicos de tus compañeros para completar los cupos disponibles del tema.
+    </p>
+    <div class="chips meta">
+      <span class="chip ghost">Cupos totales: {{ temaGestion.cupos }}</span>
+      <span class="chip ghost">Integrantes registrados: {{ temaGestion.inscripcionesActivas.length }}</span>
+    </div>
+
+    <div class="alert success" *ngIf="gestionCuposMensaje()">{{ gestionCuposMensaje() }}</div>
+    <div class="alert error" *ngIf="gestionCuposError()">{{ gestionCuposError() }}</div>
+
+    <form [formGroup]="cuposForm" (ngSubmit)="guardarCompaneros()" class="grid cupos-grid" novalidate>
+      <div formArrayName="correos" class="full correos-array">
+        <div class="field full correo-field" *ngFor="let control of correosForm.controls; let i = index">
+          <label [attr.for]="'correo-companero-' + i">Correo del compañero {{ i + 1 }}</label>
+          <div class="correo-input">
+            <input
+              type="email"
+              [id]="'correo-companero-' + i"
+              [formControlName]="i"
+              placeholder="nombre@ejemplo.cl"
+              [readonly]="guardandoCompaneros()"
+            />
+            <button
+              type="button"
+              class="btn light sm"
+              (click)="removerCampoCorreo(i)"
+              [disabled]="guardandoCompaneros() || correosForm.length <= 1"
+            >
+              Quitar
+            </button>
+          </div>
+          <div class="err" *ngIf="correoControlTieneError(i, 'email')">Correo electrónico inválido.</div>
+        </div>
+      </div>
+
+      <div class="acciones-correos" *ngIf="puedeAgregarOtroCorreo(temaGestion)">
+        <button type="button" class="btn light sm" (click)="agregarCampoCorreo()" [disabled]="guardandoCompaneros()">
+          + Agregar correo
+        </button>
+      </div>
+
+      <div class="field full">
+        <h5 style="margin: 16px 0 8px">Integrantes registrados</h5>
+        <div class="chips participantes" *ngIf="temaGestion.inscripcionesActivas.length; else sinIntegrantes">
+          <span class="chip" *ngFor="let integrante of temaGestion.inscripcionesActivas">
+            {{ integrante.nombre }}
+            <span *ngIf="integrante.correo"> · {{ integrante.correo }}</span>
+          </span>
+        </div>
+        <ng-template #sinIntegrantes>
+          <p class="muted" style="margin: 0">Aún no hay compañeros registrados.</p>
+        </ng-template>
+      </div>
+
+      <div class="actions full">
+        <button type="button" class="btn light" (click)="cerrarGestionCupos()" [disabled]="guardandoCompaneros()">
+          Cerrar
+        </button>
+        <button type="submit" class="btn primary" [disabled]="guardandoCompaneros()">
+          {{ guardandoCompaneros() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 

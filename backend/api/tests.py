@@ -496,6 +496,77 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data[0]["tieneCupoPropio"])
 
+    def test_asignar_companeros_registra_estudiantes(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema grupal", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=3
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        companero1 = Usuario.objects.create(
+            nombre_completo="Compañero 1", correo="c1@example.com", carrera="Computación", rut="33333333-3",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        companero2 = Usuario.objects.create(
+            nombre_completo="Compañero 2", correo="c2@example.com", carrera="Computación", rut="44444444-4",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+
+        url = reverse("tema-companeros", args=[tema.pk])
+        payload = {"alumno": alumno.pk, "correos": [companero1.correo, companero2.correo]}
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["inscripcionesActivas"]), 3)
+        correos = {item["correo"] for item in response.data["inscripcionesActivas"]}
+        self.assertSetEqual(correos, {alumno.correo, companero1.correo, companero2.correo})
+        tema.refresh_from_db()
+        self.assertEqual(tema.cupos_disponibles, 0)
+
+    def test_asignar_companeros_requiere_correos_validos(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=2
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+
+        url = reverse("tema-companeros", args=[tema.pk])
+        response = self.client.post(url, {"alumno": alumno.pk, "correos": ["no-existe@example.com"]}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("errores", response.data)
+        self.assertIn("no-existe@example.com", response.data["errores"])
+
+    def test_asignar_companeros_no_permite_exceder_cupos(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=2
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        companero1 = Usuario.objects.create(
+            nombre_completo="Compañero 1", correo="c1@example.com", carrera="Computación", rut="33333333-3",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        companero2 = Usuario.objects.create(
+            nombre_completo="Compañero 2", correo="c2@example.com", carrera="Computación", rut="44444444-4",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+
+        url = reverse("tema-companeros", args=[tema.pk])
+        response = self.client.post(
+            url,
+            {"alumno": alumno.pk, "correos": [companero1.correo, companero2.correo]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
 
 class LoginAPITestCase(APITestCase):
     """Tests for the login endpoint using APIClient."""
