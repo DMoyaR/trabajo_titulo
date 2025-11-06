@@ -640,6 +640,7 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         creador = serializer.validated_data.get("created_by")
+        responsable = serializer.validated_data.get("docente_responsable")
 
         if not creador:
             creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
@@ -654,8 +655,17 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             if isinstance(user, Usuario):
                 creador = user
 
+        if not responsable and creador and creador.rol == "docente":
+            responsable = creador
+
+        save_kwargs = {}
         if creador:
-            serializer.save(created_by=creador)
+            save_kwargs["created_by"] = creador
+        if responsable:
+            save_kwargs["docente_responsable"] = responsable
+
+        if save_kwargs:
+            serializer.save(**save_kwargs)
         else:
             serializer.save()
 
@@ -1519,7 +1529,8 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
     if propuesta.objetivo:
         requisitos.append(propuesta.objetivo)
 
-    created_by = propuesta.docente or alumno
+    docente_responsable = propuesta.docente
+    created_by = alumno if alumno else propuesta.docente
 
     with transaction.atomic():
         tema = TemaDisponible.objects.create(
@@ -1529,6 +1540,7 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
             requisitos=requisitos,
             cupos=cupos,
             created_by=created_by,
+            docente_responsable=docente_responsable,
         )
 
         participantes: list[tuple[Usuario, bool]] = [(alumno, True)]

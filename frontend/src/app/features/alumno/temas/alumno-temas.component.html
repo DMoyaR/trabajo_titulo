@@ -39,11 +39,32 @@
               <div class="grupo-alumnos">{{ tema.descripcion }}</div>
               <div class="tema-autor" *ngIf="tema.creadoPor as autor">
                 <span class="tema-autor__icon" aria-hidden="true">👤</span>
-                <span>
-                  {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:
+                <span *ngIf="autor.rol === 'alumno'; else autorDocente">
+                  Propuesta creada por
                   <strong class="tema-autor__nombre">{{ autor.nombre }}</strong>
                   · {{ autor.rol | titlecase }}
                   <ng-container *ngIf="autor.carrera"> — {{ autor.carrera }}</ng-container>
+                  <ng-container *ngIf="tema.docenteACargo as docente">
+                    · Docente a cargo
+                    <strong class="tema-autor__nombre">{{ docente.nombre }}</strong>
+                  </ng-container>
+                </span>
+                <ng-template #autorDocente>
+                  <span>
+                    Profesor creador
+                    <strong class="tema-autor__nombre">{{ autor.nombre }}</strong>
+                    · {{ autor.rol | titlecase }}
+                    <ng-container *ngIf="autor.carrera"> — {{ autor.carrera }}</ng-container>
+                  </span>
+                </ng-template>
+              </div>
+              <div class="tema-autor" *ngIf="!tema.creadoPor && tema.docenteACargo as docente">
+                <span class="tema-autor__icon" aria-hidden="true">👤</span>
+                <span>
+                  Docente a cargo
+                  <strong class="tema-autor__nombre">{{ docente.nombre }}</strong>
+                  · {{ docente.rol | titlecase }}
+                  <ng-container *ngIf="docente.carrera"> — {{ docente.carrera }}</ng-container>
                 </span>
               </div>
               <div class="chips meta">
@@ -239,7 +260,7 @@
       <span aria-hidden="true">👤</span>
       <span>
         Profesor responsable:
-        <strong>{{ temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</strong>
+        <strong>{{ temaEnConfirmacion.docenteACargo?.nombre || temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</strong>
       </span>
     </div>
     <div class="tema-confirmacion__requisitos" *ngIf="temaEnConfirmacion.requisitos?.length; else sinRequisitos">

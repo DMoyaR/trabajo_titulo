@@ -81,6 +81,10 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
         queryset=Usuario.objects.all(), required=False, allow_null=True
     )
     creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
+    docente_responsable = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), required=False, allow_null=True
+    )
+    docenteACargo = serializers.SerializerMethodField(method_name="get_docente_a_cargo")
     cuposDisponibles = serializers.SerializerMethodField()
     tieneCupoPropio = serializers.SerializerMethodField()
     inscripcionesActivas = serializers.SerializerMethodField()
@@ -99,6 +103,8 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "created_at",
             "created_by",
             "creadoPor",
+            "docente_responsable",
+            "docenteACargo",
             "inscripcionesActivas",
         ]
         read_only_fields = ["id", "created_at"]
@@ -112,6 +118,19 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "nombre": usuario.nombre_completo,
             "rol": usuario.rol,
             "carrera": usuario.carrera,
+        }
+
+    def get_docente_a_cargo(self, obj):
+        docente = obj.docente_responsable
+        if not docente:
+            docente = obj.created_by if obj.created_by and obj.created_by.rol == "docente" else None
+        if not docente:
+            return None
+
+        return {
+            "nombre": docente.nombre_completo,
+            "rol": docente.rol,
+            "carrera": docente.carrera,
         }
 
     def get_cuposDisponibles(self, obj) -> int:
@@ -152,6 +171,13 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
         if usuario and usuario.rol not in {"docente", "coordinador"}:
             raise serializers.ValidationError(
                 "Solo docentes o coordinación pueden registrarse como creadores del tema."
+            )
+        return usuario
+
+    def validate_docente_responsable(self, usuario: Usuario | None) -> Usuario | None:
+        if usuario and usuario.rol != "docente":
+            raise serializers.ValidationError(
+                "Solo un docente puede ser asignado como responsable del tema."
             )
         return usuario
     

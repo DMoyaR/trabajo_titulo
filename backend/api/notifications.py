@@ -16,6 +16,16 @@ def _default_from_email() -> str:
     return getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@trabajo-titulo.local")
 
 
+def _obtener_docente_tema(tema: TemaDisponible) -> Usuario | None:
+    docente = tema.docente_responsable
+    if docente:
+        return docente
+    creador = tema.created_by
+    if creador and creador.rol == "docente":
+        return creador
+    return None
+
+
 def registrar_notificacion(
     usuario: Usuario,
     titulo: str,
@@ -69,7 +79,7 @@ def notificar_reserva_tema(
         "inscripcion_id": inscripcion_id,
     }
 
-    docente = tema.created_by
+    docente = _obtener_docente_tema(tema)
     if docente:
         accion_docente = (
             "ha reactivado su participación en"
@@ -127,7 +137,7 @@ def notificar_cupos_completados(tema: TemaDisponible) -> None:
         "cupos_totales": tema.cupos,
     }
 
-    docente = tema.created_by
+    docente = _obtener_docente_tema(tema)
     if docente:
         registrar_notificacion(
             docente,
@@ -163,7 +173,7 @@ def notificar_tema_finalizado(tema: TemaDisponible) -> None:
         "cupos_totales": tema.cupos,
     }
 
-    docente = tema.created_by
+    docente = _obtener_docente_tema(tema)
     if docente:
         registrar_notificacion(
             docente,

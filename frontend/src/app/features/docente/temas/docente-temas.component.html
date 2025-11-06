@@ -22,13 +22,42 @@
             <div class="temas-item__creator" *ngIf="tema.creadoPor as autor">
               <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
               <div>
+                <ng-container *ngIf="autor.rol === 'alumno'; else creadorDocente">
+                  <div class="temas-item__creator-label">
+                    Propuesta creada por:
+                    <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                  </div>
+                  <div class="temas-item__creator-meta">
+                    {{ autor.rol | titlecase }}
+                    <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                  </div>
+                  <div class="temas-item__creator-meta" *ngIf="tema.docenteACargo as docente">
+                    Docente a cargo:
+                    <span class="temas-item__creator-name">{{ docente.nombre }}</span>
+                  </div>
+                </ng-container>
+                <ng-template #creadorDocente>
+                  <div class="temas-item__creator-label">
+                    Profesor creador:
+                    <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                  </div>
+                  <div class="temas-item__creator-meta">
+                    {{ autor.rol | titlecase }}
+                    <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                  </div>
+                </ng-template>
+              </div>
+            </div>
+            <div class="temas-item__creator" *ngIf="!tema.creadoPor && tema.docenteACargo as docente">
+              <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
+              <div>
                 <div class="temas-item__creator-label">
-                  {{ autor.rol === 'docente' ? 'Profesor creador' : 'Creado por' }}:
-                  <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                  Docente a cargo:
+                  <span class="temas-item__creator-name">{{ docente.nombre }}</span>
                 </div>
                 <div class="temas-item__creator-meta">
-                  {{ autor.rol | titlecase }}
-                  <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                  {{ docente.rol | titlecase }}
+                  <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
                 </div>
               </div>
             </div>
@@ -81,10 +110,32 @@
       <div class="tema-detalle__autor" *ngIf="detalle.creadoPor as autor">
         <span aria-hidden="true">👤</span>
         <div>
-          <p class="tema-detalle__autor-nombre">{{ autor.nombre }}</p>
+          <ng-container *ngIf="autor.rol === 'alumno'; else detalleDocente">
+            <p class="tema-detalle__autor-nombre">Propuesta creada por: {{ autor.nombre }}</p>
+            <p class="muted">
+              {{ autor.rol | titlecase }}
+              <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+            </p>
+            <p class="muted" *ngIf="detalle.docenteACargo as docente">
+              Docente a cargo: {{ docente.nombre }}
+            </p>
+          </ng-container>
+          <ng-template #detalleDocente>
+            <p class="tema-detalle__autor-nombre">{{ autor.nombre }}</p>
+            <p class="muted">
+              {{ autor.rol | titlecase }}
+              <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+            </p>
+          </ng-template>
+        </div>
+      </div>
+      <div class="tema-detalle__autor" *ngIf="!detalle.creadoPor && detalle.docenteACargo as docente">
+        <span aria-hidden="true">👤</span>
+        <div>
+          <p class="tema-detalle__autor-nombre">Docente a cargo: {{ docente.nombre }}</p>
           <p class="muted">
-            {{ autor.rol | titlecase }}
-            <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+            {{ docente.rol | titlecase }}
+            <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
           </p>
         </div>
       </div>

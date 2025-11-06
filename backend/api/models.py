@@ -89,6 +89,13 @@ class TemaDisponible(models.Model):
         blank=True,
         related_name="temas_disponibles",
     )
+    docente_responsable = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temas_a_cargo",
+    )
 
     class Meta:
         db_table = "temas_disponibles"
