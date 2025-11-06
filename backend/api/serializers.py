@@ -294,6 +294,8 @@ class PropuestaTemaSerializer(serializers.ModelSerializer):
             "estado",
             "comentario_decision",
             "preferencias_docentes",
+            "cupos_requeridos",
+            "correos_companeros",
             "alumno",
             "docente",
             "created_at",
@@ -310,6 +312,10 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
     rama = serializers.CharField(max_length=120)
     preferencias_docentes = serializers.ListField(
         child=serializers.IntegerField(), required=False, allow_empty=True
+    )
+    cupos_requeridos = serializers.IntegerField(min_value=1, default=1)
+    correos_companeros = serializers.ListField(
+        child=serializers.EmailField(), required=False, allow_empty=True
     )
 
     def _obtener_usuario(self, usuario_id, rol, field_name):
@@ -342,6 +348,50 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
         docente = self._obtener_usuario(attrs.get("docente_id"), "docente", "docente_id")
 
         preferencias = attrs.get("preferencias_docentes") or []
+        cupos_requeridos = attrs.get("cupos_requeridos") or 1
+        correos_companeros = attrs.get("correos_companeros") or []
+
+        if cupos_requeridos < 1:
+            raise serializers.ValidationError(
+                {"cupos_requeridos": "Debes indicar al menos un cupo."}
+            )
+
+        correo_alumno = (alumno.correo or "").strip().lower() if alumno else ""
+        correos_limpios: list[str] = []
+        correos_unicos: set[str] = set()
+        for correo in correos_companeros:
+            normalizado = (correo or "").strip().lower()
+            if not normalizado:
+                continue
+            if normalizado == correo_alumno:
+                raise serializers.ValidationError(
+                    {
+                        "correos_companeros": [
+                            "No debes ingresar tu propio correo dentro de los cupos."
+                        ]
+                    }
+                )
+            if normalizado in correos_unicos:
+                raise serializers.ValidationError(
+                    {
+                        "correos_companeros": [
+                            "Cada correo de compañero debe ser distinto."
+                        ]
+                    }
+                )
+            correos_unicos.add(normalizado)
+            correos_limpios.append(normalizado)
+
+        max_companeros = max(cupos_requeridos - 1, 0)
+        if len(correos_limpios) > max_companeros:
+            raise serializers.ValidationError(
+                {
+                    "correos_companeros": [
+                        "La cantidad de correos supera los cupos solicitados."
+                    ]
+                }
+            )
+
         if preferencias:
             docentes = Usuario.objects.filter(id__in=preferencias, rol="docente")
             encontrados = {d.id for d in docentes}
@@ -360,6 +410,8 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
         attrs["alumno"] = alumno
         attrs["docente"] = docente
         attrs["preferencias_docentes"] = preferencias
+        attrs["correos_companeros"] = correos_limpios
+        attrs["cupos_requeridos"] = cupos_requeridos
         return attrs
 
     def create(self, validated_data):

@@ -329,6 +329,45 @@
       </select>
     </div>
 
+    <div class="field">
+      <label for="cupos">Cupos del grupo <span class="req">*</span></label>
+      <input
+        id="cupos"
+        type="number"
+        formControlName="cupos"
+        min="1"
+        max="6"
+        (change)="ajustarCompanerosPorCupos()"
+      />
+      <div class="err" *ngIf="hasError('cupos','required')">Debes indicar la cantidad de cupos.</div>
+      <div class="err" *ngIf="hasError('cupos','min')">El grupo debe tener al menos 1 integrante.</div>
+      <div class="err" *ngIf="hasError('cupos','max')">Puedes solicitar hasta 6 cupos.</div>
+    </div>
+
+    <div class="field full">
+      <label>Correos de compañeros</label>
+      <p class="muted" style="margin: 0 0 8px">
+        Opcional: agrega los correos de tus compañeros para completar los cupos del grupo.
+      </p>
+      <div class="correos-array">
+        <div class="correo-input" *ngFor="let control of companerosPostulacion.controls; index as i">
+          <input type="email" [formControl]="control" placeholder="compañero@utem.cl" />
+          <button type="button" class="btn ghost" (click)="removerCompaneroPostulacion(i)">Quitar</button>
+          <div class="err" *ngIf="companeroControlTieneError(i,'email')">Ingresa un correo válido.</div>
+        </div>
+      </div>
+      <div class="acciones-correos">
+        <button
+          type="button"
+          class="btn ghost"
+          (click)="agregarCompaneroPostulacion()"
+          [disabled]="!puedeAgregarCompaneroPostulacion()"
+        >
+          Agregar compañero
+        </button>
+      </div>
+    </div>
+
     <div class="field full" *ngIf="profesoresDuplicados">
       <span class="err">Las preferencias no pueden repetir al mismo profesor.</span>
     </div>

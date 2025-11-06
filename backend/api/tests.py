@@ -796,6 +796,8 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
             objetivo="Validar flujos",
             descripcion="Descripción de prueba",
             rama="Desarrollo",
+            cupos_requeridos=3,
+            correos_companeros=["companero1@example.com", "companero2@example.com"],
         )
         self.url = reverse("detalle-propuesta", args=[self.propuesta.pk])
 
@@ -845,6 +847,44 @@ class PropuestaTemaDecisionNotificationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Notificacion.objects.count(), 0)
+
+    def test_crea_tema_y_cupos_al_aceptar_propuesta(self):
+        companero1 = Usuario.objects.create(
+            nombre_completo="Compañero Uno",
+            correo="companero1@example.com",
+            carrera="Computación",
+            rol="alumno",
+            contrasena="pass",
+        )
+        Usuario.objects.create(
+            nombre_completo="Compañero Dos",
+            correo="companero2@example.com",
+            carrera="Computación",
+            rol="alumno",
+            contrasena="pass",
+        )
+
+        payload = {
+            "estado": "aceptada",
+            "comentario_decision": "Vamos adelante",
+            "docente_id": self.docente.id,
+        }
+
+        response = self.client.patch(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(TemaDisponible.objects.count(), 1)
+        tema = TemaDisponible.objects.get()
+        self.assertEqual(tema.cupos, 3)
+
+        inscripciones = InscripcionTema.objects.filter(tema=tema, activo=True)
+        self.assertEqual(inscripciones.count(), 3)
+        responsables = inscripciones.filter(alumno=self.alumno, es_responsable=True)
+        self.assertTrue(responsables.exists())
+        correos = {inscripcion.alumno.correo for inscripcion in inscripciones}
+        self.assertIn(self.alumno.correo, correos)
+        self.assertIn(companero1.correo, correos)
+        self.assertEqual(tema.cupos_disponibles, 0)
 
 
 class ReservaTemaNotificationTests(APITestCase):

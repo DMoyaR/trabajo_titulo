@@ -139,6 +139,8 @@ export class AlumnoTemasComponent {
         prof1: ['', Validators.required],
         prof2: [''],
         prof3: [''],
+        cupos: [1, [Validators.required, Validators.min(1), Validators.max(6)]],
+        companeros: this.fb.array<FormControl<string>>([]),
       },
       { validators: this.profesoresDistintosValidator },
     );
@@ -206,7 +208,7 @@ export class AlumnoTemasComponent {
       return;
     }
 
-    this.postulacionForm.reset();
+    this.resetPostulacionForm();
     this.postulacionError.set(null);
   }
 
@@ -267,6 +269,10 @@ export class AlumnoTemasComponent {
     return this.cuposForm.get('correos') as FormArray<FormControl<string>>;
   }
 
+  get companerosPostulacion(): FormArray<FormControl<string>> {
+    return this.postulacionForm.get('companeros') as FormArray<FormControl<string>>;
+  }
+
   puedeMostrarGestionCupos(tema: TemaDisponible): boolean {
     if (!tema.tieneCupoPropio || tema.cupos <= 1) {
       return false;
@@ -293,8 +299,20 @@ export class AlumnoTemasComponent {
     return this.correosForm.length < max;
   }
 
+  puedeAgregarCompaneroPostulacion(): boolean {
+    const cuposControl = this.postulacionForm.get('cupos');
+    const cupos = Number(cuposControl?.value ?? 1);
+    const max = Math.max(cupos - 1, 0);
+    return this.companerosPostulacion.length < max;
+  }
+
   correoControlTieneError(index: number, error: string): boolean {
     const control = this.correosForm.at(index);
+    return !!(control && control.touched && control.hasError(error));
+  }
+
+  companeroControlTieneError(index: number, error: string): boolean {
+    const control = this.companerosPostulacion.at(index);
     return !!(control && control.touched && control.hasError(error));
   }
 
@@ -324,11 +342,25 @@ export class AlumnoTemasComponent {
     this.correosForm.push(this.crearCorreoControl(''));
   }
 
+  agregarCompaneroPostulacion() {
+    if (!this.puedeAgregarCompaneroPostulacion()) {
+      return;
+    }
+    this.companerosPostulacion.push(this.crearCorreoControl(''));
+  }
+
   removerCampoCorreo(index: number) {
     if (this.guardandoCompaneros()) {
       return;
     }
     this.correosForm.removeAt(index);
+  }
+
+  removerCompaneroPostulacion(index: number) {
+    if (index < 0 || index >= this.companerosPostulacion.length) {
+      return;
+    }
+    this.companerosPostulacion.removeAt(index);
   }
 
   guardarCompaneros() {
@@ -491,6 +523,14 @@ export class AlumnoTemasComponent {
     });
   }
 
+  ajustarCompanerosPorCupos() {
+    const cupos = Number(this.postulacionForm.get('cupos')?.value ?? 1);
+    const max = Math.max(cupos - 1, 0);
+    while (this.companerosPostulacion.length > max) {
+      this.companerosPostulacion.removeAt(this.companerosPostulacion.length - 1);
+    }
+  }
+
   submitPostulacion() {
     if (this.postulacionForm.invalid) {
       this.postulacionForm.markAllAsTouched();
@@ -502,6 +542,8 @@ export class AlumnoTemasComponent {
     const descripcion = this.postulacionForm.value.descripcion.trim();
     const rama = this.postulacionForm.value.rama as RamaCarrera;
 
+    this.ajustarCompanerosPorCupos();
+
     const preferenciasValores = [
       this.postulacionForm.value.prof1,
       this.postulacionForm.value.prof2,
@@ -510,6 +552,28 @@ export class AlumnoTemasComponent {
 
     const preferencias = preferenciasValores.map((id) => Number(id));
     const perfil = this.currentUserService.getProfile();
+    const cuposRequeridos = Number(this.postulacionForm.value.cupos ?? 1);
+
+    const correosSet = new Set<string>();
+    const correoPropio = perfil?.correo?.toLowerCase() ?? null;
+    const companerosValidos: string[] = [];
+    const maxCompaneros = Math.max(cuposRequeridos - 1, 0);
+
+    for (const control of this.companerosPostulacion.controls) {
+      const valor = (control.value ?? '').trim();
+      if (!valor) {
+        continue;
+      }
+      const normalizado = valor.toLowerCase();
+      if ((correoPropio && normalizado === correoPropio) || correosSet.has(normalizado)) {
+        continue;
+      }
+      correosSet.add(normalizado);
+      companerosValidos.push(valor);
+      if (companerosValidos.length >= maxCompaneros) {
+        break;
+      }
+    }
 
     this.enviandoPropuesta.set(true);
     this.postulacionError.set(null);
@@ -522,6 +586,8 @@ export class AlumnoTemasComponent {
         descripcion,
         rama,
         preferenciasDocentes: preferencias,
+        cuposRequeridos,
+        correosCompaneros: companerosValidos,
         docenteId: preferencias.length ? preferencias[0] : null,
       })
       .subscribe({
@@ -538,6 +604,20 @@ export class AlumnoTemasComponent {
           this.enviandoPropuesta.set(false);
         },
       });
+  }
+
+  private resetPostulacionForm() {
+    this.companerosPostulacion.clear();
+    this.postulacionForm.reset({
+      titulo: '',
+      objetivo: '',
+      descripcion: '',
+      rama: '',
+      prof1: '',
+      prof2: '',
+      prof3: '',
+      cupos: 1,
+    });
   }
 
   private actualizarEstadoControlesProfesores(desactivar: boolean) {

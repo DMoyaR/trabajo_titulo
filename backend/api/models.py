@@ -222,6 +222,8 @@ class PropuestaTema(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
     comentario_decision = models.TextField(blank=True, null=True)
     preferencias_docentes = models.JSONField(default=list, blank=True)
+    cupos_requeridos = models.PositiveIntegerField(default=1)
+    correos_companeros = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
