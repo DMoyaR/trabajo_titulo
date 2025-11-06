@@ -76,6 +76,16 @@
   background: #174bb8;
 }
 
+.btn.danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.btn.danger:hover {
+  background: #b91c1c;
+}
+
 .btn[disabled] {
   background: #9ca3af;
   color: #f9fafb;
@@ -383,6 +393,12 @@
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+}
+
+.acciones-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .acciones-propuesta .btn {
