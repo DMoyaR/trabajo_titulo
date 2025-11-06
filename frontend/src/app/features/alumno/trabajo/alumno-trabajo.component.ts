@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
+import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docente/trabajolist/tema.service';
 
 type Nivel = 'i' | 'ii';
 type EstadoEntrega = 'aprobado' | 'enRevision' | 'pendiente';
@@ -69,6 +70,10 @@ const CARRERAS_NIVEL_I_Y_II = new Set(
 export class AlumnoTrabajoComponent {
   readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
   readonly nivelSeleccionado = signal<Nivel>('i');
+
+  readonly temaAsignado = signal<TemaDisponible | null>(null);
+  readonly temaAsignadoCargando = signal(false);
+  readonly temaAsignadoError = signal<string | null>(null);
 
   readonly estadoTexto: Record<EstadoEntrega, string> = {
     aprobado: 'Aprobado',
@@ -168,6 +173,27 @@ export class AlumnoTrabajoComponent {
     return nivel ? this.resumen()[nivel] : null;
   });
 
+  readonly temaAsignadoIntegrantes = computed<TemaInscripcionActiva[]>(() => {
+    const tema = this.temaAsignado();
+    if (!tema) {
+      return [];
+    }
+    return [...(tema.inscripcionesActivas ?? [])];
+  });
+
+  readonly profesorAsignado = computed(() => {
+    const tema = this.temaAsignado();
+    return tema?.creadoPor ?? null;
+  });
+
+  readonly puedeGestionarCupos = computed(() => {
+    const tema = this.temaAsignado();
+    if (!tema) {
+      return false;
+    }
+    return (tema.cupos ?? 1) > 1;
+  });
+
   readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
     const nivel = this.nivelActual();
     return nivel ? this.entregas()[nivel] : [];
@@ -198,8 +224,12 @@ export class AlumnoTrabajoComponent {
     return nivel === 'i' ? 'T. Título I' : 'T. Título II';
   });
 
-  constructor(private readonly currentUserService: CurrentUserService) {
+  constructor(
+    private readonly currentUserService: CurrentUserService,
+    private readonly temaService: TemaService,
+  ) {
     this.configurarNivelesDisponibles();
+    this.cargarTemaAsignado();
   }
 
   tieneNivel(nivel: Nivel): boolean {
@@ -251,5 +281,33 @@ export class AlumnoTrabajoComponent {
     }
 
     return ['i', 'ii'];
+  }
+
+  private cargarTemaAsignado() {
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+
+    if (!alumnoId) {
+      this.temaAsignado.set(null);
+      return;
+    }
+
+    this.temaAsignadoCargando.set(true);
+    this.temaAsignadoError.set(null);
+
+    this.temaService
+      .getTemas({ usuarioId: alumnoId, alumnoId })
+      .subscribe({
+        next: (temas) => {
+          const reservado = temas.find(tema => tema.tieneCupoPropio) ?? null;
+          this.temaAsignado.set(reservado);
+          this.temaAsignadoCargando.set(false);
+        },
+        error: (err) => {
+          console.error('No fue posible cargar tu tema asignado', err);
+          this.temaAsignadoError.set('No fue posible cargar la información de tu tema asignado.');
+          this.temaAsignadoCargando.set(false);
+        },
+      });
   }
 }
