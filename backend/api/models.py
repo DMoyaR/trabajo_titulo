@@ -117,6 +117,7 @@ class InscripcionTema(models.Model):
         related_name="inscripciones_tema",
     )
     activo = models.BooleanField(default=True)
+    es_responsable = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

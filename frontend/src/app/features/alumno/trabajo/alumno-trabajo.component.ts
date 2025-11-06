@@ -191,7 +191,15 @@ export class AlumnoTrabajoComponent {
     if (!tema) {
       return false;
     }
-    return (tema.cupos ?? 1) > 1;
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+    if (!alumnoId) {
+      return false;
+    }
+    const esResponsable = (tema.inscripcionesActivas ?? []).some(
+      (inscripcion) => inscripcion.id === alumnoId && inscripcion.esResponsable,
+    );
+    return esResponsable && (tema.cupos ?? 1) > 1;
   });
 
   readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {

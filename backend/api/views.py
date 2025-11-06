@@ -763,7 +763,9 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    inscripcion, created = tema.inscripciones.get_or_create(alumno=alumno)
+    inscripcion, created = tema.inscripciones.get_or_create(
+        alumno=alumno, defaults={"es_responsable": False}
+    )
 
     if not created and inscripcion.activo:
         return Response(
@@ -772,10 +774,24 @@ def reservar_tema(request, pk: int):
         )
 
     reactivada = False
+    campos_actualizados: list[str] = []
     if not inscripcion.activo:
         inscripcion.activo = True
-        inscripcion.save(update_fields=["activo", "updated_at"])
+        campos_actualizados.append("activo")
         reactivada = True
+
+    responsable_activo = (
+        tema.inscripciones.filter(activo=True, es_responsable=True)
+        .exclude(pk=inscripcion.pk)
+        .exists()
+    )
+    if not responsable_activo and not inscripcion.es_responsable:
+        inscripcion.es_responsable = True
+        campos_actualizados.append("es_responsable")
+
+    if campos_actualizados:
+        campos_actualizados.append("updated_at")
+        inscripcion.save(update_fields=campos_actualizados)
 
     cupos_despues = tema.cupos_disponibles
 
@@ -831,6 +847,32 @@ def asignar_companeros(request, pk: int):
             {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    inscripcion_alumno = tema.inscripciones.filter(alumno=alumno).first()
+    if not inscripcion_alumno or not inscripcion_alumno.activo:
+        return Response(
+            {
+                "detail": "Debes contar con una reserva activa para gestionar los cupos de este tema.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not inscripcion_alumno.es_responsable:
+        responsable_activo = (
+            tema.inscripciones.filter(activo=True, es_responsable=True)
+            .exclude(pk=inscripcion_alumno.pk)
+            .exists()
+        )
+        if responsable_activo:
+            return Response(
+                {
+                    "detail": "Solo el estudiante que postuló al tema puede gestionar los cupos.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        inscripcion_alumno.es_responsable = True
+        inscripcion_alumno.save(update_fields=["es_responsable", "updated_at"])
 
     max_companeros = max(tema.cupos - 1, 0)
     correos = request.data.get("correos") or request.data.get("companeros") or []
@@ -902,22 +944,43 @@ def asignar_companeros(request, pk: int):
     for inscripcion in list(inscripciones.values()):
         if inscripcion.alumno_id in participantes_ids:
             continue
+        campos = []
         if inscripcion.activo:
             inscripcion.activo = False
-            inscripcion.save(update_fields=["activo", "updated_at"])
+            campos.append("activo")
+        if inscripcion.es_responsable:
+            inscripcion.es_responsable = False
+            campos.append("es_responsable")
+        if campos:
+            campos.append("updated_at")
+            inscripcion.save(update_fields=campos)
 
     for usuario in [alumno, *companeros]:
         inscripcion = inscripciones.get(usuario.pk)
         creado = False
         reactivada = False
         if not inscripcion:
-            inscripcion = tema.inscripciones.create(alumno=usuario, activo=True)
+            es_responsable = usuario.pk == alumno.pk
+            inscripcion = tema.inscripciones.create(
+                alumno=usuario,
+                activo=True,
+                es_responsable=es_responsable,
+            )
             inscripciones[usuario.pk] = inscripcion
             creado = True
-        elif not inscripcion.activo:
-            inscripcion.activo = True
-            inscripcion.save(update_fields=["activo", "updated_at"])
-            reactivada = True
+        else:
+            campos_actualizados = []
+            if not inscripcion.activo:
+                inscripcion.activo = True
+                campos_actualizados.append("activo")
+                reactivada = True
+            es_responsable_objetivo = usuario.pk == alumno.pk
+            if inscripcion.es_responsable != es_responsable_objetivo:
+                inscripcion.es_responsable = es_responsable_objetivo
+                campos_actualizados.append("es_responsable")
+            if campos_actualizados:
+                campos_actualizados.append("updated_at")
+                inscripcion.save(update_fields=campos_actualizados)
 
         if usuario.pk != alumno.pk and (creado or reactivada):
             notificar_reserva_tema(

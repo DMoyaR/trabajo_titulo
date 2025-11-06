@@ -268,7 +268,20 @@ export class AlumnoTemasComponent {
   }
 
   puedeMostrarGestionCupos(tema: TemaDisponible): boolean {
-    return tema.tieneCupoPropio && tema.cupos > 1;
+    if (!tema.tieneCupoPropio || tema.cupos <= 1) {
+      return false;
+    }
+    return this.esResponsableDelTema(tema);
+  }
+
+  private esResponsableDelTema(tema: TemaDisponible): boolean {
+    const alumnoId = this.obtenerAlumnoIdActual();
+    if (!alumnoId) {
+      return false;
+    }
+    return (tema.inscripcionesActivas ?? []).some(
+      (inscripcion) => inscripcion.id === alumnoId && inscripcion.esResponsable,
+    );
   }
 
   puedeAgregarOtroCorreo(tema?: TemaDisponible | null): boolean {

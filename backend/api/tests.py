@@ -433,6 +433,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertTrue(response.data["tieneCupoPropio"])
         self.assertEqual(len(response.data["inscripcionesActivas"]), 1)
         self.assertEqual(response.data["inscripcionesActivas"][0]["id"], alumno.id)
+        self.assertTrue(response.data["inscripcionesActivas"][0]["esResponsable"])
 
     def test_reservar_tema_otro_carrera_permitido(self):
         tema = TemaDisponible.objects.create(
@@ -460,6 +461,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertTrue(response.data["tieneCupoPropio"])
         self.assertEqual(len(response.data["inscripcionesActivas"]), 1)
         self.assertEqual(response.data["inscripcionesActivas"][0]["id"], alumno.id)
+        self.assertTrue(response.data["inscripcionesActivas"][0]["esResponsable"])
 
     def test_no_permite_reservar_sin_cupos(self):
         tema = TemaDisponible.objects.create(
@@ -514,6 +516,8 @@ class TemaDisponibleAPITestCase(APITestCase):
         )
 
         url = reverse("tema-companeros", args=[tema.pk])
+        self.client.post(reverse("tema-reservar", args=[tema.pk]), {"alumno": alumno.pk}, format="json")
+
         payload = {"alumno": alumno.pk, "correos": [companero1.correo, companero2.correo]}
         response = self.client.post(url, payload, format="json")
 
@@ -532,6 +536,7 @@ class TemaDisponibleAPITestCase(APITestCase):
             nombre_completo="Alumno", correo="alumno@example.com", carrera="Computación", rut="22222222-2",
             telefono="", rol="alumno", contrasena="clave"
         )
+        InscripcionTema.objects.create(tema=tema, alumno=alumno, es_responsable=True)
 
         url = reverse("tema-companeros", args=[tema.pk])
         response = self.client.post(url, {"alumno": alumno.pk, "correos": ["no-existe@example.com"]}, format="json")
@@ -556,6 +561,7 @@ class TemaDisponibleAPITestCase(APITestCase):
             nombre_completo="Compañero 2", correo="c2@example.com", carrera="Computación", rut="44444444-4",
             telefono="", rol="alumno", contrasena="clave"
         )
+        InscripcionTema.objects.create(tema=tema, alumno=alumno, es_responsable=True)
 
         url = reverse("tema-companeros", args=[tema.pk])
         response = self.client.post(
@@ -563,6 +569,27 @@ class TemaDisponibleAPITestCase(APITestCase):
             {"alumno": alumno.pk, "correos": [companero1.correo, companero2.correo]},
             format="json",
         )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+
+    def test_asignar_companeros_restringe_a_responsable(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=3
+        )
+        responsable = Usuario.objects.create(
+            nombre_completo="Responsable", correo="owner@example.com", carrera="Computación", rut="55555555-5",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        otro = Usuario.objects.create(
+            nombre_completo="Otro", correo="otro@example.com", carrera="Computación", rut="66666666-6",
+            telefono="", rol="alumno", contrasena="clave"
+        )
+        InscripcionTema.objects.create(tema=tema, alumno=responsable, es_responsable=True)
+        InscripcionTema.objects.create(tema=tema, alumno=otro, es_responsable=False)
+
+        url = reverse("tema-companeros", args=[tema.pk])
+        response = self.client.post(url, {"alumno": otro.pk, "correos": []}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.data)

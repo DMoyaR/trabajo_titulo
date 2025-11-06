@@ -10,6 +10,7 @@ export interface TemaInscripcionActiva {
   rut: string | null;
   telefono: string | null;
   reservadoEn: string;
+  esResponsable: boolean;
 }
 
 export interface TemaDisponible {
