@@ -11,16 +11,24 @@ export interface PersonaResumen {
   rol: string;
 }
 
+export type EstadoPropuesta =
+  | 'pendiente'
+  | 'pendiente_ajuste'
+  | 'pendiente_aprobacion'
+  | 'aceptada'
+  | 'rechazada';
+
 export interface Propuesta {
   id: number;
   titulo: string;
   objetivo: string;
   descripcion: string;
   rama: string;
-  estado: 'pendiente' | 'aceptada' | 'rechazada';
+  estado: EstadoPropuesta;
   comentarioDecision: string | null;
   preferenciasDocentes: number[];
   cuposRequeridos: number;
+  cuposMaximoAutorizado: number | null;
   correosCompaneros: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -34,10 +42,11 @@ interface PropuestaApi {
   objetivo: string;
   descripcion: string;
   rama: string;
-  estado: 'pendiente' | 'aceptada' | 'rechazada';
+  estado: EstadoPropuesta;
   comentario_decision: string | null;
   preferencias_docentes: number[];
   cupos_requeridos: number;
+  cupos_maximo_autorizado: number | null;
   correos_companeros: string[];
   created_at: string;
   updated_at: string;
@@ -66,11 +75,22 @@ export interface CrearPropuestaPayload {
   docenteId?: number | null;
 }
 
+export type AccionDocentePropuesta = 'autorizar' | 'solicitar_ajuste' | 'rechazar' | 'aprobar_final';
+
 export interface ActualizarPropuestaPayload {
-  estado: 'pendiente' | 'aceptada' | 'rechazada';
+  accion: AccionDocentePropuesta;
   comentarioDecision?: string | null;
   docenteId?: number | null;
+  cuposAutorizados?: number;
 }
+
+export interface ConfirmarCuposPayload {
+  accion: 'confirmar_cupos';
+  cuposRequeridos: number;
+  correosCompaneros: string[];
+}
+
+export type PropuestaUpdatePayload = ActualizarPropuestaPayload | ConfirmarCuposPayload;
 
 @Injectable({ providedIn: 'root' })
 export class PropuestaService {
@@ -116,17 +136,24 @@ export class PropuestaService {
     );
   }
 
-  actualizarPropuesta(id: number, payload: ActualizarPropuestaPayload): Observable<Propuesta> {
+  actualizarPropuesta(id: number, payload: PropuestaUpdatePayload): Observable<Propuesta> {
     const body: Record<string, unknown> = {
-      estado: payload.estado,
+      accion: payload.accion,
     };
 
-    if (payload.comentarioDecision !== undefined) {
+    if ('comentarioDecision' in payload && payload.comentarioDecision !== undefined) {
       body['comentario_decision'] = payload.comentarioDecision;
     }
 
-    if (payload.docenteId != null) {
+    if ('docenteId' in payload && payload.docenteId != null) {
       body['docente_id'] = payload.docenteId;
+    }
+
+    if (payload.accion === 'confirmar_cupos') {
+      body['cupos_requeridos'] = payload.cuposRequeridos;
+      body['correos_companeros'] = payload.correosCompaneros;
+    } else if (payload.cuposAutorizados !== undefined) {
+      body['cupos_autorizados'] = payload.cuposAutorizados;
     }
 
     return this.http.patch<PropuestaApi>(`${this.baseUrl}${id}/`, body).pipe(
@@ -145,6 +172,7 @@ export class PropuestaService {
       comentarioDecision: api.comentario_decision,
       preferenciasDocentes: api.preferencias_docentes ?? [],
       cuposRequeridos: api.cupos_requeridos ?? 1,
+      cuposMaximoAutorizado: api.cupos_maximo_autorizado ?? null,
       correosCompaneros: api.correos_companeros ?? [],
       createdAt: api.created_at ? new Date(api.created_at) : new Date(),
       updatedAt: api.updated_at ? new Date(api.updated_at) : new Date(),

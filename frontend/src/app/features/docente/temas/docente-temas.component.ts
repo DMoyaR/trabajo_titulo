@@ -4,7 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { TemaService, TemaDisponible as TemaAPI, CrearTemaPayload, TemaInscripcionActiva } from '../trabajolist/tema.service';
-import { PropuestaService, Propuesta } from '../../../shared/services/propuesta.service';
+import {
+  PropuestaService,
+  Propuesta,
+  ActualizarPropuestaPayload,
+} from '../../../shared/services/propuesta.service';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 
 type Rama = 'Empresa' | 'Desarrollo de software' | 'Investigación' | 'Artículo' | 'I+D' | 'Otro';
@@ -88,6 +92,7 @@ export class DocenteTemasComponent implements OnInit {
   showPropuestasModal = false;
   propuestaSeleccionada: Propuesta | null = null;
   comentarioDecision = '';
+  cuposAutorizados: number | null = null;
   propuestas: Propuesta[] = [];
   propuestasCargando = false;
   propuestasError: string | null = null;
@@ -282,6 +287,7 @@ export class DocenteTemasComponent implements OnInit {
     } else {
       this.propuestaSeleccionada = null;
       this.comentarioDecision = '';
+      this.cuposAutorizados = null;
       this.decisionEnCurso = false;
     }
   }
@@ -289,14 +295,121 @@ export class DocenteTemasComponent implements OnInit {
   seleccionarPropuesta(p: Propuesta) {
     this.propuestaSeleccionada = p;
     this.comentarioDecision = p.comentarioDecision ?? '';
+    this.cuposAutorizados = p.cuposMaximoAutorizado ?? p.cuposRequeridos;
   }
 
-  aceptarPropuesta() {
-    this.resolverPropuesta('aceptada');
+  autorizarCupos() {
+    if (!this.propuestaSeleccionada) {
+      return;
+    }
+
+    const cupos = this.obtenerCuposAutorizados();
+    if (cupos == null) {
+      this.propuestasError = 'Indica la cantidad de cupos autorizados.';
+      return;
+    }
+
+    if (cupos < this.propuestaSeleccionada.cuposRequeridos) {
+      this.propuestasError = 'Para autorizar debes igualar o superar los cupos solicitados.';
+      return;
+    }
+
+    const comentario = this.comentarioDecision.trim();
+    if (!comentario) {
+      this.propuestasError = 'Agrega un comentario con tu decisión.';
+      return;
+    }
+
+    this.enviarAccion({
+      accion: 'autorizar',
+      cuposAutorizados: cupos,
+      comentarioDecision: comentario,
+    });
+  }
+
+  solicitarAjuste() {
+    if (!this.propuestaSeleccionada) {
+      return;
+    }
+
+    const cupos = this.obtenerCuposAutorizados();
+    if (cupos == null) {
+      this.propuestasError = 'Indica el nuevo máximo de cupos permitido.';
+      return;
+    }
+
+    if (cupos >= this.propuestaSeleccionada.cuposRequeridos) {
+      this.propuestasError = 'El máximo permitido debe ser menor a lo solicitado.';
+      return;
+    }
+
+    const comentario = this.comentarioDecision.trim();
+    if (!comentario) {
+      this.propuestasError = 'Describe por qué solicitas el ajuste de cupos.';
+      return;
+    }
+
+    this.enviarAccion({
+      accion: 'solicitar_ajuste',
+      cuposAutorizados: cupos,
+      comentarioDecision: comentario,
+    });
+  }
+
+  aprobarDefinitivo() {
+    if (!this.propuestaSeleccionada) {
+      return;
+    }
+
+    const comentario = this.comentarioDecision.trim();
+
+    this.enviarAccion({
+      accion: 'aprobar_final',
+      comentarioDecision: comentario || undefined,
+    });
   }
 
   rechazarPropuesta() {
-    this.resolverPropuesta('rechazada');
+    const comentario = this.comentarioDecision.trim();
+    if (!this.propuestaSeleccionada || !comentario) {
+      this.propuestasError = 'Explica el motivo del rechazo.';
+      return;
+    }
+
+    this.enviarAccion({
+      accion: 'rechazar',
+      comentarioDecision: comentario,
+    });
+  }
+
+  estadoChipClase(estado: Propuesta['estado']): string {
+    switch (estado) {
+      case 'aceptada':
+        return 'chip-ok';
+      case 'rechazada':
+        return 'chip-bad';
+      case 'pendiente_ajuste':
+        return 'chip-warn';
+      case 'pendiente_aprobacion':
+        return 'chip-info';
+      default:
+        return 'chip-warn';
+    }
+  }
+
+  estadoChipTexto(estado: Propuesta['estado']): string {
+    switch (estado) {
+      case 'aceptada':
+        return 'Aceptada';
+      case 'rechazada':
+        return 'Rechazada';
+      case 'pendiente_ajuste':
+        return 'Pendiente ajuste';
+      case 'pendiente_aprobacion':
+        return 'Pendiente aprobación';
+      default:
+        return 'Pendiente';
+    }
   }
 
   private cargarTemas() {
@@ -361,13 +474,19 @@ export class DocenteTemasComponent implements OnInit {
       });
   }
 
-  private resolverPropuesta(estado: 'aceptada' | 'rechazada') {
-    if (!this.propuestaSeleccionada) {
-      return;
+  private obtenerCuposAutorizados(): number | null {
+    if (this.cuposAutorizados == null || Number.isNaN(this.cuposAutorizados)) {
+      return null;
     }
+    const valor = Number(this.cuposAutorizados);
+    if (valor < 1) {
+      return null;
+    }
+    return Math.floor(valor);
+  }
 
-    const comentario = this.comentarioDecision.trim();
-    if (!comentario) {
+  private enviarAccion(payload: Omit<ActualizarPropuestaPayload, 'docenteId'>) {
+    if (!this.propuestaSeleccionada) {
       return;
     }
 
@@ -378,17 +497,23 @@ export class DocenteTemasComponent implements OnInit {
     }
 
     this.decisionEnCurso = true;
+    this.propuestasError = null;
+
     this.propuestaService
       .actualizarPropuesta(this.propuestaSeleccionada.id, {
-        estado,
-        comentarioDecision: comentario,
+        ...payload,
         docenteId,
       })
       .pipe(finalize(() => (this.decisionEnCurso = false)))
       .subscribe({
         next: (actualizada) => {
           this.propuestas = this.propuestas.map((p) => (p.id === actualizada.id ? actualizada : p));
-          this.togglePropuestasModal(false);
+          this.propuestaSeleccionada = actualizada;
+          this.comentarioDecision = actualizada.comentarioDecision ?? '';
+          this.cuposAutorizados = actualizada.cuposMaximoAutorizado ?? actualizada.cuposRequeridos;
+          if (actualizada.estado === 'aceptada' || actualizada.estado === 'rechazada') {
+            this.togglePropuestasModal(false);
+          }
         },
         error: () => {
           this.propuestasError = 'No fue posible actualizar la propuesta.';
