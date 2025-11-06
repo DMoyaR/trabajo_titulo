@@ -85,6 +85,8 @@ export class AlumnoTemasComponent {
   readonly showAjustePropuesta = signal(false);
   readonly ajusteError = signal<string | null>(null);
   readonly ajusteEnCurso = signal(false);
+  readonly cancelarPropuestaError = signal<string | null>(null);
+  readonly cancelandoPropuestaId = signal<number | null>(null);
 
   readonly profesoresFiltrados = computed(() => {
     const rama = this.postulacionForm.get('rama')?.value as RamaCarrera | '';
@@ -105,7 +107,6 @@ export class AlumnoTemasComponent {
     this.propuestas()
       .filter((p) =>
         p.estado === 'pendiente' ||
-        p.estado === 'pendiente_ajuste' ||
         p.estado === 'pendiente_aprobacion'
       )
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
@@ -557,6 +558,32 @@ export class AlumnoTemasComponent {
 
   puedeAjustarPropuesta(propuesta: Propuesta): boolean {
     return propuesta.estado === 'pendiente_ajuste';
+  }
+
+  cancelarPropuesta(propuesta: Propuesta) {
+    if (this.cancelandoPropuestaId() === propuesta.id) {
+      return;
+    }
+
+    this.cancelarPropuestaError.set(null);
+    this.cancelandoPropuestaId.set(propuesta.id);
+
+    this.propuestaService.eliminarPropuesta(propuesta.id).subscribe({
+      next: () => {
+        this.propuestas.set(this.propuestas().filter((p) => p.id !== propuesta.id));
+        this.cancelandoPropuestaId.set(null);
+        if (this.propuestaParaAjuste()?.id === propuesta.id) {
+          this.cerrarAjustePropuesta();
+        }
+      },
+      error: (err) => {
+        console.error('No fue posible cancelar la propuesta', err);
+        this.cancelarPropuestaError.set(
+          'No fue posible cancelar la propuesta. Intenta nuevamente.',
+        );
+        this.cancelandoPropuestaId.set(null);
+      },
+    });
   }
 
   maxCorreosPermitidosAjuste(): number {

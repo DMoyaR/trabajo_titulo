@@ -161,6 +161,10 @@ export class PropuestaService {
     );
   }
 
+  eliminarPropuesta(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}${id}/`);
+  }
+
   private mapPropuesta(api: PropuestaApi): Propuesta {
     return {
       id: api.id,

@@ -104,6 +104,8 @@
         <div class="err" *ngIf="!propuestasCargando() && propuestasError()">{{ propuestasError() }}</div>
 
         <ng-container *ngIf="!propuestasCargando() && !propuestasError()">
+          <div class="alert error" *ngIf="cancelarPropuestaError()">{{ cancelarPropuestaError() }}</div>
+
           <ng-container *ngIf="propuestaDestacada() as propuestaPrincipal">
             <div
               class="propuesta-highlight"
@@ -134,6 +136,14 @@
                 <button class="btn primary" type="button" (click)="abrirAjustePropuesta(propuestaPrincipal)">
                   Ajustar cupos
                 </button>
+                <button
+                  class="btn danger"
+                  type="button"
+                  (click)="cancelarPropuesta(propuestaPrincipal)"
+                  [disabled]="cancelandoPropuestaId() === propuestaPrincipal.id"
+                >
+                  {{ cancelandoPropuestaId() === propuestaPrincipal.id ? 'Cancelando…' : 'Cancelar propuesta' }}
+                </button>
               </div>
             </div>
           </ng-container>
@@ -156,16 +166,26 @@
                   <div class="chips">
                     <span class="chip ghost">Actualizada {{ propuesta.updatedAt | date:'dd MMM yyyy' }}</span>
                     <span class="chip ghost" *ngIf="propuesta.docente">Docente: {{ propuesta.docente.nombre }}</span>
-                  </div>
-                  <div class="acciones-propuesta" *ngIf="puedeAjustarPropuesta(propuesta)">
+                </div>
+                <div class="acciones-propuesta" *ngIf="puedeAjustarPropuesta(propuesta)">
+                  <div class="acciones-botones">
                     <button class="btn primary sm" type="button" (click)="abrirAjustePropuesta(propuesta)">
                       Ajustar cupos
                     </button>
-                    <span class="muted small">Máximo {{ propuesta.cuposMaximoAutorizado }} integrantes.</span>
+                    <button
+                      class="btn danger sm"
+                      type="button"
+                      (click)="cancelarPropuesta(propuesta)"
+                      [disabled]="cancelandoPropuestaId() === propuesta.id"
+                    >
+                      {{ cancelandoPropuestaId() === propuesta.id ? 'Cancelando…' : 'Cancelar propuesta' }}
+                    </button>
                   </div>
+                  <span class="muted small">Máximo {{ propuesta.cuposMaximoAutorizado }} integrantes.</span>
                 </div>
-              </li>
-            </ul>
+              </div>
+            </li>
+          </ul>
           </div>
 
           <ng-template #sinPropuestas>
