@@ -474,6 +474,15 @@ class PropuestaTemaDocenteDecisionSerializer(serializers.Serializer):
         instancia: PropuestaTema = self.instance
         accion = attrs.get("accion")
         cupos_autorizados = attrs.get("cupos_autorizados")
+        comentario = attrs.get("comentario_decision")
+
+        if isinstance(comentario, str):
+            comentario = comentario.strip()
+        if accion == "solicitar_ajuste" and not comentario:
+            raise serializers.ValidationError(
+                {"comentario_decision": "Debes registrar un comentario con tu decisión."}
+            )
+        attrs["comentario_decision"] = comentario
 
         if accion in {"autorizar", "solicitar_ajuste"}:
             if cupos_autorizados is None:
