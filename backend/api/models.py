@@ -240,9 +240,20 @@ class PropuestaTema(models.Model):
     class Meta:
         db_table = "propuestas_tema"
         ordering = ["-created_at"]
+        verbose_name = "Propuesta tema alumno"
+        verbose_name_plural = "Propuestas temas alumno"
 
     def __str__(self) -> str:
         return f"{self.titulo} ({self.get_estado_display()})"
+
+
+class PropuestaTemaDocente(PropuestaTema):
+    """Proxy model para separar las propuestas creadas por docentes."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Propuesta tema docente"
+        verbose_name_plural = "Propuestas tema docente"
 
 
 class Notificacion(models.Model):

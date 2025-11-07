@@ -3,7 +3,13 @@
 from django import forms
 from django.contrib import admin
 
-from .models import Usuario, PropuestaTema, Notificacion, PracticaDocumento
+from .models import (
+    Usuario,
+    PropuestaTema,
+    PropuestaTemaDocente,
+    Notificacion,
+    PracticaDocumento,
+)
 
 
 class UsuarioAdminForm(forms.ModelForm):
@@ -40,8 +46,14 @@ class UsuarioAdmin(admin.ModelAdmin):
     list_filter = ("rol", "carrera")
 
 
+class BasePropuestaTemaAdmin(admin.ModelAdmin):
+    list_filter = ("estado", "rama")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at", "updated_at")
+
+
 @admin.register(PropuestaTema)
-class PropuestaTemaAdmin(admin.ModelAdmin):
+class PropuestaTemaAlumnoAdmin(BasePropuestaTemaAdmin):
     list_display = (
         "titulo",
         "alumno",
@@ -49,8 +61,38 @@ class PropuestaTemaAdmin(admin.ModelAdmin):
         "estado",
         "created_at",
     )
-    list_filter = ("estado", "rama")
-    search_fields = ("titulo", "descripcion", "alumno__nombre_completo", "docente__nombre_completo")
+    search_fields = (
+        "titulo",
+        "descripcion",
+        "alumno__nombre_completo",
+        "docente__nombre_completo",
+    )
+    raw_id_fields = ("alumno", "docente")
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.filter(alumno__isnull=False)
+
+
+@admin.register(PropuestaTemaDocente)
+class PropuestaTemaDocenteAdmin(BasePropuestaTemaAdmin):
+    list_display = (
+        "titulo",
+        "docente",
+        "estado",
+        "created_at",
+    )
+    search_fields = (
+        "titulo",
+        "descripcion",
+        "docente__nombre_completo",
+    )
+    exclude = ("alumno",)
+    raw_id_fields = ("docente",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.filter(alumno__isnull=True)
 
 
 @admin.register(Notificacion)
