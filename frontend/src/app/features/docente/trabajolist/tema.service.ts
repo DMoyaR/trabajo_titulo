@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, ReplaySubject } from 'rxjs';
 
 export interface TemaInscripcionActiva {
   id: number;
@@ -49,6 +49,9 @@ export type CrearTemaPayload = Omit<
 @Injectable({ providedIn: 'root' })
 export class TemaService {
   private readonly baseUrl = 'http://localhost:8000/api/temas/';
+  private readonly temaAsignadoSubject = new ReplaySubject<TemaDisponible | null>(1);
+
+  readonly temaAsignado$ = this.temaAsignadoSubject.asObservable();
 
   constructor(private http: HttpClient) {}
 
@@ -114,6 +117,10 @@ export class TemaService {
       alumno: alumnoId,
       correos,
     });
+  }
+
+  notificarTemaAsignado(tema: TemaDisponible | null): void {
+    this.temaAsignadoSubject.next(tema);
   }
 
   eliminarTema(id: number): Observable<void> {

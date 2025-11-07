@@ -1,6 +1,7 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docente/trabajolist/tema.service';
@@ -68,6 +69,8 @@ const CARRERAS_NIVEL_I_Y_II = new Set(
   styleUrls: ['./alumno-trabajo.component.css'],
 })
 export class AlumnoTrabajoComponent {
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
   readonly nivelSeleccionado = signal<Nivel>('i');
 
@@ -241,6 +244,14 @@ export class AlumnoTrabajoComponent {
   ) {
     this.configurarNivelesDisponibles();
     this.cargarTemaAsignado();
+
+    this.temaService.temaAsignado$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((tema) => {
+        this.temaAsignadoError.set(null);
+        this.temaAsignadoCargando.set(false);
+        this.temaAsignado.set(tema);
+      });
   }
 
   tieneNivel(nivel: Nivel): boolean {
@@ -313,6 +324,7 @@ export class AlumnoTrabajoComponent {
           const reservado = temas.find(tema => tema.tieneCupoPropio) ?? null;
           this.temaAsignado.set(reservado);
           this.temaAsignadoCargando.set(false);
+          this.temaService.notificarTemaAsignado(reservado);
         },
         error: (err) => {
           console.error('No fue posible cargar tu tema asignado', err);
