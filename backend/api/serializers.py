@@ -88,6 +88,12 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
     cuposDisponibles = serializers.SerializerMethodField()
     tieneCupoPropio = serializers.SerializerMethodField()
     inscripcionesActivas = serializers.SerializerMethodField()
+    objetivo = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        write_only=True,
+        help_text="Objetivo general del tema propuesto por el docente.",
+    )
 
     class Meta:
         model = TemaDisponible
@@ -98,6 +104,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "descripcion",
             "requisitos",
             "cupos",
+            "objetivo",
             "cuposDisponibles",
             "tieneCupoPropio",
             "created_at",
