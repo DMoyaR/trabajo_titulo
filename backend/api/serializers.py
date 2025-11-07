@@ -101,6 +101,7 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "id",
             "titulo",
             "carrera",
+            "rama",
             "descripcion",
             "requisitos",
             "cupos",

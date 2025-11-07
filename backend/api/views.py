@@ -863,7 +863,7 @@ def _registrar_propuesta_docente_desde_tema(
         titulo=tema.titulo,
         objetivo=objetivo_limpio,
         descripcion=tema.descripcion,
-        rama=tema.carrera or "",
+        rama=tema.rama or tema.carrera or "",
         estado="aceptada",
         preferencias_docentes=[docente.pk] if docente.pk else [],
         cupos_requeridos=cupos,
@@ -1674,11 +1674,13 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
 
     docente_responsable = propuesta.docente
     created_by = alumno if alumno else propuesta.docente
+    rama = (propuesta.rama or "").strip()
 
     with transaction.atomic():
         tema = TemaDisponible.objects.create(
             titulo=propuesta.titulo,
             carrera=carrera,
+            rama=rama,
             descripcion=propuesta.descripcion,
             requisitos=requisitos,
             cupos=cupos,

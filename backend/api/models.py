@@ -78,6 +78,7 @@ class Usuario(models.Model):
 class TemaDisponible(models.Model):
     titulo = models.CharField(max_length=160)
     carrera = models.CharField(max_length=100)
+    rama = models.CharField(max_length=120, blank=True, default="")
     descripcion = models.TextField()
     requisitos = models.JSONField(default=list, blank=True)
     cupos = models.PositiveIntegerField(default=1)
