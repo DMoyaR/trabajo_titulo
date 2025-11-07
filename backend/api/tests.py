@@ -583,6 +583,31 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.data["inscripcionesActivas"][0]["id"], alumno.id)
         self.assertTrue(response.data["inscripcionesActivas"][0]["esResponsable"])
 
+    def test_reservar_tema_equivalencia_carrera(self):
+        tema = TemaDisponible.objects.create(
+            titulo="Tema",
+            carrera="Ing. Civil en Computación mención Informática",
+            descripcion="Desc",
+            requisitos=["Req"],
+            cupos=2,
+        )
+        alumno = Usuario.objects.create(
+            nombre_completo="Alumno",
+            correo="alumno@example.com",
+            carrera="Ingeniería en Informática",
+            rut="66666666-6",
+            telefono="",
+            rol="alumno",
+            contrasena="clave",
+        )
+
+        url = reverse("tema-reservar", args=[tema.pk])
+        response = self.client.post(url, {"alumno": alumno.pk}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["cuposDisponibles"], 1)
+        self.assertTrue(response.data["tieneCupoPropio"])
+
     def test_no_permite_reservar_sin_cupos(self):
         tema = TemaDisponible.objects.create(
             titulo="Tema", carrera="Computación", descripcion="Desc", requisitos=["Req"], cupos=1
@@ -617,6 +642,28 @@ class TemaDisponibleAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data[0]["tieneCupoPropio"])
+
+    def test_listado_filtra_carrera_equivalente(self):
+        tema_match = TemaDisponible.objects.create(
+            titulo="Tema Computación",
+            carrera="Ing. Civil en Computación mención Informática",
+            descripcion="Desc",
+            requisitos=["Req"],
+            cupos=2,
+        )
+        TemaDisponible.objects.create(
+            titulo="Tema Industrial",
+            carrera="Ingeniería Industrial",
+            descripcion="Desc",
+            requisitos=["Req"],
+            cupos=2,
+        )
+
+        response = self.client.get(self.list_url, {"carrera": "Ingeniería en Informática"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], tema_match.id)
 
     def test_asignar_companeros_registra_estudiantes(self):
         tema = TemaDisponible.objects.create(
