@@ -29,6 +29,7 @@ export interface TemaDisponible {
     rol: string;
     carrera: string | null;
   } | null;
+  rama: string | null;
   docente_responsable: number | null;
   docenteACargo: {
     nombre: string;
@@ -44,6 +45,7 @@ export type CrearTemaPayload = Omit<
 > & {
   created_by?: number | null;
   docente_responsable?: number | null;
+  rama?: string | null;
 };
 
 @Injectable({ providedIn: 'root' })
