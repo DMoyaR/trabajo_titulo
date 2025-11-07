@@ -683,6 +683,7 @@ export class AlumnoTemasComponent {
         this.reservaError.set(null);
         this.temaPorConfirmar.set(null);
         this.reservandoTemaId.set(null);
+        this.temaService.notificarTemaAsignado(actualizado);
         if (this.puedeMostrarGestionCupos(actualizado)) {
           this.abrirGestionCupos(actualizado);
         }
