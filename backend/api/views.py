@@ -270,30 +270,43 @@ _CARRERA_TOKEN_EQUIVALENCIAS = {
 }
 
 
-def _normalizar_carrera(valor: str | None) -> str:
+def _tokens_carrera(valor: str | None) -> set[str]:
     if not valor:
-        return ""
+        return set()
 
     texto = _normalizar_texto(valor)
     tokens = [token for token in re.split(r"[^a-z0-9]+", texto) if token]
+    if not tokens:
+        return {texto} if texto else set()
 
     relevantes = [token for token in tokens if token not in _CARRERA_TOKENS_STOPWORDS]
     candidatos = relevantes or tokens
-    if not candidatos:
-        return ""
 
-    principal = candidatos[0]
-    return _CARRERA_TOKEN_EQUIVALENCIAS.get(principal, principal)
+    normalizados = {
+        _CARRERA_TOKEN_EQUIVALENCIAS.get(token, token)
+        for token in candidatos
+        if token
+    }
+
+    if normalizados:
+        return normalizados
+
+    return {texto}
 
 
 def _carreras_coinciden(a: str | None, b: str | None) -> bool:
-    carrera_a = _normalizar_carrera(a)
-    carrera_b = _normalizar_carrera(b)
+    tokens_a = _tokens_carrera(a)
+    tokens_b = _tokens_carrera(b)
 
-    if not carrera_a or not carrera_b:
+    if not tokens_a or not tokens_b:
         return False
 
-    return carrera_a == carrera_b
+    if tokens_a & tokens_b:
+        return True
+
+    texto_a = _normalizar_texto(a)
+    texto_b = _normalizar_texto(b)
+    return bool(texto_a and texto_b and texto_a == texto_b)
 
 
 def _filtrar_queryset_por_carrera(queryset, carrera: str | None):

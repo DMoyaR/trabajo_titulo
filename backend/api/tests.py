@@ -20,6 +20,14 @@ class CarrerasCoincidenTests(SimpleTestCase):
     def test_carreras_distintas_no_coinciden(self):
         self.assertFalse(_carreras_coinciden("Química Industrial", "Informática"))
 
+    def test_carrera_con_tokens_adicionales_coincide(self):
+        self.assertTrue(
+            _carreras_coinciden(
+                "Trabajo de Título Informática",
+                "Ingeniería Civil Informática",
+            )
+        )
+
 
 class TemaDisponibleAPITestCase(APITestCase):
     def setUp(self):
