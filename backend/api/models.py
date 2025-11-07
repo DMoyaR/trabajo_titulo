@@ -89,6 +89,13 @@ class TemaDisponible(models.Model):
         blank=True,
         related_name="temas_disponibles",
     )
+    docente_responsable = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temas_a_cargo",
+    )
 
     class Meta:
         db_table = "temas_disponibles"
@@ -117,6 +124,7 @@ class InscripcionTema(models.Model):
         related_name="inscripciones_tema",
     )
     activo = models.BooleanField(default=True)
+    es_responsable = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -196,6 +204,8 @@ class SolicitudCartaPractica(models.Model):
 class PropuestaTema(models.Model):
     ESTADOS = [
         ("pendiente", "Pendiente"),
+        ("pendiente_ajuste", "Pendiente ajuste"),
+        ("pendiente_aprobacion", "Pendiente aprobación"),
         ("aceptada", "Aceptada"),
         ("rechazada", "Rechazada"),
     ]
@@ -221,6 +231,9 @@ class PropuestaTema(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
     comentario_decision = models.TextField(blank=True, null=True)
     preferencias_docentes = models.JSONField(default=list, blank=True)
+    cupos_requeridos = models.PositiveIntegerField(default=1)
+    correos_companeros = models.JSONField(default=list, blank=True)
+    cupos_maximo_autorizado = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

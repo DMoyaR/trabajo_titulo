@@ -98,6 +98,123 @@
   background: #f9fafb;
 }
 
+.btn.link {
+  background: transparent;
+  color: #1a56db;
+  border-color: transparent;
+  padding: 0;
+  font-weight: 600;
+}
+
+.btn.link:hover {
+  text-decoration: underline;
+}
+
+.tema-asignado {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tema-asignado-card {
+  border: 1px solid #dbeafe;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.6), #f8fafc);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 16px 38px rgba(30, 64, 175, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tema-asignado-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.tema-asignado-carrera {
+  margin: 4px 0 0;
+}
+
+.tema-asignado-titulo {
+  margin: 0;
+  font-size: 18px;
+  color: #1a3e6a;
+  font-weight: 600;
+}
+
+.tema-asignado-descripcion {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tema-asignado-profesor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.tema-asignado-profesor-label {
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.tema-asignado-profesor-nombre {
+  font-weight: 600;
+}
+
+.tema-asignado-profesor-extra {
+  font-weight: 500;
+  color: #475569;
+}
+
+.tema-asignado-integrantes {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(129, 140, 248, 0.45);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.tema-asignado-integrantes h5 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: #1a3e6a;
+}
+
+.tema-asignado-integrantes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.tema-asignado-integrantes li {
+  background: #fff;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #1e293b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tema-asignado-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* Listado de entregas */
 .list {
   list-style: none;
@@ -271,6 +388,12 @@
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #b91c1c;
+}
+
+.alert.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
 }
 
 .alert + .alert {

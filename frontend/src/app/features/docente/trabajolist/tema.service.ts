@@ -10,6 +10,7 @@ export interface TemaInscripcionActiva {
   rut: string | null;
   telefono: string | null;
   reservadoEn: string;
+  esResponsable: boolean;
 }
 
 export interface TemaDisponible {
@@ -28,14 +29,21 @@ export interface TemaDisponible {
     rol: string;
     carrera: string | null;
   } | null;
+  docente_responsable: number | null;
+  docenteACargo: {
+    nombre: string;
+    rol: string;
+    carrera: string | null;
+  } | null;
   inscripcionesActivas: TemaInscripcionActiva[];
 }
 
 export type CrearTemaPayload = Omit<
   TemaDisponible,
-  'id' | 'created_at' | 'created_by' | 'creadoPor' | 'cuposDisponibles' | 'tieneCupoPropio'
+  'id' | 'created_at' | 'created_by' | 'creadoPor' | 'docente_responsable' | 'docenteACargo' | 'cuposDisponibles' | 'tieneCupoPropio'
 > & {
   created_by?: number | null;
+  docente_responsable?: number | null;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -94,6 +102,17 @@ export class TemaService {
   pedirTema(temaId: number, alumnoId: number): Observable<TemaDisponible> {
     return this.http.post<TemaDisponible>(`${this.baseUrl}${temaId}/reservas/`, {
       alumno: alumnoId,
+    });
+  }
+
+  asignarCompaneros(
+    temaId: number,
+    alumnoId: number,
+    correos: string[],
+  ): Observable<TemaDisponible> {
+    return this.http.post<TemaDisponible>(`${this.baseUrl}${temaId}/companeros/`, {
+      alumno: alumnoId,
+      correos,
     });
   }
 

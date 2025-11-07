@@ -7,6 +7,7 @@ import unicodedata
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
+from django.db import transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
@@ -19,6 +20,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import (
+    InscripcionTema,
     Notificacion,
     PracticaDocumento,
     PropuestaTema,
@@ -35,8 +37,9 @@ from .serializers import (
     LoginSerializer,
     NotificacionSerializer,
     PracticaDocumentoSerializer,
+    PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
-    PropuestaTemaDecisionSerializer,
+    PropuestaTemaDocenteDecisionSerializer,
     PropuestaTemaSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
@@ -637,6 +640,7 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         creador = serializer.validated_data.get("created_by")
+        responsable = serializer.validated_data.get("docente_responsable")
 
         if not creador:
             creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
@@ -651,8 +655,17 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             if isinstance(user, Usuario):
                 creador = user
 
+        if not responsable and creador and creador.rol == "docente":
+            responsable = creador
+
+        save_kwargs = {}
         if creador:
-            serializer.save(created_by=creador)
+            save_kwargs["created_by"] = creador
+        if responsable:
+            save_kwargs["docente_responsable"] = responsable
+
+        if save_kwargs:
+            serializer.save(**save_kwargs)
         else:
             serializer.save()
 
@@ -763,7 +776,9 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    inscripcion, created = tema.inscripciones.get_or_create(alumno=alumno)
+    inscripcion, created = tema.inscripciones.get_or_create(
+        alumno=alumno, defaults={"es_responsable": False}
+    )
 
     if not created and inscripcion.activo:
         return Response(
@@ -772,10 +787,24 @@ def reservar_tema(request, pk: int):
         )
 
     reactivada = False
+    campos_actualizados: list[str] = []
     if not inscripcion.activo:
         inscripcion.activo = True
-        inscripcion.save(update_fields=["activo", "updated_at"])
+        campos_actualizados.append("activo")
         reactivada = True
+
+    responsable_activo = (
+        tema.inscripciones.filter(activo=True, es_responsable=True)
+        .exclude(pk=inscripcion.pk)
+        .exists()
+    )
+    if not responsable_activo and not inscripcion.es_responsable:
+        inscripcion.es_responsable = True
+        campos_actualizados.append("es_responsable")
+
+    if campos_actualizados:
+        campos_actualizados.append("updated_at")
+        inscripcion.save(update_fields=campos_actualizados)
 
     cupos_despues = tema.cupos_disponibles
 
@@ -787,6 +816,195 @@ def reservar_tema(request, pk: int):
         inscripcion_id=inscripcion.pk,
     )
 
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno.pk},
+    )
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def asignar_companeros(request, pk: int):
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
+
+    alumno_id = request.data.get("alumno")
+    if not alumno_id:
+        return Response(
+            {"detail": "Debe indicar el alumno responsable del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        alumno_id_int = int(alumno_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "El identificador de alumno es inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = get_object_or_404(Usuario, pk=alumno_id_int)
+    if alumno.rol != "alumno":
+        return Response(
+            {"detail": "Solo estudiantes pueden gestionar los cupos de un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripcion_alumno = tema.inscripciones.filter(alumno=alumno).first()
+    if not inscripcion_alumno or not inscripcion_alumno.activo:
+        return Response(
+            {
+                "detail": "Debes contar con una reserva activa para gestionar los cupos de este tema.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not inscripcion_alumno.es_responsable:
+        responsable_activo = (
+            tema.inscripciones.filter(activo=True, es_responsable=True)
+            .exclude(pk=inscripcion_alumno.pk)
+            .exists()
+        )
+        if responsable_activo:
+            return Response(
+                {
+                    "detail": "Solo el estudiante que postuló al tema puede gestionar los cupos.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        inscripcion_alumno.es_responsable = True
+        inscripcion_alumno.save(update_fields=["es_responsable", "updated_at"])
+
+    max_companeros = max(tema.cupos - 1, 0)
+    correos = request.data.get("correos") or request.data.get("companeros") or []
+    if not isinstance(correos, list):
+        return Response(
+            {"detail": "Debe proporcionar una lista de correos electrónicos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    correos_limpios: list[str] = []
+    correos_registrados: set[str] = set()
+    correo_alumno = alumno.correo.lower() if alumno.correo else ""
+    for correo in correos:
+        if not isinstance(correo, str):
+            continue
+        normalizado = correo.strip()
+        if not normalizado:
+            continue
+        normalizado_lower = normalizado.lower()
+        if normalizado_lower == correo_alumno:
+            continue
+        if normalizado_lower in correos_registrados:
+            continue
+        correos_registrados.add(normalizado_lower)
+        correos_limpios.append(normalizado)
+
+    if len(correos_limpios) > max_companeros:
+        return Response(
+            {
+                "detail": (
+                    "No hay cupos suficientes para registrar a todos los compañeros."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    companeros: list[Usuario] = []
+    errores: dict[str, str] = {}
+    for correo in correos_limpios:
+        usuario = Usuario.objects.filter(correo__iexact=correo).first()
+        if not usuario:
+            errores[correo] = "No se encontró un usuario con este correo electrónico."
+            continue
+        if usuario.rol != "alumno":
+            errores[correo] = "Solo puedes agregar estudiantes a tu grupo."
+            continue
+        if usuario.carrera and not _carreras_coinciden(tema.carrera, usuario.carrera):
+            errores[correo] = "El estudiante no pertenece a la carrera del tema."
+            continue
+        companeros.append(usuario)
+
+    if errores:
+        return Response({"errores": errores}, status=status.HTTP_400_BAD_REQUEST)
+
+    participantes_ids = {alumno.pk}
+    participantes_ids.update(usuario.pk for usuario in companeros)
+
+    if len(participantes_ids) > tema.cupos:
+        return Response(
+            {"detail": "El número total de participantes supera los cupos del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripciones = {
+        inscripcion.alumno_id: inscripcion
+        for inscripcion in tema.inscripciones.select_related("alumno")
+    }
+
+    for inscripcion in list(inscripciones.values()):
+        if inscripcion.alumno_id in participantes_ids:
+            continue
+        campos = []
+        if inscripcion.activo:
+            inscripcion.activo = False
+            campos.append("activo")
+        if inscripcion.es_responsable:
+            inscripcion.es_responsable = False
+            campos.append("es_responsable")
+        if campos:
+            campos.append("updated_at")
+            inscripcion.save(update_fields=campos)
+
+    for usuario in [alumno, *companeros]:
+        inscripcion = inscripciones.get(usuario.pk)
+        creado = False
+        reactivada = False
+        if not inscripcion:
+            es_responsable = usuario.pk == alumno.pk
+            inscripcion = tema.inscripciones.create(
+                alumno=usuario,
+                activo=True,
+                es_responsable=es_responsable,
+            )
+            inscripciones[usuario.pk] = inscripcion
+            creado = True
+        else:
+            campos_actualizados = []
+            if not inscripcion.activo:
+                inscripcion.activo = True
+                campos_actualizados.append("activo")
+                reactivada = True
+            es_responsable_objetivo = usuario.pk == alumno.pk
+            if inscripcion.es_responsable != es_responsable_objetivo:
+                inscripcion.es_responsable = es_responsable_objetivo
+                campos_actualizados.append("es_responsable")
+            if campos_actualizados:
+                campos_actualizados.append("updated_at")
+                inscripcion.save(update_fields=campos_actualizados)
+
+        if usuario.pk != alumno.pk and (creado or reactivada):
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=reactivada,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    cupos_despues = tema.cupos_disponibles
     if cupos_antes > 0 and cupos_despues == 0:
         notificar_cupos_completados(tema)
 
@@ -873,18 +1091,37 @@ class PropuestaTemaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
 
     def get_serializer_class(self):
         if self.request.method in {"PUT", "PATCH"}:
-            return PropuestaTemaDecisionSerializer
+            accion = None
+            if hasattr(self.request, "data"):
+                accion = self.request.data.get("accion")
+            if accion == "confirmar_cupos":
+                return PropuestaTemaAlumnoAjusteSerializer
+            return PropuestaTemaDocenteDecisionSerializer
         return PropuestaTemaSerializer
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         estado_anterior = instance.estado
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         propuesta = serializer.save()
+
         if estado_anterior != propuesta.estado:
-            _notificar_decision_propuesta(propuesta)
+            if propuesta.estado == "aceptada" and estado_anterior != "aceptada":
+                _crear_tema_desde_propuesta(propuesta)
+            if propuesta.estado in {"aceptada", "rechazada"}:
+                _notificar_decision_propuesta(propuesta)
+            elif propuesta.estado == "pendiente_ajuste":
+                _notificar_solicitud_ajuste_cupos(propuesta)
+            elif propuesta.estado == "pendiente_aprobacion":
+                if estado_anterior == "pendiente_ajuste":
+                    _notificar_confirmacion_alumno(propuesta)
+                elif estado_anterior == "pendiente":
+                    _notificar_autorizacion_cupos(propuesta)
+
         output_serializer = PropuestaTemaSerializer(propuesta)
         return Response(output_serializer.data)
 
@@ -1179,6 +1416,163 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
             "docente_id": propuesta.docente_id,
         },
     )
+
+
+def _notificar_solicitud_ajuste_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    maximo = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} solicitó ajustar los cupos"
+    else:
+        encabezado = "Se solicitó ajustar los cupos de tu propuesta"
+
+    mensaje = (
+        f"{encabezado} del tema \"{propuesta.titulo}\" a un máximo de {maximo} integrante(s)."
+    )
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Ajusta los cupos de tu propuesta",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_maximo_autorizado": maximo,
+        },
+    )
+
+
+def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} autorizó los cupos del grupo"
+    else:
+        encabezado = "Se autorizaron los cupos solicitados para tu propuesta"
+
+    mensaje = f"{encabezado} del tema \"{propuesta.titulo}\"."
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Cupos autorizados",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_autorizados": propuesta.cupos_maximo_autorizado,
+        },
+    )
+
+
+def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
+    docente = propuesta.docente
+    if docente is None:
+        return
+
+    alumno = propuesta.alumno
+    if alumno:
+        alumno_nombre = alumno.nombre_completo
+    else:
+        alumno_nombre = "El alumno"
+
+    mensaje = (
+        f"{alumno_nombre} confirmó los cupos del tema \"{propuesta.titulo}\" y ahora espera tu aprobación definitiva."
+    )
+
+    Notificacion.objects.create(
+        usuario=docente,
+        titulo="Confirmación de cupos recibida",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_requeridos": propuesta.cupos_requeridos,
+        },
+    )
+
+
+def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return None
+
+    cupos_autorizados = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
+    cupos = propuesta.cupos_requeridos or 1
+    if cupos_autorizados:
+        cupos = min(cupos, cupos_autorizados)
+    if cupos < 1:
+        cupos = 1
+
+    carrera = alumno.carrera or ""
+    if not carrera and propuesta.docente and propuesta.docente.carrera:
+        carrera = propuesta.docente.carrera
+
+    requisitos = []
+    if propuesta.objetivo:
+        requisitos.append(propuesta.objetivo)
+
+    docente_responsable = propuesta.docente
+    created_by = alumno if alumno else propuesta.docente
+
+    with transaction.atomic():
+        tema = TemaDisponible.objects.create(
+            titulo=propuesta.titulo,
+            carrera=carrera,
+            descripcion=propuesta.descripcion,
+            requisitos=requisitos,
+            cupos=cupos,
+            created_by=created_by,
+            docente_responsable=docente_responsable,
+        )
+
+        participantes: list[tuple[Usuario, bool]] = [(alumno, True)]
+
+        for correo in propuesta.correos_companeros or []:
+            usuario = Usuario.objects.filter(correo__iexact=correo, rol="alumno").first()
+            if not usuario:
+                continue
+            if carrera and usuario.carrera and not _carreras_coinciden(carrera, usuario.carrera):
+                continue
+            if any(existing.pk == usuario.pk for existing, _ in participantes):
+                continue
+            participantes.append((usuario, False))
+
+        for usuario, es_responsable in participantes[:cupos]:
+            inscripcion = InscripcionTema.objects.create(
+                tema=tema,
+                alumno=usuario,
+                es_responsable=es_responsable,
+            )
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=False,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    if tema.cupos_disponibles == 0:
+        notificar_cupos_completados(tema)
+
+    return tema
 
 
 def _normalizar_carrera(nombre: str) -> str:

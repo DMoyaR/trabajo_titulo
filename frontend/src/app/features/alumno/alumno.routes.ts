@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { AlumnoLayoutComponent } from './layout/alumno-layout.component';
-import { Component } from '@angular/core';
 // IMPORTA TUS COMPONENTES REALES SI YA EXISTEN.
 // Dejo placeholders con nombres claros por si aún no los tienes.
 import { AlumnoDashboardComponent } from './dashboard/alumno-dashboard.component';
@@ -15,13 +14,12 @@ import { AlumnoEvaluationsComponent } from './evaluations/alumno-evaluations.com
 import { AlumnoEntregaComponent } from './entrega/alumno-entrega.component';
 import { AlumnoPracticaComponent } from './practica/alumno-practica.component';
 import { AlumnoViewerComponent } from './viewer/alumno-viewer.component';
+import { AlumnoTemasComponent } from './temas/alumno-temas.component';
 
 export const ALUMNO_ROUTES: Routes = [
   {
-
     path: '',
     component: AlumnoLayoutComponent,
-    
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
@@ -29,6 +27,7 @@ export const ALUMNO_ROUTES: Routes = [
       { path: 'calendar',       component: AlumnoCalendarComponent,      title: 'Alumno | Calendar' },
       { path: 'notifications',  component: AlumnoNotificationsComponent, title: 'Alumno | Notifications' },
       { path: 'trabajo',        component: AlumnoTrabajoComponent,       title: 'Alumno | Trabajo' },
+      { path: 'temas',          component: AlumnoTemasComponent,         title: 'Alumno | Temas' },
       { path: 'perfil',         component: AlumnoPerfilComponent,        title: 'Alumno | Perfil' },
       { path: 'reuniones',      component: AlumnoReunionesComponent,     title: 'Alumno | Reuniones' },
       { path: 'bandeja',        component: AlumnoBandejaComponent,       title: 'Alumno | Bandeja' },
