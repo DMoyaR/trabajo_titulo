@@ -1,6 +1,16 @@
+# admin.py — versión consolidada
+
 from django import forms
 from django.contrib import admin
-from .models import Usuario
+
+from .models import (
+    Usuario,
+    PropuestaTema,
+    PropuestaTemaDocente,
+    Notificacion,
+    PracticaDocumento,
+)
+
 
 class UsuarioAdminForm(forms.ModelForm):
     # Campo de password tipo <input type="password">
@@ -27,9 +37,73 @@ class UsuarioAdminForm(forms.ModelForm):
                 return self.instance.contrasena
         return pwd
 
+
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
     form = UsuarioAdminForm
     list_display = ("nombre_completo", "correo", "rol", "carrera", "rut", "telefono")
     search_fields = ("nombre_completo", "correo", "rut", "rol", "carrera")
     list_filter = ("rol", "carrera")
+
+
+class BasePropuestaTemaAdmin(admin.ModelAdmin):
+    list_filter = ("estado", "rama")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(PropuestaTema)
+class PropuestaTemaAlumnoAdmin(BasePropuestaTemaAdmin):
+    list_display = (
+        "titulo",
+        "alumno",
+        "docente",
+        "estado",
+        "created_at",
+    )
+    search_fields = (
+        "titulo",
+        "descripcion",
+        "alumno__nombre_completo",
+        "docente__nombre_completo",
+    )
+    raw_id_fields = ("alumno", "docente")
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.filter(alumno__isnull=False)
+
+
+@admin.register(PropuestaTemaDocente)
+class PropuestaTemaDocenteAdmin(BasePropuestaTemaAdmin):
+    list_display = (
+        "titulo",
+        "docente",
+        "estado",
+        "created_at",
+    )
+    search_fields = (
+        "titulo",
+        "descripcion",
+        "docente__nombre_completo",
+    )
+    exclude = ("alumno",)
+    raw_id_fields = ("docente",)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.filter(alumno__isnull=True)
+
+
+@admin.register(Notificacion)
+class NotificacionAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "usuario", "tipo", "leida", "created_at")
+    list_filter = ("tipo", "leida")
+    search_fields = ("titulo", "mensaje", "usuario__nombre_completo", "usuario__correo")
+
+
+@admin.register(PracticaDocumento)
+class PracticaDocumentoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "carrera", "uploaded_by", "created_at")
+    list_filter = ("carrera",)
+    search_fields = ("nombre", "descripcion", "uploaded_by__nombre_completo")

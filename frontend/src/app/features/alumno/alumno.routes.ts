@@ -1,28 +1,24 @@
 import { Routes } from '@angular/router';
 import { AlumnoLayoutComponent } from './layout/alumno-layout.component';
-import { Component } from '@angular/core';
 // IMPORTA TUS COMPONENTES REALES SI YA EXISTEN.
 // Dejo placeholders con nombres claros por si aún no los tienes.
 import { AlumnoDashboardComponent } from './dashboard/alumno-dashboard.component';
 import { AlumnoCalendarComponent } from './calendar/alumno-calendar.component';
 import { AlumnoNotificationsComponent } from './notifications/alumno-notifications.component';
 import { AlumnoTrabajoComponent } from './trabajo/alumno-trabajo.component';
-import { AlumnoTemasComponent } from './temas/alumno-temas.component';
 import { AlumnoPerfilComponent } from './perfil/alumno-perfil.component';
 import { AlumnoReunionesComponent } from './reuniones/alumno-reuniones.component';
-import { AlumnoBandejaComponent } from './bandeja/alumno-bandeja.component';
 import { AlumnoDocsComponent } from './docs/alumno-docs.component';
 import { AlumnoEvaluationsComponent } from './evaluations/alumno-evaluations.component';
 import { AlumnoEntregaComponent } from './entrega/alumno-entrega.component';
 import { AlumnoPracticaComponent } from './practica/alumno-practica.component';
 import { AlumnoViewerComponent } from './viewer/alumno-viewer.component';
+import { AlumnoTemasComponent } from './temas/alumno-temas.component';
 
 export const ALUMNO_ROUTES: Routes = [
   {
-
     path: '',
     component: AlumnoLayoutComponent,
-    
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
 
@@ -33,7 +29,6 @@ export const ALUMNO_ROUTES: Routes = [
       { path: 'temas',          component: AlumnoTemasComponent,         title: 'Alumno | Temas' },
       { path: 'perfil',         component: AlumnoPerfilComponent,        title: 'Alumno | Perfil' },
       { path: 'reuniones',      component: AlumnoReunionesComponent,     title: 'Alumno | Reuniones' },
-      { path: 'bandeja',        component: AlumnoBandejaComponent,       title: 'Alumno | Bandeja' },
       { path: 'docs',           component: AlumnoDocsComponent,          title: 'Alumno | Docs' },
       { path: 'evaluations',    component: AlumnoEvaluationsComponent,   title: 'Alumno | Evaluations' },
       { path: 'entrega',        component: AlumnoEntregaComponent,       title: 'Alumno | Entrega' },
@@ -45,5 +40,3 @@ export const ALUMNO_ROUTES: Routes = [
     ],
   },
 ];
-
-

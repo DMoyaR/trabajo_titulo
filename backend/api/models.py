@@ -78,6 +78,7 @@ class Usuario(models.Model):
 class TemaDisponible(models.Model):
     titulo = models.CharField(max_length=160)
     carrera = models.CharField(max_length=100)
+    rama = models.CharField(max_length=120, blank=True, default="")
     descripcion = models.TextField()
     requisitos = models.JSONField(default=list, blank=True)
     cupos = models.PositiveIntegerField(default=1)
@@ -89,6 +90,20 @@ class TemaDisponible(models.Model):
         blank=True,
         related_name="temas_disponibles",
     )
+    docente_responsable = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temas_a_cargo",
+    )
+    propuesta = models.OneToOneField(
+        "PropuestaTema",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tema_generado",
+    )
 
     class Meta:
         db_table = "temas_disponibles"
@@ -96,6 +111,37 @@ class TemaDisponible(models.Model):
 
     def __str__(self) -> str:
         return self.titulo
+
+    @property
+    def cupos_disponibles(self) -> int:
+        """Cantidad de cupos libres considerando inscripciones activas."""
+        inscritos = self.inscripciones.filter(activo=True).count()
+        restantes = self.cupos - inscritos
+        return restantes if restantes > 0 else 0
+
+
+class InscripcionTema(models.Model):
+    tema = models.ForeignKey(
+        TemaDisponible,
+        on_delete=models.CASCADE,
+        related_name="inscripciones",
+    )
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="inscripciones_tema",
+    )
+    activo = models.BooleanField(default=True)
+    es_responsable = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "inscripciones_tema"
+        unique_together = ("tema", "alumno")
+
+    def __str__(self) -> str:
+        return f"{self.alumno.nombre_completo} → {self.tema.titulo}"
 
 
 class SolicitudCartaPractica(models.Model):
@@ -143,6 +189,11 @@ class SolicitudCartaPractica(models.Model):
     escuela_telefono = models.CharField(max_length=60)
 
     estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    documento = models.FileField(
+        upload_to="practicas/cartas/%Y/%m/%d",
+        blank=True,
+        null=True,
+    )
     url_documento = models.URLField(blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
     meta = models.JSONField(default=dict, blank=True)
@@ -156,3 +207,113 @@ class SolicitudCartaPractica(models.Model):
 
     def __str__(self) -> str:
         return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"
+
+
+class PropuestaTema(models.Model):
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("pendiente_ajuste", "Pendiente ajuste"),
+        ("pendiente_aprobacion", "Pendiente aprobación"),
+        ("aceptada", "Aceptada"),
+        ("rechazada", "Rechazada"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="propuestas_tema",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="propuestas_revision",
+    )
+    titulo = models.CharField(max_length=160)
+    objetivo = models.CharField(max_length=300)
+    descripcion = models.TextField()
+    rama = models.CharField(max_length=120)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    comentario_decision = models.TextField(blank=True, null=True)
+    preferencias_docentes = models.JSONField(default=list, blank=True)
+    cupos_requeridos = models.PositiveIntegerField(default=1)
+    correos_companeros = models.JSONField(default=list, blank=True)
+    cupos_maximo_autorizado = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "propuestas_tema"
+        ordering = ["-created_at"]
+        verbose_name = "Propuesta tema alumno"
+        verbose_name_plural = "Propuestas temas alumno"
+
+    def __str__(self) -> str:
+        return f"{self.titulo} ({self.get_estado_display()})"
+
+
+class PropuestaTemaDocente(PropuestaTema):
+    """Proxy model para separar las propuestas creadas por docentes."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Propuesta tema docente"
+        verbose_name_plural = "Propuestas tema docente"
+
+
+class Notificacion(models.Model):
+    TIPOS = [
+        ("propuesta", "Propuesta"),
+        ("general", "General"),
+        ("tema", "Tema"),
+        ("inscripcion", "Inscripción"),
+    ]
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="notificaciones",
+    )
+    titulo = models.CharField(max_length=160)
+    mensaje = models.TextField()
+    tipo = models.CharField(max_length=40, choices=TIPOS, default="general")
+    leida = models.BooleanField(default=False)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "notificaciones"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.titulo} -> {self.usuario.nombre_completo}"
+
+
+class PracticaDocumento(models.Model):
+    """Documento oficial compartido para estudiantes de práctica."""
+
+    carrera = models.CharField(
+        max_length=120,
+        choices=Usuario.CARRERA_CHOICES,
+    )
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    archivo = models.FileField(upload_to="practicas/documentos/%Y/%m/%d")
+    uploaded_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documentos_practica",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "practica_documentos"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.nombre} ({self.carrera})"

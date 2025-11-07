@@ -1,21 +1,52 @@
+import io
+import json
 import re
+import textwrap
 import unicodedata
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, permission_classes
+from django.utils import timezone
+from django.utils.text import slugify
+from rest_framework import generics, status
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status, generics
 
+from .models import (
+    InscripcionTema,
+    Notificacion,
+    PracticaDocumento,
+    PropuestaTema,
+    PropuestaTemaDocente,
+    SolicitudCartaPractica,
+    TemaDisponible,
+    Usuario,
+)
+from .notifications import (
+    notificar_cupos_completados,
+    notificar_reserva_tema,
+    notificar_tema_finalizado,
+)
 from .serializers import (
     LoginSerializer,
-    TemaDisponibleSerializer,
+    NotificacionSerializer,
+    PracticaDocumentoSerializer,
+    PropuestaTemaAlumnoAjusteSerializer,
+    PropuestaTemaCreateSerializer,
+    PropuestaTemaDocenteDecisionSerializer,
+    PropuestaTemaSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
+    TemaDisponibleSerializer,
+    UsuarioResumenSerializer,
 )
-from .models import TemaDisponible, Usuario, SolicitudCartaPractica
 
 
 REDIRECTS = {
@@ -24,9 +55,644 @@ REDIRECTS = {
     "coordinador": "http://localhost:4200/coordinacion/inicio",
 }
 
+
+FIRMA_FALLBACK = {
+    "nombre": "Coordinación de Carrera — UTEM",
+    "cargo": "",
+    "institucion": "Universidad Tecnológica Metropolitana",
+}
+
+
+FIRMAS_POR_CARRERA = {
+    "Ingeniería Civil en Computación mención Informática": {
+        "nombre": "Víctor Escobar Jeria",
+        "cargo": "Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería en Informática": {
+        "nombre": "Patricia Mellado Acevedo",
+        "cargo": "Jefa de Carrera Ingeniería en Informática",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil en Ciencia de Datos": {
+        "nombre": "Jorge Vergara Quezada",
+        "cargo": "Jefe de Carrera Ingeniería Civil en Ciencia de Datos",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Industrial": {
+        "nombre": "Evelyn Gajardo Gutiérrez",
+        "cargo": "Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Industrial": {
+        "nombre": "Alexis Rufatt Zafira",
+        "cargo": "Jefe de Carrera Ingeniería Industrial",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Electrónica": {
+        "nombre": "Patricio Santos López",
+        "cargo": "Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil en Mecánica": {
+        "nombre": "Christian Muñoz Valenzuela",
+        "cargo": "Director Escuela de Mecánica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería en Geomensura": {
+        "nombre": "Juan Toledo Ibarra",
+        "cargo": "Director Escuela de Geomensura",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Bachillerato en Ciencias de la Ingeniería": {
+        "nombre": "Rafael Loyola Berríos",
+        "cargo": "Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Dibujante Proyectista": {
+        "nombre": "Marcelo Borges Quintanilla",
+        "cargo": "Jefe de Carrera Dibujante Proyectista",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+    "Ingeniería Civil Biomédica": {
+        "nombre": "Raúl Caulier Cisterna",
+        "cargo": "Jefe de Carrera Ingeniería Civil Biomédica",
+        "institucion": "Universidad Tecnológica Metropolitana",
+    },
+}
+
+
+OBJETIVOS_DEFECTO = [
+    "Aplicar conocimientos disciplinares en un contexto profesional real.",
+    "Integrarse a equipos de trabajo, comunicando avances y resultados.",
+    "Cumplir con normas de seguridad, calidad y medioambiente vigentes.",
+    "Elaborar informes técnicos con conclusiones basadas en evidencia.",
+]
+
+
+OBJETIVOS_POR_ESCUELA = {
+    "inf": [
+        "Interactuar con profesionales del área informática y con otros de áreas relacionadas.",
+        "Desarrollar capacidades informáticas que le permitan desenvolverse en el ámbito profesional.",
+        "Comprobar empíricamente la importancia de las tecnologías de información.",
+        "Participar en el diseño y/o implementación de soluciones informáticas.",
+    ],
+    "ind": [
+        "Aplicar metodologías de mejora continua (Lean/Seis Sigma) en procesos productivos o de servicios.",
+        "Levantar y analizar indicadores de gestión (KPI), costos y productividad.",
+        "Participar en la planificación de la cadena de suministro, logística y gestión de inventarios.",
+        "Colaborar en sistemas de gestión de calidad y seguridad industrial.",
+    ],
+    "elec": [
+        "Apoyar el diseño, simulación y pruebas de circuitos electrónicos y sistemas embebidos.",
+        "Implementar e integrar instrumentación, sensores y adquisición de datos.",
+        "Participar en el diseño/ensamble de PCB y protocolos de comunicación.",
+        "Aplicar normas de seguridad y estándares eléctricos en laboratorio y terreno.",
+    ],
+    "mec": [
+        "Apoyar el diseño y análisis mecánico mediante herramientas CAD/CAE.",
+        "Participar en procesos de manufactura, mantenimiento y confiabilidad.",
+        "Realizar análisis térmico y de fluidos en equipos/sistemas cuando aplique.",
+        "Aplicar normas de seguridad industrial en talleres y plantas.",
+    ],
+    "geo": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
+    "trans": [
+        "Apoyar estudios de tránsito: aforos, velocidad y nivel de servicio.",
+        "Analizar y modelar la demanda de transporte para la planificación de rutas.",
+        "Colaborar en medidas de seguridad vial e infraestructura asociada.",
+        "Contribuir a la gestión operativa del transporte público/privado.",
+    ],
+}
+
+
+OBJETIVOS_POR_CARRERA = {
+    "Ingeniería Civil Biomédica": [
+        "Apoyar la integración y validación de equipos biomédicos en entornos clínicos.",
+        "Aplicar normas y estándares de seguridad (IEC/ISO) y gestión de riesgos clínicos.",
+        "Desarrollar y/o mantener sistemas de bioinstrumentación y monitoreo.",
+        "Colaborar en interoperabilidad de sistemas de información en salud.",
+    ],
+    "Ingeniería en Alimentos": [
+        "Apoyar el control de calidad bajo BPM y sistema HACCP.",
+        "Realizar análisis fisicoquímicos y/o microbiológicos según protocolos.",
+        "Participar en mejora de procesos y trazabilidad en planta.",
+        "Colaborar en desarrollo o reformulación de productos alimentarios.",
+    ],
+    "Ingeniería Civil Química": [
+        "Participar en operaciones unitarias y control de procesos químicos.",
+        "Apoyar en control de calidad y cumplimiento normativo ambiental.",
+        "Realizar balances de materia y energía y análisis de datos de planta.",
+        "Contribuir a seguridad de procesos y gestión de residuos.",
+    ],
+    "Química Industrial": [
+        "Apoyar en control de calidad y análisis químico instrumental.",
+        "Participar en operación/optimización de procesos y seguridad industrial.",
+        "Gestionar documentación técnica y cumplimiento normativo.",
+        "Colaborar en implementación de mejoras de proceso.",
+    ],
+    "Ingeniería Civil Matemática": [
+        "Aplicar modelamiento matemático a problemas de ingeniería.",
+        "Desarrollar análisis estadístico y métodos de optimización.",
+        "Implementar soluciones computacionales para simulación numérica.",
+        "Elaborar reportes técnicos con interpretación de resultados.",
+    ],
+    "Ingeniería Civil en Ciencia de Datos": [
+        "Adquirir, depurar y preparar datos desde fuentes heterogéneas.",
+        "Construir modelos de analítica/aprendizaje supervisado y no supervisado.",
+        "Validar y evaluar modelos; comunicar hallazgos con visualizaciones.",
+        "Apoyar el despliegue y monitoreo de soluciones de data science.",
+    ],
+    "Ingeniería en Biotecnología": [
+        "Apoyar cultivos, bioprocesos y análisis en laboratorio biotecnológico.",
+        "Aplicar normas de bioseguridad y buenas prácticas de laboratorio.",
+        "Procesar y analizar datos experimentales para toma de decisiones.",
+        "Colaborar en escalamiento o transferencia tecnológica cuando aplique.",
+    ],
+    "Ingeniería en Geomensura": [
+        "Realizar levantamientos topográficos con equipos GNSS/estación total.",
+        "Procesar y validar datos geoespaciales para generar planos y modelos.",
+        "Aplicar técnicas de georreferenciación, nivelación y replanteo.",
+        "Elaborar cartografía y reportes técnicos utilizando SIG.",
+    ],
+}
+
+
+def _limpiar_rut(valor: str | None) -> str:
+    if not valor:
+        return ""
+    return re.sub(r"[^0-9kK]", "", valor)
+
+
+def _parse_int(valor: str | None) -> int | None:
+    try:
+        return int(valor) if valor is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalizar_texto(valor: str | None) -> str:
+    if not valor:
+        return ""
+    texto = unicodedata.normalize("NFKD", valor)
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    return texto.casefold().strip()
+
+
+_CARRERA_STOPWORDS = {
+    "ing",
+    "ingenieria",
+    "civil",
+    "mencion",
+    "en",
+    "de",
+    "del",
+    "la",
+    "el",
+    "y",
+    "para",
+}
+
+
+def _tokenizar_carrera(valor: str | None) -> set[str]:
+    if not valor:
+        return set()
+
+    texto = _normalizar_texto(valor)
+    tokens = [
+        token
+        for token in re.split(r"[^a-z0-9]+", texto)
+        if token and token not in _CARRERA_STOPWORDS
+    ]
+
+    if not tokens:
+        return set()
+
+    return set(tokens)
+
+
+def _carreras_coinciden(a: str | None, b: str | None) -> bool:
+    tokens_a = _tokenizar_carrera(a)
+    tokens_b = _tokenizar_carrera(b)
+
+    if not tokens_a or not tokens_b:
+        return False
+
+    if tokens_a == tokens_b:
+        return True
+
+    if tokens_a.issubset(tokens_b) or tokens_b.issubset(tokens_a):
+        return True
+
+    comunes = tokens_a & tokens_b
+    return len(comunes) >= 2
+
+
+def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
+    if not carrera:
+        return queryset.none()
+
+    tokens_objetivo = _tokenizar_carrera(carrera)
+    if not tokens_objetivo:
+        return queryset.none()
+
+    matching_ids = [
+        pk
+        for pk, carrera_tema in queryset.values_list("pk", "carrera")
+        if _carreras_coinciden(carrera_tema, carrera)
+        or _tokenizar_carrera(carrera_tema) == tokens_objetivo
+    ]
+
+    if not matching_ids:
+        return queryset.none()
+
+    return queryset.filter(pk__in=matching_ids)
+
+
+def _sincronizar_propuestas_docentes() -> None:
+    propuestas = (
+        PropuestaTemaDocente.objects.filter(
+            estado="aceptada", tema_generado__isnull=True
+        )
+        .select_related("docente")
+        .order_by("created_at")
+    )
+
+    for propuesta in propuestas:
+        docente = propuesta.docente
+        if not docente or docente.rol != "docente":
+            continue
+
+        cupos = int(propuesta.cupos_requeridos or 1)
+        if propuesta.cupos_maximo_autorizado:
+            cupos = min(cupos, int(propuesta.cupos_maximo_autorizado))
+        if cupos < 1:
+            cupos = 1
+
+        carrera = (propuesta.rama or "").strip()
+        if not carrera:
+            carrera = (docente.carrera or "").strip()
+        if not carrera:
+            carrera = "Carrera no especificada"
+
+        requisitos: list[str] = []
+        if propuesta.objetivo:
+            requisitos.append(propuesta.objetivo)
+
+        try:
+            with transaction.atomic():
+                TemaDisponible.objects.create(
+                    titulo=propuesta.titulo,
+                    carrera=carrera,
+                    descripcion=propuesta.descripcion,
+                    requisitos=requisitos,
+                    cupos=cupos,
+                    created_by=docente,
+                    docente_responsable=docente,
+                    propuesta=propuesta,
+                )
+        except IntegrityError:
+            continue
+
+
+def _obtener_usuario_por_id(valor: str | None) -> Usuario | None:
+    usuario_id = _parse_int(valor)
+    if usuario_id is None:
+        return None
+    try:
+        return Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return None
+
+
+def _obtener_usuario_para_temas(request) -> Usuario | None:
+    usuario = _obtener_usuario_por_id(request.query_params.get("usuario"))
+    if usuario:
+        return usuario
+    return _obtener_usuario_por_id(request.query_params.get("alumno"))
+
+
+def _formatear_rut(valor: str | None) -> str:
+    limpio = _limpiar_rut(valor)
+    if not limpio:
+        return valor or ""
+
+    cuerpo, dv = limpio[:-1], limpio[-1].upper()
+    if not cuerpo:
+        return dv
+
+    partes = []
+    while len(cuerpo) > 3:
+        partes.insert(0, cuerpo[-3:])
+        cuerpo = cuerpo[:-3]
+    if cuerpo:
+        partes.insert(0, cuerpo)
+    cuerpo_formateado = ".".join(partes)
+    return f"{cuerpo_formateado}-{dv}"
+
+
+def _obtener_firma(carrera: str | None) -> dict[str, str]:
+    if carrera and carrera in FIRMAS_POR_CARRERA:
+        return FIRMAS_POR_CARRERA[carrera]
+    return FIRMA_FALLBACK
+
+
+def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]:
+    if carrera and carrera in OBJETIVOS_POR_CARRERA:
+        return OBJETIVOS_POR_CARRERA[carrera]
+    if escuela_id and escuela_id in OBJETIVOS_POR_ESCUELA:
+        return OBJETIVOS_POR_ESCUELA[escuela_id]
+    return OBJETIVOS_DEFECTO
+
+
+def _normalizar_texto_pdf(value: str) -> str:
+    if not value:
+        return ""
+
+    reemplazos = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2212": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u00b7": "-",
+    }
+
+    texto = unicodedata.normalize("NFKC", value)
+    texto = "".join(reemplazos.get(ch, ch) for ch in texto)
+
+    try:
+        texto.encode("latin-1")
+    except UnicodeEncodeError:
+        texto = texto.encode("latin-1", "replace").decode("latin-1")
+
+    return texto
+
+
+def _pdf_justificar_linea(linea: str, ancho: int) -> str:
+    if len(linea) >= ancho:
+        return linea
+
+    if " " not in linea.strip():
+        return linea
+
+    leading = len(linea) - len(linea.lstrip(" "))
+    contenido = linea.lstrip(" ")
+    palabras = contenido.split(" ")
+
+    huecos = len(palabras) - 1
+    if huecos <= 0:
+        return linea
+
+    deficit = ancho - len(linea)
+    if deficit <= 0:
+        return linea
+
+    espacio_base, extra = divmod(deficit, huecos)
+
+    espacios = []
+    for indice in range(huecos):
+        incremento = espacio_base + (1 if indice < extra else 0)
+        espacios.append(" " * (1 + incremento))
+
+    justificado = []
+    for palabra, separador in zip(palabras, espacios):
+        justificado.append(palabra)
+        justificado.append(separador)
+    justificado.append(palabras[-1])
+
+    return (" " * leading) + "".join(justificado)
+
+
+def _pdf_justificar_lineas(lineas: list[str], ancho: int) -> list[str]:
+    if len(lineas) <= 1:
+        return lineas
+    resultado: list[str] = []
+    for indice, linea in enumerate(lineas):
+        if indice == len(lineas) - 1:
+            resultado.append(linea)
+            continue
+        resultado.append(_pdf_justificar_linea(linea, ancho))
+    return resultado
+
+
+def _pdf_wrap(texto: str, ancho: int = 88, justificar: bool = False) -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    lineas = textwrap.wrap(
+        texto,
+        width=ancho,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if justificar:
+        lineas = _pdf_justificar_lineas(lineas, ancho)
+    return lineas
+
+
+def _pdf_wrap_vineta(texto: str, ancho: int = 88, vineta: str = "-") -> list[str]:
+    texto = _normalizar_texto_pdf(texto.strip())
+    if not texto:
+        return []
+    prefijo = f"{vineta} "
+    return textwrap.wrap(
+        texto,
+        width=ancho,
+        initial_indent=prefijo,
+        subsequent_indent=" " * len(prefijo),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+
+
+def _pdf_escape_texto(texto: str) -> str:
+    return (
+        texto.replace("\\", "\\\\")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
+
+
+def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
+    leading = 16
+    inicio_x = 72
+    inicio_y = 770
+
+    texto_ops: list[str] = [
+        "BT",
+        "/F1 12 Tf",
+        f"1 0 0 1 {inicio_x} {inicio_y} Tm",
+        f"{leading} TL",
+    ]
+
+    for linea in lineas:
+        if not linea:
+            texto_ops.append("T*")
+            continue
+        texto_ops.append(f"({_pdf_escape_texto(_normalizar_texto_pdf(linea))}) Tj")
+        texto_ops.append("T*")
+
+    texto_ops.append("ET")
+
+    contenido = "\n".join(texto_ops).encode("latin-1")
+
+    buffer = io.BytesIO()
+    buffer.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+
+    offsets: list[int] = []
+
+    def escribir_objeto(data: bytes) -> None:
+        offsets.append(buffer.tell())
+        buffer.write(data)
+
+    escribir_objeto(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    escribir_objeto(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    escribir_objeto(
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+    )
+
+    flujo = (
+        b"4 0 obj\n<< /Length "
+        + str(len(contenido)).encode("ascii")
+        + b" >>\nstream\n"
+        + contenido
+        + b"\nendstream\nendobj\n"
+    )
+    escribir_objeto(flujo)
+
+    escribir_objeto(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    xref_pos = buffer.tell()
+    buffer.write(f"xref\n0 {len(offsets) + 1}\n".encode("ascii"))
+    buffer.write(b"0000000000 65535 f \n")
+    for offset in offsets:
+        buffer.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+
+    buffer.write(b"trailer\n<< /Size " + str(len(offsets) + 1).encode("ascii") + b" /Root 1 0 R >>\n")
+    buffer.write(b"startxref\n" + str(xref_pos).encode("ascii") + b"\n%%EOF")
+
+    return buffer.getvalue()
+
+
+def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
+    fecha = timezone.localtime(timezone.now())
+    meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
+    ]
+    fecha_texto = f"Santiago, {meses[fecha.month - 1]} {fecha.day} del {fecha.year}."
+
+    firma = _obtener_firma(solicitud.alumno_carrera)
+    objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
+
+    partes_alumno = [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+    alumno_nombre = " ".join(parte for parte in partes_alumno if parte).strip() or "Alumno"
+    rut_formateado = _formatear_rut(solicitud.alumno_rut) or (solicitud.alumno_rut or "")
+    carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
+
+    lineas: list[str] = []
+    lineas.extend(_pdf_wrap("Universidad Tecnológica Metropolitana", ancho=72))
+    encabezado = (
+        f"{solicitud.escuela_nombre or ''} — "
+        f"{solicitud.escuela_direccion or ''} — Tel. {solicitud.escuela_telefono or ''}"
+    )
+    lineas.extend(_pdf_wrap(encabezado, ancho=72))
+    lineas.append("")
+
+    lineas.extend(_pdf_wrap(fecha_texto, ancho=72))
+    lineas.append("")
+
+    lineas.extend(_pdf_wrap("Señor"))
+    destinatario = " ".join(
+        parte
+        for parte in [solicitud.dest_nombres or "", solicitud.dest_apellidos or ""]
+        if parte
+    )
+    lineas.extend(_pdf_wrap(destinatario))
+    lineas.extend(_pdf_wrap(solicitud.dest_cargo or ""))
+    lineas.extend(_pdf_wrap(solicitud.dest_empresa or ""))
+    lineas.extend(_pdf_wrap("Presente"))
+    lineas.append("")
+
+    cuerpo_1 = (
+        "Me permito dirigirme a Ud. para presentar al Sr. "
+        f"{alumno_nombre}, RUT {rut_formateado}, alumno regular de la carrera de "
+        f"{carrera_texto} de la Universidad Tecnológica Metropolitana, "
+        "y solicitar su aceptación en calidad de alumno en práctica."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_1, justificar=True))
+    lineas.append("")
+
+    cuerpo_2 = (
+        "Esta práctica tiene una duración de "
+        f"{solicitud.practica_duracion_horas} horas cronológicas y sus objetivos son:"
+    )
+    lineas.extend(_pdf_wrap(cuerpo_2, justificar=True))
+
+    for objetivo in objetivos:
+        lineas.extend(_pdf_wrap_vineta(objetivo))
+
+    lineas.append("")
+
+    cuerpo_3 = (
+        "Al término de la práctica, el estudiante deberá reportar sus avances y "
+        "aprendizajes a la Coordinación de Carrera, quienes se pondrán en contacto "
+        "para conocer los resultados de su desempeño."
+    )
+    lineas.extend(_pdf_wrap(cuerpo_3, justificar=True))
+
+    lineas.append("")
+    lineas.extend(_pdf_wrap("Le saluda atentamente,"))
+    lineas.append("")
+
+    if firma.get("nombre"):
+        lineas.extend(_pdf_wrap(firma["nombre"]))
+    if firma.get("cargo"):
+        lineas.extend(_pdf_wrap(firma["cargo"]))
+    institucion = firma.get("institucion") or "Universidad Tecnológica Metropolitana"
+    lineas.extend(_pdf_wrap(institucion))
+
+    pdf_bytes = _renderizar_pdf_lineas(lineas)
+
+    base_nombre = f"carta {alumno_nombre}".strip()
+    slug = slugify(base_nombre) or "carta-practica"
+    ruta = f"practicas/cartas/{fecha.year}/carta-{slug}.pdf"
+    ruta_antigua_html = f"practicas/cartas/{fecha.year}/carta-{slug}.html"
+
+    if default_storage.exists(ruta):
+        default_storage.delete(ruta)
+    if default_storage.exists(ruta_antigua_html):
+        default_storage.delete(ruta_antigua_html)
+
+    archivo = ContentFile(pdf_bytes)
+    path = default_storage.save(ruta, archivo)
+    return default_storage.url(path)
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
-
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
@@ -52,18 +718,1007 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     serializer_class = TemaDisponibleSerializer
     permission_classes = [AllowAny]
 
-    def perform_create(self, serializer):
-        user = getattr(self.request, "user", None)
-        if isinstance(user, Usuario):
-            serializer.save(created_by=user)
-        else:
-            serializer.save()
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        alumno_param = self.request.query_params.get("alumno")
+        alumno_id = _parse_int(alumno_param)
+        if alumno_id is None:
+            usuario = _obtener_usuario_para_temas(self.request)
+            if usuario and usuario.rol == "alumno":
+                alumno_id = usuario.pk
+        context["alumno_id"] = alumno_id
+        return context
 
+    def perform_create(self, serializer):
+        creador = serializer.validated_data.get("created_by")
+        responsable = serializer.validated_data.get("docente_responsable")
+        objetivo = serializer.validated_data.pop("objetivo", None)
+
+        if not creador:
+            creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
+
+        if not creador:
+            potencial = _obtener_usuario_para_temas(self.request)
+            if potencial and potencial.rol in {"docente", "coordinador"}:
+                creador = potencial
+
+        if not creador:
+            user = getattr(self.request, "user", None)
+            if isinstance(user, Usuario):
+                creador = user
+
+        if not responsable and creador and creador.rol == "docente":
+            responsable = creador
+
+        save_kwargs = {}
+        if creador:
+            save_kwargs["created_by"] = creador
+        if responsable:
+            save_kwargs["docente_responsable"] = responsable
+
+        if save_kwargs:
+            tema = serializer.save(**save_kwargs)
+        else:
+            tema = serializer.save()
+
+        docente_propuesta = None
+        if responsable and responsable.rol == "docente":
+            docente_propuesta = responsable
+        elif creador and creador.rol == "docente":
+            docente_propuesta = creador
+
+        _registrar_propuesta_docente_desde_tema(
+            tema,
+            docente_propuesta,
+            objetivo,
+        )
+
+    def get_queryset(self):
+        _sincronizar_propuestas_docentes()
+        queryset = super().get_queryset()
+        usuario = _obtener_usuario_para_temas(self.request)
+
+        if usuario:
+            if usuario.carrera:
+                filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                if filtrado.exists():
+                    return filtrado
+            return queryset
+
+        carrera = self.request.query_params.get("carrera")
+        if carrera:
+            filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
+            if filtrado.exists():
+                return filtrado
+            return queryset
+
+        return queryset
 
 class TemaDisponibleRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     queryset = TemaDisponible.objects.all()
     serializer_class = TemaDisponibleSerializer
     permission_classes = [AllowAny]
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([AllowAny])
+def tema_disponible_detalle(request, pk: int):
+    """Permite obtener o eliminar un tema disponible concreto."""
+
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    if request.method == "DELETE":
+        notificar_tema_finalizado(tema)
+        tema.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    usuario = _obtener_usuario_para_temas(request)
+    carrera_param = request.query_params.get("carrera")
+
+    if (
+        usuario
+        and usuario.rol == "alumno"
+        and usuario.carrera
+        and not _carreras_coinciden(tema.carrera, usuario.carrera)
+    ):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if usuario and usuario.rol == "alumno":
+        alumno_id = usuario.pk
+    else:
+        alumno_id = _parse_int(request.query_params.get("alumno"))
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno_id},
+    )
+    return Response(serializer.data)
+
+
+def _registrar_propuesta_docente_desde_tema(
+    tema: TemaDisponible,
+    docente: Usuario | None,
+    objetivo: str | None,
+) -> None:
+    if not docente or docente.rol != "docente":
+        return
+
+    objetivo_limpio = (objetivo or "").strip() if isinstance(objetivo, str) else ""
+
+    if not objetivo_limpio:
+        requisitos = tema.requisitos or []
+        if requisitos:
+            objetivo_limpio = str(requisitos[0])
+        else:
+            objetivo_limpio = tema.descripcion or ""
+
+    cupos = tema.cupos or 1
+
+    propuesta = PropuestaTemaDocente.objects.create(
+        alumno=None,
+        docente=docente,
+        titulo=tema.titulo,
+        objetivo=objetivo_limpio,
+        descripcion=tema.descripcion,
+        rama=tema.rama or tema.carrera or "",
+        estado="aceptada",
+        preferencias_docentes=[docente.pk] if docente.pk else [],
+        cupos_requeridos=cupos,
+        cupos_maximo_autorizado=cupos,
+        correos_companeros=[],
+    )
+
+    if tema.propuesta_id != propuesta.pk:
+        tema.propuesta = propuesta
+        tema.save(update_fields=["propuesta"])
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def reservar_tema(request, pk: int):
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
+
+    alumno_id = request.data.get("alumno")
+    if not alumno_id:
+        return Response(
+            {"detail": "Debe indicar el alumno que solicita el tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        alumno_id_int = int(alumno_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "El identificador de alumno es inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = get_object_or_404(Usuario, pk=alumno_id_int)
+    if alumno.rol != "alumno":
+        return Response(
+            {"detail": "Solo estudiantes pueden reservar un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {
+                "detail": "Solo puedes reservar temas asociados a tu carrera.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if cupos_antes <= 0:
+        return Response(
+            {"detail": "Este tema ya no tiene cupos disponibles."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripcion, created = tema.inscripciones.get_or_create(
+        alumno=alumno, defaults={"es_responsable": False}
+    )
+
+    if not created and inscripcion.activo:
+        return Response(
+            {"detail": "Ya cuentas con un cupo reservado en este tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reactivada = False
+    campos_actualizados: list[str] = []
+    if not inscripcion.activo:
+        inscripcion.activo = True
+        campos_actualizados.append("activo")
+        reactivada = True
+
+    responsable_activo = (
+        tema.inscripciones.filter(activo=True, es_responsable=True)
+        .exclude(pk=inscripcion.pk)
+        .exists()
+    )
+    if not responsable_activo and not inscripcion.es_responsable:
+        inscripcion.es_responsable = True
+        campos_actualizados.append("es_responsable")
+
+    if campos_actualizados:
+        campos_actualizados.append("updated_at")
+        inscripcion.save(update_fields=campos_actualizados)
+
+    cupos_despues = tema.cupos_disponibles
+
+    notificar_reserva_tema(
+        tema,
+        alumno,
+        cupos_disponibles=cupos_despues,
+        reactivada=reactivada,
+        inscripcion_id=inscripcion.pk,
+    )
+
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno.pk},
+    )
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def asignar_companeros(request, pk: int):
+    tema = get_object_or_404(TemaDisponible, pk=pk)
+
+    cupos_antes = tema.cupos_disponibles
+
+    alumno_id = request.data.get("alumno")
+    if not alumno_id:
+        return Response(
+            {"detail": "Debe indicar el alumno responsable del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        alumno_id_int = int(alumno_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "El identificador de alumno es inválido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = get_object_or_404(Usuario, pk=alumno_id_int)
+    if alumno.rol != "alumno":
+        return Response(
+            {"detail": "Solo estudiantes pueden gestionar los cupos de un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+        return Response(
+            {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripcion_alumno = tema.inscripciones.filter(alumno=alumno).first()
+    if not inscripcion_alumno or not inscripcion_alumno.activo:
+        return Response(
+            {
+                "detail": "Debes contar con una reserva activa para gestionar los cupos de este tema.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not inscripcion_alumno.es_responsable:
+        responsable_activo = (
+            tema.inscripciones.filter(activo=True, es_responsable=True)
+            .exclude(pk=inscripcion_alumno.pk)
+            .exists()
+        )
+        if responsable_activo:
+            return Response(
+                {
+                    "detail": "Solo el estudiante que postuló al tema puede gestionar los cupos.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        inscripcion_alumno.es_responsable = True
+        inscripcion_alumno.save(update_fields=["es_responsable", "updated_at"])
+
+    max_companeros = max(tema.cupos - 1, 0)
+    correos = request.data.get("correos") or request.data.get("companeros") or []
+    if not isinstance(correos, list):
+        return Response(
+            {"detail": "Debe proporcionar una lista de correos electrónicos."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    correos_limpios: list[str] = []
+    correos_registrados: set[str] = set()
+    correo_alumno = alumno.correo.lower() if alumno.correo else ""
+    for correo in correos:
+        if not isinstance(correo, str):
+            continue
+        normalizado = correo.strip()
+        if not normalizado:
+            continue
+        normalizado_lower = normalizado.lower()
+        if normalizado_lower == correo_alumno:
+            continue
+        if normalizado_lower in correos_registrados:
+            continue
+        correos_registrados.add(normalizado_lower)
+        correos_limpios.append(normalizado)
+
+    if len(correos_limpios) > max_companeros:
+        return Response(
+            {
+                "detail": (
+                    "No hay cupos suficientes para registrar a todos los compañeros."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    companeros: list[Usuario] = []
+    errores: dict[str, str] = {}
+    for correo in correos_limpios:
+        usuario = Usuario.objects.filter(correo__iexact=correo).first()
+        if not usuario:
+            errores[correo] = "No se encontró un usuario con este correo electrónico."
+            continue
+        if usuario.rol != "alumno":
+            errores[correo] = "Solo puedes agregar estudiantes a tu grupo."
+            continue
+        if usuario.carrera and not _carreras_coinciden(tema.carrera, usuario.carrera):
+            errores[correo] = "El estudiante no pertenece a la carrera del tema."
+            continue
+        companeros.append(usuario)
+
+    if errores:
+        return Response({"errores": errores}, status=status.HTTP_400_BAD_REQUEST)
+
+    participantes_ids = {alumno.pk}
+    participantes_ids.update(usuario.pk for usuario in companeros)
+
+    if len(participantes_ids) > tema.cupos:
+        return Response(
+            {"detail": "El número total de participantes supera los cupos del tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripciones = {
+        inscripcion.alumno_id: inscripcion
+        for inscripcion in tema.inscripciones.select_related("alumno")
+    }
+
+    for inscripcion in list(inscripciones.values()):
+        if inscripcion.alumno_id in participantes_ids:
+            continue
+        campos = []
+        if inscripcion.activo:
+            inscripcion.activo = False
+            campos.append("activo")
+        if inscripcion.es_responsable:
+            inscripcion.es_responsable = False
+            campos.append("es_responsable")
+        if campos:
+            campos.append("updated_at")
+            inscripcion.save(update_fields=campos)
+
+    for usuario in [alumno, *companeros]:
+        inscripcion = inscripciones.get(usuario.pk)
+        creado = False
+        reactivada = False
+        if not inscripcion:
+            es_responsable = usuario.pk == alumno.pk
+            inscripcion = tema.inscripciones.create(
+                alumno=usuario,
+                activo=True,
+                es_responsable=es_responsable,
+            )
+            inscripciones[usuario.pk] = inscripcion
+            creado = True
+        else:
+            campos_actualizados = []
+            if not inscripcion.activo:
+                inscripcion.activo = True
+                campos_actualizados.append("activo")
+                reactivada = True
+            es_responsable_objetivo = usuario.pk == alumno.pk
+            if inscripcion.es_responsable != es_responsable_objetivo:
+                inscripcion.es_responsable = es_responsable_objetivo
+                campos_actualizados.append("es_responsable")
+            if campos_actualizados:
+                campos_actualizados.append("updated_at")
+                inscripcion.save(update_fields=campos_actualizados)
+
+        if usuario.pk != alumno.pk and (creado or reactivada):
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=reactivada,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    cupos_despues = tema.cupos_disponibles
+    if cupos_antes > 0 and cupos_despues == 0:
+        notificar_cupos_completados(tema)
+
+    serializer = TemaDisponibleSerializer(
+        tema,
+        context={"request": request, "alumno_id": alumno.pk},
+    )
+    return Response(serializer.data)
+
+
+class DocenteListView(generics.ListAPIView):
+    serializer_class = UsuarioResumenSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = Usuario.objects.filter(rol="docente").order_by("nombre_completo")
+        carrera = self.request.query_params.get("carrera")
+        if carrera:
+            queryset = queryset.filter(carrera__icontains=carrera)
+        return queryset
+
+
+class PropuestaTemaListCreateView(generics.ListCreateAPIView):
+    queryset = PropuestaTema.objects.select_related("alumno", "docente")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return PropuestaTemaCreateSerializer
+        return PropuestaTemaSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        docente_id = self.request.query_params.get("docente")
+        alumno_id = self.request.query_params.get("alumno")
+        estado = self.request.query_params.get("estado")
+
+        if docente_id:
+            try:
+                docente_id_int = int(docente_id)
+            except (TypeError, ValueError):
+                return queryset.none()
+
+            # Django's JSONField lookups are inconsistent across engines when
+            # checking if a simple value exists inside an array. To guarantee
+            # that docentes listed en "preferencias_docentes" también puedan
+            # ver la propuesta, primero filtramos por coincidencia directa y
+            # luego agregamos manualmente los ids cuyo arreglo contiene el
+            # docente buscado.
+            direct_ids = queryset.filter(docente_id=docente_id_int).values_list(
+                "id", flat=True
+            )
+
+            preferred_ids = [
+                pk
+                for pk, preferencias in queryset.values_list(
+                    "id", "preferencias_docentes"
+                )
+                if _docente_en_preferencias(docente_id_int, preferencias)
+            ]
+
+            queryset = queryset.filter(
+                id__in=set(direct_ids).union(preferred_ids)
+            )
+        if alumno_id:
+            queryset = queryset.filter(alumno_id=alumno_id)
+        if estado in {"pendiente", "aceptada", "rechazada"}:
+            queryset = queryset.filter(estado=estado)
+
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        propuesta = serializer.save()
+        output_serializer = PropuestaTemaSerializer(propuesta)
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class PropuestaTemaRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    queryset = PropuestaTema.objects.select_related("alumno", "docente")
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.request.method in {"PUT", "PATCH"}:
+            accion = None
+            if hasattr(self.request, "data"):
+                accion = self.request.data.get("accion")
+            if accion == "confirmar_cupos":
+                return PropuestaTemaAlumnoAjusteSerializer
+            return PropuestaTemaDocenteDecisionSerializer
+        return PropuestaTemaSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        estado_anterior = instance.estado
+
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        propuesta = serializer.save()
+
+        if estado_anterior != propuesta.estado:
+            if propuesta.estado == "aceptada" and estado_anterior != "aceptada":
+                _crear_tema_desde_propuesta(propuesta)
+            if propuesta.estado in {"aceptada", "rechazada"}:
+                _notificar_decision_propuesta(propuesta)
+            elif propuesta.estado == "pendiente_ajuste":
+                _notificar_solicitud_ajuste_cupos(propuesta)
+            elif propuesta.estado == "pendiente_aprobacion":
+                if estado_anterior == "pendiente_ajuste":
+                    _notificar_confirmacion_alumno(propuesta)
+                elif estado_anterior == "pendiente":
+                    _notificar_autorizacion_cupos(propuesta)
+
+        output_serializer = PropuestaTemaSerializer(propuesta)
+        return Response(output_serializer.data)
+
+
+class NotificacionListView(generics.ListAPIView):
+    serializer_class = NotificacionSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = Notificacion.objects.select_related("usuario")
+        usuario_id = self.request.query_params.get("usuario")
+        if usuario_id:
+            try:
+                usuario_id_int = int(usuario_id)
+            except (TypeError, ValueError):
+                return Notificacion.objects.none()
+            queryset = queryset.filter(usuario_id=usuario_id_int)
+
+        leida = self.request.query_params.get("leida")
+        if leida is not None:
+            valor = str(leida).lower()
+            if valor in {"true", "1", "false", "0"}:
+                queryset = queryset.filter(leida=valor in {"true", "1"})
+
+        return queryset
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def marcar_notificacion_leida(request, pk: int):
+    notificacion = get_object_or_404(Notificacion, pk=pk)
+    notificacion.leida = True
+    notificacion.save(update_fields=["leida"])
+    serializer = NotificacionSerializer(notificacion)
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def crear_solicitud_carta_practica(request):
+    serializer = SolicitudCartaPracticaCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    alumno_data = data.get("alumno", {})
+    practica_data = data.get("practica", {})
+    destinatario_data = data.get("destinatario", {})
+    escuela_data = data.get("escuela", {})
+    meta = data.get("meta") or {}
+
+    alumno_rut = alumno_data.get("rut", "").strip()
+    alumno_rut_limpio = _limpiar_rut(alumno_rut)
+
+    alumno = None
+    if alumno_rut:
+        alumno = Usuario.objects.filter(rut__iexact=alumno_rut).first()
+        if not alumno and alumno_rut_limpio:
+            alumno = (
+                Usuario.objects.annotate(
+                    rut_sin_formato=Replace(
+                        Replace("rut", Value("."), Value("")), Value("-"), Value("")
+                    )
+                )
+                .filter(rut_sin_formato__iexact=alumno_rut_limpio)
+                .first()
+            )
+
+    coordinador = _buscar_coordinador_por_carrera(alumno_data.get("carrera"))
+
+    solicitud = SolicitudCartaPractica.objects.create(
+        alumno=alumno,
+        coordinador=coordinador,
+        alumno_rut=alumno_rut,
+        alumno_nombres=alumno_data.get("nombres", "").strip(),
+        alumno_apellidos=alumno_data.get("apellidos", "").strip(),
+        alumno_carrera=alumno_data.get("carrera", "").strip(),
+        practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
+        practica_fecha_inicio=practica_data.get("fechaInicio"),
+        practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
+        practica_sector=practica_data.get("sectorEmpresa", "").strip(),
+        practica_duracion_horas=practica_data.get("duracionHoras"),
+        dest_nombres=destinatario_data.get("nombres", "").strip(),
+        dest_apellidos=destinatario_data.get("apellidos", "").strip(),
+        dest_cargo=destinatario_data.get("cargo", "").strip(),
+        dest_empresa=destinatario_data.get("empresa", "").strip(),
+        escuela_id=str(escuela_data.get("id", "")).strip(),
+        escuela_nombre=escuela_data.get("nombre", "").strip(),
+        escuela_direccion=escuela_data.get("direccion", "").strip(),
+        escuela_telefono=escuela_data.get("telefono", "").strip(),
+        meta=meta,
+    )
+
+    output = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
+    headers = {"Location": f"/api/practicas/solicitudes-carta/{solicitud.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def listar_solicitudes_carta_practica(request):
+    queryset = SolicitudCartaPractica.objects.all()
+
+    coordinador_param = request.query_params.get("coordinador")
+    if coordinador_param not in (None, ""):
+        try:
+            coordinador_id = int(coordinador_param)
+        except (TypeError, ValueError):
+            return Response(
+                {"coordinador": "Identificador de coordinador inválido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = queryset.filter(coordinador_id=coordinador_id)
+
+    alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
+    if alumno_rut:
+        rut_limpio = _limpiar_rut(alumno_rut)
+        filtro_rut = Q(alumno_rut__iexact=alumno_rut)
+        if rut_limpio:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            ).filter(filtro_rut | Q(rut_sin_formato__iexact=rut_limpio))
+        else:
+            queryset = queryset.filter(filtro_rut)
+
+    estado = request.query_params.get("estado")
+    if estado in {"pendiente", "aprobado", "rechazado"}:
+        queryset = queryset.filter(estado=estado)
+
+    termino = (request.query_params.get("q") or "").strip()
+    if termino:
+        termino_normalizado = unicodedata.normalize("NFKD", termino)
+        termino_ascii = termino_normalizado.encode("ascii", "ignore").decode("ascii")
+        filtros = Q(alumno_nombres__icontains=termino) | Q(alumno_apellidos__icontains=termino)
+        filtros |= Q(alumno_carrera__icontains=termino) | Q(dest_empresa__icontains=termino)
+        filtros |= Q(dest_nombres__icontains=termino) | Q(dest_apellidos__icontains=termino)
+        filtros |= Q(practica_jefe_directo__icontains=termino) | Q(practica_empresa_rut__icontains=termino)
+        filtros |= Q(alumno_rut__icontains=termino)
+
+        if termino_ascii and termino_ascii != termino:
+            filtros |= Q(alumno_nombres__icontains=termino_ascii)
+            filtros |= Q(alumno_apellidos__icontains=termino_ascii)
+            filtros |= Q(alumno_carrera__icontains=termino_ascii)
+            filtros |= Q(dest_empresa__icontains=termino_ascii)
+            filtros |= Q(dest_nombres__icontains=termino_ascii)
+            filtros |= Q(dest_apellidos__icontains=termino_ascii)
+            filtros |= Q(practica_jefe_directo__icontains=termino_ascii)
+            filtros |= Q(practica_empresa_rut__icontains=termino_ascii)
+            filtros |= Q(alumno_rut__icontains=termino_ascii)
+
+        rut_termino = _limpiar_rut(termino)
+        if rut_termino:
+            queryset = queryset.annotate(
+                rut_sin_formato=Replace(
+                    Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            )
+            filtros |= Q(rut_sin_formato__icontains=rut_termino)
+
+        queryset = queryset.filter(filtros)
+
+    try:
+        page = int(request.query_params.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    page = max(page, 1)
+
+    try:
+        size = int(request.query_params.get("size", 20))
+    except (TypeError, ValueError):
+        size = 20
+    size = max(1, min(size, 200))
+
+    total = queryset.count()
+    offset = (page - 1) * size
+    items = queryset[offset : offset + size]
+
+    serializer = SolicitudCartaPracticaSerializer(
+        items, many=True, context={"request": request}
+    )
+    return Response({"items": serializer.data, "total": total})
+
+
+def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
+    """Verifica si un docente aparece en el campo `preferencias_docentes`.
+
+    El campo puede almacenarse como lista de enteros, strings, diccionarios o
+    incluso texto serializado como JSON dependiendo del motor de base de
+    datos. Para asegurar la compatibilidad convertimos cualquier estructura en
+    un conjunto de ids de docentes y comprobamos la pertenencia.
+    """
+
+    if not preferencias:
+        return False
+
+    ids = _extraer_ids_docentes(preferencias)
+    return docente_id in ids
+
+
+def _extraer_ids_docentes(preferencias) -> set[int]:
+    """Normaliza las preferencias convirtiéndolas en ids de docente."""
+
+    encontrados: set[int] = set()
+
+    def agregar(valor):
+        if valor in (None, ""):
+            return
+
+        if isinstance(valor, bool):
+            # Los booleanos son subclase de int; los descartamos explícitamente
+            # para evitar tratar True como id 1, por ejemplo.
+            return
+
+        if isinstance(valor, int):
+            encontrados.add(valor)
+            return
+
+        if isinstance(valor, str):
+            texto = valor.strip()
+            if not texto:
+                return
+            try:
+                encontrados.add(int(texto))
+                return
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                datos = json.loads(texto)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                return
+            agregar(datos)
+            return
+
+        if isinstance(valor, dict):
+            # Intentamos las claves más comunes para almacenar un identificador
+            # y luego recorremos recursivamente los valores anidados.
+            for clave in ("id", "pk", "docente", "docente_id", "value"):
+                if clave in valor:
+                    agregar(valor[clave])
+            for item in valor.values():
+                if isinstance(item, (list, tuple, set, dict)):
+                    agregar(item)
+            return
+
+        if isinstance(valor, (list, tuple, set)):
+            for item in valor:
+                agregar(item)
+            return
+
+    agregar(preferencias)
+    return encontrados
+
+
+def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
+    if propuesta.estado not in {"aceptada", "rechazada"}:
+        return
+
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    if propuesta.estado == "aceptada":
+        titulo = "Tu propuesta de tema fue aceptada"
+        mensaje_base = (
+            "El docente ha aceptado tu propuesta de tema "
+            f"\"{propuesta.titulo}\"."
+        )
+    else:
+        titulo = "Tu propuesta de tema fue rechazada"
+        mensaje_base = (
+            "El docente ha rechazado tu propuesta de tema "
+            f"\"{propuesta.titulo}\"."
+        )
+
+    comentario = (propuesta.comentario_decision or "").strip()
+    if comentario:
+        mensaje = f"{mensaje_base} Comentario: {comentario}"
+    else:
+        mensaje = mensaje_base
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo=titulo,
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "docente_id": propuesta.docente_id,
+        },
+    )
+
+
+def _notificar_solicitud_ajuste_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    maximo = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} solicitó ajustar los cupos"
+    else:
+        encabezado = "Se solicitó ajustar los cupos de tu propuesta"
+
+    mensaje = (
+        f"{encabezado} del tema \"{propuesta.titulo}\" a un máximo de {maximo} integrante(s)."
+    )
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Ajusta los cupos de tu propuesta",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_maximo_autorizado": maximo,
+        },
+    )
+
+
+def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return
+
+    docente = propuesta.docente
+    comentario = (propuesta.comentario_decision or "").strip()
+
+    if docente:
+        encabezado = f"El docente {docente.nombre_completo} autorizó los cupos del grupo"
+    else:
+        encabezado = "Se autorizaron los cupos solicitados para tu propuesta"
+
+    mensaje = f"{encabezado} del tema \"{propuesta.titulo}\"."
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}"
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Cupos autorizados",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_autorizados": propuesta.cupos_maximo_autorizado,
+        },
+    )
+
+
+def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
+    docente = propuesta.docente
+    if docente is None:
+        return
+
+    alumno = propuesta.alumno
+    if alumno:
+        alumno_nombre = alumno.nombre_completo
+    else:
+        alumno_nombre = "El alumno"
+
+    mensaje = (
+        f"{alumno_nombre} confirmó los cupos del tema \"{propuesta.titulo}\" y ahora espera tu aprobación definitiva."
+    )
+
+    Notificacion.objects.create(
+        usuario=docente,
+        titulo="Confirmación de cupos recibida",
+        mensaje=mensaje,
+        tipo="propuesta",
+        meta={
+            "propuesta_id": propuesta.id,
+            "estado": propuesta.estado,
+            "cupos_requeridos": propuesta.cupos_requeridos,
+        },
+    )
+
+
+def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | None:
+    alumno = propuesta.alumno
+    if alumno is None:
+        return None
+
+    cupos_autorizados = propuesta.cupos_maximo_autorizado or propuesta.cupos_requeridos
+    cupos = propuesta.cupos_requeridos or 1
+    if cupos_autorizados:
+        cupos = min(cupos, cupos_autorizados)
+    if cupos < 1:
+        cupos = 1
+
+    carrera = alumno.carrera or ""
+    if not carrera and propuesta.docente and propuesta.docente.carrera:
+        carrera = propuesta.docente.carrera
+
+    requisitos = []
+    if propuesta.objetivo:
+        requisitos.append(propuesta.objetivo)
+
+    docente_responsable = propuesta.docente
+    created_by = alumno if alumno else propuesta.docente
+    rama = (propuesta.rama or "").strip()
+
+    with transaction.atomic():
+        tema = TemaDisponible.objects.create(
+            titulo=propuesta.titulo,
+            carrera=carrera,
+            rama=rama,
+            descripcion=propuesta.descripcion,
+            requisitos=requisitos,
+            cupos=cupos,
+            created_by=created_by,
+            docente_responsable=docente_responsable,
+            propuesta=propuesta,
+        )
+
+        participantes: list[tuple[Usuario, bool]] = [(alumno, True)]
+
+        for correo in propuesta.correos_companeros or []:
+            usuario = Usuario.objects.filter(correo__iexact=correo, rol="alumno").first()
+            if not usuario:
+                continue
+            if carrera and usuario.carrera and not _carreras_coinciden(carrera, usuario.carrera):
+                continue
+            if any(existing.pk == usuario.pk for existing, _ in participantes):
+                continue
+            participantes.append((usuario, False))
+
+        for usuario, es_responsable in participantes[:cupos]:
+            inscripcion = InscripcionTema.objects.create(
+                tema=tema,
+                alumno=usuario,
+                es_responsable=es_responsable,
+            )
+            notificar_reserva_tema(
+                tema,
+                usuario,
+                cupos_disponibles=tema.cupos_disponibles,
+                reactivada=False,
+                inscripcion_id=inscripcion.pk,
+            )
+
+    if tema.cupos_disponibles == 0:
+        notificar_cupos_completados(tema)
+
+    return tema
 
 
 def _normalizar_carrera(nombre: str) -> str:
@@ -95,137 +1750,54 @@ def _buscar_coordinador_por_carrera(carrera: str):
     for usuario in qs:
         if _normalizar_carrera(usuario.carrera or "") == normalizada:
             return usuario
-
-    return (
-        qs.filter(carrera__icontains=carrera)
-        .order_by("id")
-        .first()
-    )
-
-
-def _normalizar_rut(rut: str) -> str:
-    if not rut:
-        return ""
-    return re.sub(r"[^0-9Kk]", "", rut).upper()
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def crear_solicitud_carta_practica(request):
-    serializer = SolicitudCartaPracticaCreateSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
-
-    alumno_data = data["alumno"]
-    practica_data = data["practica"]
-    destinatario_data = data["destinatario"]
-    escuela_data = data["escuela"]
-
-    alumno_usuario = (
-        Usuario.objects.filter(rut__iexact=alumno_data["rut"])
-        .filter(rol="alumno")
-        .first()
-    )
-    coordinador_usuario = _buscar_coordinador_por_carrera(alumno_data.get("carrera"))
-
-    solicitud = SolicitudCartaPractica.objects.create(
-        alumno=alumno_usuario,
-        coordinador=coordinador_usuario,
-        alumno_rut=alumno_data["rut"],
-        alumno_nombres=alumno_data["nombres"],
-        alumno_apellidos=alumno_data["apellidos"],
-        alumno_carrera=alumno_data["carrera"],
-        practica_jefe_directo=practica_data["jefeDirecto"],
-        practica_cargo_alumno=practica_data["cargoAlumno"],
-        practica_fecha_inicio=practica_data["fechaInicio"],
-        practica_empresa_rut=practica_data["empresaRut"],
-        practica_sector=practica_data["sectorEmpresa"],
-        practica_duracion_horas=practica_data["duracionHoras"],
-        dest_nombres=destinatario_data["nombres"],
-        dest_apellidos=destinatario_data["apellidos"],
-        dest_cargo=destinatario_data["cargo"],
-        dest_empresa=destinatario_data["empresa"],
-        escuela_id=escuela_data["id"],
-        escuela_nombre=escuela_data["nombre"],
-        escuela_direccion=escuela_data["direccion"],
-        escuela_telefono=escuela_data["telefono"],
-        meta=data.get("meta", {}),
-    )
-
-    return Response(
-        {
-            "status": "ok",
-            "id": str(solicitud.id),
-            "mensaje": "Solicitud registrada correctamente.",
-        },
-        status=status.HTTP_201_CREATED,
-    )
-
-
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def listar_solicitudes_carta_practica(request):
-    estado = request.query_params.get("estado")
-    busqueda = request.query_params.get("q", "").strip()
-    try:
-        page = max(int(request.query_params.get("page", 1)), 1)
-    except (TypeError, ValueError):
-        page = 1
-    try:
-        size = max(int(request.query_params.get("size", 10)), 1)
-    except (TypeError, ValueError):
-        size = 10
-    coordinador_rut = request.query_params.get("coordinador_rut")
-    alumno_rut = (request.query_params.get("alumno_rut") or "").strip()
-
-    queryset = SolicitudCartaPractica.objects.all()
-
-    if estado in {"pendiente", "aprobado", "rechazado"}:
-        queryset = queryset.filter(estado=estado)
-
-    if coordinador_rut:
-        queryset = queryset.filter(coordinador__rut__iexact=coordinador_rut)
-
-    if alumno_rut:
-        filtro = Q(alumno_rut__iexact=alumno_rut)
-        rut_limpio = _normalizar_rut(alumno_rut)
-        if rut_limpio:
-            queryset = queryset.annotate(
-                alumno_rut_limpio=Replace(
-                    Replace(Replace("alumno_rut", Value("."), Value("")), Value("-"), Value("")),
-                    Value(" "),
-                    Value(""),
-                )
-            )
-            filtro |= Q(alumno_rut_limpio__iexact=rut_limpio)
-        queryset = queryset.filter(filtro)
-
-    if busqueda:
-        queryset = queryset.filter(
-            Q(alumno_nombres__icontains=busqueda)
-            | Q(alumno_apellidos__icontains=busqueda)
-            | Q(alumno_rut__icontains=busqueda)
-            | Q(dest_empresa__icontains=busqueda)
-        )
-
-    total = queryset.count()
-    start = max((page - 1) * size, 0)
-    end = start + size
-    items = queryset.order_by("-creado_en")[start:end]
-
-    serializer = SolicitudCartaPracticaSerializer(items, many=True)
-    return Response({"items": serializer.data, "total": total})
+    return None
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud = get_object_or_404(SolicitudCartaPractica, pk=pk)
-    url = request.data.get("url")
-    solicitud.url_documento = url or None
+    archivo = request.FILES.get("documento")
+    url_param = (request.data.get("url") or "").strip()
+
+    if archivo:
+        content_type = (archivo.content_type or "").lower()
+        if content_type and "pdf" not in content_type:
+            return Response(
+                {"documento": "El archivo debe estar en formato PDF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+
+        nombres = " ".join(
+            parte
+            for parte in [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
+            if parte
+        ).strip()
+        slug = slugify(nombres or "carta practica") or "carta-practica"
+        timestamp = timezone.localtime(timezone.now()).strftime("%Y%m%d%H%M%S")
+        filename = f"carta-{slug}-{timestamp}.pdf"
+
+        solicitud.documento.save(filename, archivo, save=False)
+        solicitud.url_documento = solicitud.documento.url
+    elif url_param:
+        if solicitud.documento:
+            solicitud.documento.delete(save=False)
+        solicitud.documento = None
+        solicitud.url_documento = url_param
+    else:
+        return Response(
+            {"documento": "Debe adjuntar el archivo PDF generado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
-    return Response({"status": "ok"})
+    solicitud.save()
+
+    serializer = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
+    return Response({"status": "ok", "url": serializer.data.get("url")})
 
 
 @api_view(["POST"])
@@ -240,6 +1812,130 @@ def rechazar_solicitud_carta_practica(request, pk: int):
         )
     solicitud.motivo_rechazo = motivo
     solicitud.url_documento = None
+    if solicitud.documento:
+        solicitud.documento.delete(save=False)
+    solicitud.documento = None
     solicitud.estado = "rechazado"
-    solicitud.save(update_fields=["estado", "url_documento", "motivo_rechazo", "actualizado_en"])
+    solicitud.save()
     return Response({"status": "ok"})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_documentos_practica(request):
+    queryset = PracticaDocumento.objects.select_related("uploaded_by")
+
+    if request.method == "GET":
+        coordinador_param = request.query_params.get("coordinador")
+        carrera_param = request.query_params.get("carrera")
+
+        if coordinador_param:
+            coordinador = _obtener_usuario_por_id(coordinador_param)
+            if not coordinador or coordinador.rol != "coordinador":
+                return Response(
+                    {"detail": "Coordinador no válido."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(uploaded_by=coordinador)
+        elif carrera_param:
+            queryset = _filtrar_queryset_por_carrera(queryset, carrera_param)
+        else:
+            queryset = queryset.none()
+
+        try:
+            page = int(request.query_params.get("page", 1))
+        except (TypeError, ValueError):
+            page = 1
+        page = max(page, 1)
+
+        try:
+            size = int(request.query_params.get("size", 20))
+        except (TypeError, ValueError):
+            size = 20
+        size = max(1, min(size, 200))
+
+        total = queryset.count()
+        offset = (page - 1) * size
+        items = queryset[offset : offset + size]
+
+        serializer = PracticaDocumentoSerializer(
+            items,
+            many=True,
+            context={"request": request},
+        )
+        return Response({"items": serializer.data, "total": total})
+
+    coordinador = _obtener_usuario_por_id(request.data.get("coordinador"))
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
+    if not nombre:
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    descripcion = (request.data.get("descripcion") or "").strip() or None
+
+    documento = PracticaDocumento.objects.create(
+        carrera=carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaDocumentoSerializer(
+        documento,
+        context={"request": request},
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/documentos/{documento.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def eliminar_documento_practica(request, pk: int):
+    documento = get_object_or_404(
+        PracticaDocumento.objects.select_related("uploaded_by"), pk=pk
+    )
+
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if documento.uploaded_by_id != coordinador.pk:
+        return Response(
+            {"detail": "No tienes permisos para eliminar este documento."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if documento.archivo:
+        documento.archivo.delete(save=False)
+    documento.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

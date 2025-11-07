@@ -305,6 +305,12 @@
       </div>
 
       <div class="doc-modal-actions" style="margin-top:8px;">
+        <button type="button"
+                class="doc-pill primary"
+                (click)="exportResumenCsv()"
+                [disabled]="resumen().length === 0">
+          Exportar CSV
+        </button>
         <button type="button" class="doc-pill" (click)="closeResumen()">Cerrar</button>
       </div>
     </div>

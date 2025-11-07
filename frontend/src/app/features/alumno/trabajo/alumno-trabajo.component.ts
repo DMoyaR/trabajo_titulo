@@ -1,12 +1,23 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
-type Nivel = 'i' | 'ii';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docente/trabajolist/tema.service';
 
+type Nivel = 'i' | 'ii';
 type EstadoEntrega = 'aprobado' | 'enRevision' | 'pendiente';
 
-interface EntregaAlumno {
+type ResumenNivel = {
+  avance: number;
+  aprobadas: number;
+  totales: number;
+  proximoHito: string;
+  ultimoFeedback: string;
+  profesorGuia: string;
+};
+
+type EntregaAlumno = {
   id: string;
   nombre: string;
   descripcion: string;
@@ -15,34 +26,62 @@ interface EntregaAlumno {
   badge: string;
   proximoPaso?: string;
   alerta?: string;
-}
+  expanded?: boolean;
+};
 
-interface EntregaDestacada extends EntregaAlumno {
+type EntregaDestacada = EntregaAlumno & {
   estadoEtiqueta: string;
   encabezado: string;
-}
+};
 
-interface ResumenNivel {
-  avance: number;
-  aprobadas: number;
-  totales: number;
-  proximoHito: string;
-  ultimoFeedback: string;
-  profesorGuia: string;
-}
+const CARRERAS_SIN_TRABAJO_TITULO = new Set(
+  [
+    'Bachillerato en Ciencias de la Ingeniería',
+    'Dibujante Proyectista',
+  ].map(nombre => nombre.toLowerCase()),
+);
+
+const CARRERAS_SOLO_NIVEL_I = new Set(
+  [
+    'Ingeniería Civil Biomédica',
+    'Ingeniería Civil Electrónica',
+    'Ingeniería Civil en Mecánica',
+    'Ingeniería en Geomensura',
+    'Ingeniería en Informática',
+    'Ingeniería Civil Industrial',
+    'Ingeniería Industrial',
+  ].map(nombre => nombre.toLowerCase()),
+);
+
+const CARRERAS_NIVEL_I_Y_II = new Set(
+  [
+    'Ingeniería Civil en Ciencia de Datos',
+    'Ingeniería Civil en Computación mención Informática',
+  ].map(nombre => nombre.toLowerCase()),
+);
 
 @Component({
   selector: 'alumno-trabajo',
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './alumno-trabajo.component.html',
-  styleUrls: ['./alumno-trabajo.component.css']
+  styleUrls: ['./alumno-trabajo.component.css'],
 })
 export class AlumnoTrabajoComponent {
-  tab = signal<Nivel>('i');
+  readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
+  readonly nivelSeleccionado = signal<Nivel>('i');
 
-  // Información de seguimiento por nivel
-  entregas = signal<Record<Nivel, EntregaAlumno[]>>({
+  readonly temaAsignado = signal<TemaDisponible | null>(null);
+  readonly temaAsignadoCargando = signal(false);
+  readonly temaAsignadoError = signal<string | null>(null);
+
+  readonly estadoTexto: Record<EstadoEntrega, string> = {
+    aprobado: 'Aprobado',
+    enRevision: 'En revisión',
+    pendiente: 'Pendiente',
+  };
+
+  readonly entregas = signal<Record<Nivel, EntregaAlumno[]>>({
     i: [
       {
         id: 'i-1',
@@ -105,7 +144,7 @@ export class AlumnoTrabajoComponent {
     ],
   });
 
-  resumen = signal<Record<Nivel, ResumenNivel>>({
+  readonly resumen = signal<Record<Nivel, ResumenNivel>>({
     i: {
       avance: 65,
       aprobadas: 3,
@@ -124,32 +163,61 @@ export class AlumnoTrabajoComponent {
     },
   });
 
-  estadoTexto: Record<EstadoEntrega, string> = {
-    aprobado: 'Aprobado',
-    enRevision: 'En revisión',
-    pendiente: 'Pendiente',
-  };
-
-  nivelActual = computed<Nivel>(() => this.tab());
-
-  resumenNivel = computed<ResumenNivel>(() => {
-    const nivel = this.nivelActual();
-    return this.resumen()[nivel];
+  readonly nivelActual = computed<Nivel | null>(() => {
+    const seleccionado = this.nivelSeleccionado();
+    return this.tieneNivel(seleccionado) ? seleccionado : null;
   });
 
-  entregasPorNivel = computed<EntregaAlumno[]>(() => {
+  readonly resumenNivel = computed<ResumenNivel | null>(() => {
     const nivel = this.nivelActual();
-    return this.entregas()[nivel];
+    return nivel ? this.resumen()[nivel] : null;
   });
 
-  entregaDestacada = computed<EntregaDestacada | null>(() => {
-    const entregas = this.entregasPorNivel();
-    if (!entregas.length) {
+  readonly temaAsignadoIntegrantes = computed<TemaInscripcionActiva[]>(() => {
+    const tema = this.temaAsignado();
+    if (!tema) {
+      return [];
+    }
+    return [...(tema.inscripcionesActivas ?? [])];
+  });
+
+  readonly profesorAsignado = computed(() => {
+    const tema = this.temaAsignado();
+    if (!tema) {
+      return null;
+    }
+    return tema.docenteACargo ?? tema.creadoPor ?? null;
+  });
+
+  readonly puedeGestionarCupos = computed(() => {
+    const tema = this.temaAsignado();
+    if (!tema) {
+      return false;
+    }
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+    if (!alumnoId) {
+      return false;
+    }
+    const esResponsable = (tema.inscripcionesActivas ?? []).some(
+      (inscripcion) => inscripcion.id === alumnoId && inscripcion.esResponsable,
+    );
+    return esResponsable && (tema.cupos ?? 1) > 1;
+  });
+
+  readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
+    const nivel = this.nivelActual();
+    return nivel ? this.entregas()[nivel] : [];
+  });
+
+  readonly entregaDestacada = computed<EntregaDestacada | null>(() => {
+    const items = this.entregasPorNivel();
+    if (!items.length) {
       return null;
     }
 
-    const pendiente = entregas.find((entrega) => entrega.estado === 'pendiente');
-    const seleccionada = pendiente ?? entregas[entregas.length - 1];
+    const pendiente = items.find(entrega => entrega.estado === 'pendiente');
+    const seleccionada = pendiente ?? items[items.length - 1];
     const encabezado = pendiente ? 'Entrega pendiente' : 'Actividad más reciente';
 
     return {
@@ -159,8 +227,98 @@ export class AlumnoTrabajoComponent {
     };
   });
 
-  nivelTitulo = computed(() => {
+  readonly nivelTitulo = computed(() => {
     const nivel = this.nivelActual();
+    if (!nivel) {
+      return '';
+    }
     return nivel === 'i' ? 'T. Título I' : 'T. Título II';
   });
+
+  constructor(
+    private readonly currentUserService: CurrentUserService,
+    private readonly temaService: TemaService,
+  ) {
+    this.configurarNivelesDisponibles();
+    this.cargarTemaAsignado();
+  }
+
+  tieneNivel(nivel: Nivel): boolean {
+    return this.nivelesDisponibles().includes(nivel);
+  }
+
+  seleccionarNivel(nivel: Nivel) {
+    if (!this.tieneNivel(nivel)) {
+      return;
+    }
+    this.nivelSeleccionado.set(nivel);
+  }
+
+  toggleResumen(entrega: EntregaAlumno) {
+    entrega.expanded = !entrega.expanded;
+  }
+
+  private configurarNivelesDisponibles() {
+    const perfil = this.currentUserService.getProfile();
+    const niveles = this.determinarNivelesDisponibles(perfil?.carrera ?? null);
+    this.nivelesDisponibles.set(niveles);
+
+    if (!niveles.length) {
+      return;
+    }
+
+    if (!niveles.includes(this.nivelSeleccionado())) {
+      this.nivelSeleccionado.set(niveles[0]);
+    }
+  }
+
+  private determinarNivelesDisponibles(carrera: string | null): Nivel[] {
+    const normalizada = carrera?.trim().toLowerCase() ?? '';
+
+    if (!normalizada) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SIN_TRABAJO_TITULO.has(normalizada)) {
+      return [];
+    }
+
+    if (CARRERAS_NIVEL_I_Y_II.has(normalizada)) {
+      return ['i', 'ii'];
+    }
+
+    if (CARRERAS_SOLO_NIVEL_I.has(normalizada)) {
+      return ['i'];
+    }
+
+    return ['i', 'ii'];
+  }
+
+  private cargarTemaAsignado() {
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+
+    if (!alumnoId) {
+      this.temaAsignado.set(null);
+      return;
+    }
+
+    this.temaAsignadoCargando.set(true);
+    this.temaAsignadoError.set(null);
+
+    this.temaService
+      .getTemas({ usuarioId: alumnoId, alumnoId })
+      .subscribe({
+        next: (temas) => {
+          const reservado = temas.find(tema => tema.tieneCupoPropio) ?? null;
+          this.temaAsignado.set(reservado);
+          this.temaAsignadoCargando.set(false);
+        },
+        error: (err) => {
+          console.error('No fue posible cargar tu tema asignado', err);
+          this.temaAsignadoError.set('No fue posible cargar la información de tu tema asignado.');
+          this.temaAsignadoCargando.set(false);
+        },
+      });
+  }
 }

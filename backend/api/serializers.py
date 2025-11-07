@@ -1,5 +1,60 @@
 from rest_framework import serializers
-from .models import Usuario, TemaDisponible, SolicitudCartaPractica
+from .models import (
+    Usuario,
+    TemaDisponible,
+    SolicitudCartaPractica,
+    PracticaDocumento,
+    PropuestaTema,
+    Notificacion,
+)
+
+
+def _procesar_correos_companeros(
+    alumno: Usuario | None,
+    correos_companeros: list[str] | None,
+    cupos_requeridos: int,
+    field_name: str = "correos_companeros",
+):
+    correos = correos_companeros or []
+    cupos = max(int(cupos_requeridos or 1), 1)
+    correo_alumno = (alumno.correo or "").strip().lower() if alumno else ""
+    correos_limpios: list[str] = []
+    correos_unicos: set[str] = set()
+
+    for correo in correos:
+        normalizado = (correo or "").strip().lower()
+        if not normalizado:
+            continue
+        if normalizado == correo_alumno:
+            raise serializers.ValidationError(
+                {
+                    field_name: [
+                        "No debes ingresar tu propio correo dentro de los cupos.",
+                    ]
+                }
+            )
+        if normalizado in correos_unicos:
+            raise serializers.ValidationError(
+                {
+                    field_name: [
+                        "Cada correo de compañero debe ser distinto.",
+                    ]
+                }
+            )
+        correos_unicos.add(normalizado)
+        correos_limpios.append(normalizado)
+
+    max_companeros = max(cupos - 1, 0)
+    if len(correos_limpios) > max_companeros:
+        raise serializers.ValidationError(
+            {
+                field_name: [
+                    "La cantidad de correos supera los cupos solicitados.",
+                ]
+            }
+        )
+
+    return correos_limpios
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -22,7 +77,23 @@ class LoginSerializer(serializers.Serializer):
 
 
 class TemaDisponibleSerializer(serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), required=False, allow_null=True
+    )
+    creadoPor = serializers.SerializerMethodField(method_name="get_creado_por")
+    docente_responsable = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(), required=False, allow_null=True
+    )
+    docenteACargo = serializers.SerializerMethodField(method_name="get_docente_a_cargo")
+    cuposDisponibles = serializers.SerializerMethodField()
+    tieneCupoPropio = serializers.SerializerMethodField()
+    inscripcionesActivas = serializers.SerializerMethodField()
+    objetivo = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        write_only=True,
+        help_text="Objetivo general del tema propuesto por el docente.",
+    )
 
     class Meta:
         model = TemaDisponible
@@ -30,15 +101,94 @@ class TemaDisponibleSerializer(serializers.ModelSerializer):
             "id",
             "titulo",
             "carrera",
+            "rama",
             "descripcion",
             "requisitos",
             "cupos",
+            "objetivo",
+            "cuposDisponibles",
+            "tieneCupoPropio",
             "created_at",
             "created_by",
+            "creadoPor",
+            "docente_responsable",
+            "docenteACargo",
+            "inscripcionesActivas",
         ]
-        read_only_fields = ["id", "created_at", "created_by"]
+        read_only_fields = ["id", "created_at"]
 
+    def get_creado_por(self, obj):
+        usuario = obj.created_by
+        if not usuario:
+            return None
 
+        return {
+            "nombre": usuario.nombre_completo,
+            "rol": usuario.rol,
+            "carrera": usuario.carrera,
+        }
+
+    def get_docente_a_cargo(self, obj):
+        docente = obj.docente_responsable
+        if not docente:
+            docente = obj.created_by if obj.created_by and obj.created_by.rol == "docente" else None
+        if not docente:
+            return None
+
+        return {
+            "nombre": docente.nombre_completo,
+            "rol": docente.rol,
+            "carrera": docente.carrera,
+        }
+
+    def get_cuposDisponibles(self, obj) -> int:
+        return obj.cupos_disponibles
+
+    def get_tieneCupoPropio(self, obj) -> bool:
+        alumno_id = self.context.get("alumno_id")
+        if not alumno_id:
+            return False
+        return obj.inscripciones.filter(alumno_id=alumno_id, activo=True).exists()
+
+    def get_inscripcionesActivas(self, obj):
+        activos = (
+            obj.inscripciones.filter(activo=True)
+            .select_related("alumno")
+            .order_by("created_at")
+        )
+        resultado = []
+        for inscripcion in activos:
+            alumno = inscripcion.alumno
+            if not alumno:
+                continue
+            resultado.append(
+                {
+                    "id": alumno.id,
+                    "nombre": alumno.nombre_completo,
+                    "correo": alumno.correo,
+                    "carrera": alumno.carrera,
+                    "rut": alumno.rut,
+                    "telefono": alumno.telefono,
+                    "reservadoEn": inscripcion.created_at.isoformat(),
+                    "esResponsable": inscripcion.es_responsable,
+                }
+            )
+        return resultado
+
+    def validate_created_by(self, usuario: Usuario | None) -> Usuario | None:
+        if usuario and usuario.rol not in {"docente", "coordinador"}:
+            raise serializers.ValidationError(
+                "Solo docentes o coordinación pueden registrarse como creadores del tema."
+            )
+        return usuario
+
+    def validate_docente_responsable(self, usuario: Usuario | None) -> Usuario | None:
+        if usuario and usuario.rol != "docente":
+            raise serializers.ValidationError(
+                "Solo un docente puede ser asignado como responsable del tema."
+            )
+        return usuario
+    
 class AlumnoCartaSerializer(serializers.Serializer):
     rut = serializers.CharField(max_length=20)
     nombres = serializers.CharField(max_length=120)
@@ -91,6 +241,7 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             "id",
             "creado_en",
             "estado",
+            "documento",
             "url_documento",
             "motivo_rechazo",
             "alumno_rut",
@@ -116,11 +267,25 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         base = super().to_representation(instance)
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+
+        document_url = None
+        if instance.documento:
+            url = instance.documento.url
+            document_url = request.build_absolute_uri(url) if request else url
+        else:
+            url_documento = base.get("url_documento")
+            if url_documento:
+                if request and str(url_documento).startswith("/"):
+                    document_url = request.build_absolute_uri(url_documento)
+                else:
+                    document_url = url_documento
+
         return {
             "id": str(base["id"]),
             "creadoEn": instance.creado_en.isoformat(),
             "estado": base["estado"],
-            "url": base["url_documento"],
+            "url": document_url,
             "motivoRechazo": base["motivo_rechazo"],
             "alumno": {
                 "rut": base["alumno_rut"],
@@ -150,3 +315,365 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             },
             "meta": base.get("meta", {}),
         }
+
+
+class PracticaDocumentoSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    uploadedBy = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PracticaDocumento
+        fields = [
+            "id",
+            "nombre",
+            "descripcion",
+            "carrera",
+            "created_at",
+            "url",
+            "uploadedBy",
+        ]
+        read_only_fields = ["id", "carrera", "created_at", "url", "uploadedBy"]
+
+    def get_url(self, obj: PracticaDocumento) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_uploadedBy(self, obj: PracticaDocumento) -> dict | None:
+        usuario = obj.uploaded_by
+        if not usuario:
+            return None
+        return {
+            "id": usuario.pk,
+            "nombre": usuario.nombre_completo,
+            "correo": usuario.correo,
+        }
+
+
+class UsuarioResumenSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="nombre_completo")
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+
+
+class PropuestaTemaSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = PropuestaTema
+        fields = [
+            "id",
+            "titulo",
+            "objetivo",
+            "descripcion",
+            "rama",
+            "estado",
+            "comentario_decision",
+            "preferencias_docentes",
+            "cupos_requeridos",
+            "cupos_maximo_autorizado",
+            "correos_companeros",
+            "alumno",
+            "docente",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class PropuestaTemaCreateSerializer(serializers.Serializer):
+    alumno_id = serializers.IntegerField(required=False, allow_null=True)
+    docente_id = serializers.IntegerField(required=False, allow_null=True)
+    titulo = serializers.CharField(max_length=160)
+    objetivo = serializers.CharField(max_length=300)
+    descripcion = serializers.CharField()
+    rama = serializers.CharField(max_length=120)
+    preferencias_docentes = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True
+    )
+    cupos_requeridos = serializers.IntegerField(min_value=1, default=1)
+    correos_companeros = serializers.ListField(
+        child=serializers.EmailField(), required=False, allow_empty=True
+    )
+
+    def _obtener_usuario(self, usuario_id, rol, field_name):
+        if usuario_id in (None, "", 0):
+            return None
+
+        try:
+            usuario_id_int = int(usuario_id)
+        except (TypeError, ValueError) as exc:
+            raise serializers.ValidationError(
+                {field_name: f"El identificador {usuario_id!r} no es válido."}
+            ) from exc
+
+        usuario = Usuario.objects.filter(id=usuario_id_int).first()
+        if not usuario:
+            raise serializers.ValidationError(
+                {field_name: f"No existe un usuario con id {usuario_id_int}."}
+            )
+
+        rol_normalizado = (usuario.rol or "").strip().lower()
+        if rol_normalizado != rol.strip().lower():
+            raise serializers.ValidationError(
+                {field_name: f"El usuario con id {usuario_id_int} no es un {rol}."}
+            )
+
+        return usuario
+
+    def validate(self, attrs):
+        alumno = self._obtener_usuario(attrs.get("alumno_id"), "alumno", "alumno_id")
+        docente = self._obtener_usuario(attrs.get("docente_id"), "docente", "docente_id")
+
+        preferencias = attrs.get("preferencias_docentes") or []
+        cupos_requeridos = attrs.get("cupos_requeridos") or 1
+        correos_companeros = attrs.get("correos_companeros") or []
+
+        if cupos_requeridos < 1:
+            raise serializers.ValidationError(
+                {"cupos_requeridos": "Debes indicar al menos un cupo."}
+            )
+
+        correos_limpios = _procesar_correos_companeros(
+            alumno,
+            correos_companeros,
+            cupos_requeridos,
+            field_name="correos_companeros",
+        )
+
+        if preferencias:
+            docentes = Usuario.objects.filter(id__in=preferencias, rol="docente")
+            encontrados = {d.id for d in docentes}
+            faltantes = [pk for pk in preferencias if pk not in encontrados]
+            if faltantes:
+                raise serializers.ValidationError(
+                    {
+                        "preferencias_docentes": [
+                            f"Los siguientes docentes no existen: {', '.join(map(str, faltantes))}"
+                        ]
+                    }
+                )
+            if docente is None:
+                docente = next((d for d in docentes if d.id == preferencias[0]), None)
+
+        attrs["alumno"] = alumno
+        attrs["docente"] = docente
+        attrs["preferencias_docentes"] = preferencias
+        attrs["correos_companeros"] = correos_limpios
+        attrs["cupos_requeridos"] = cupos_requeridos
+        return attrs
+
+    def create(self, validated_data):
+        alumno = validated_data.pop("alumno", None)
+        docente = validated_data.pop("docente", None)
+        validated_data.pop("alumno_id", None)
+        validated_data.pop("docente_id", None)
+        preferencias = validated_data.pop("preferencias_docentes", [])
+
+        propuesta = PropuestaTema.objects.create(
+            alumno=alumno,
+            docente=docente,
+            preferencias_docentes=preferencias,
+            **validated_data,
+        )
+        return propuesta
+
+
+class PropuestaTemaDocenteDecisionSerializer(serializers.Serializer):
+    accion = serializers.ChoiceField(
+        choices=[
+            ("autorizar", "Autorizar cupos"),
+            ("solicitar_ajuste", "Solicitar ajuste de cupos"),
+            ("rechazar", "Rechazar propuesta"),
+            ("aprobar_final", "Aprobar definitivamente"),
+        ]
+    )
+    comentario_decision = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    docente_id = serializers.IntegerField(required=False, allow_null=True)
+    cupos_autorizados = serializers.IntegerField(
+        required=False,
+        min_value=1,
+    )
+
+    def validate(self, attrs):
+        instancia: PropuestaTema = self.instance
+        accion = attrs.get("accion")
+        cupos_autorizados = attrs.get("cupos_autorizados")
+        comentario = attrs.get("comentario_decision")
+
+        if isinstance(comentario, str):
+            comentario = comentario.strip()
+        if accion == "solicitar_ajuste" and not comentario:
+            raise serializers.ValidationError(
+                {"comentario_decision": "Debes registrar un comentario con tu decisión."}
+            )
+        attrs["comentario_decision"] = comentario
+
+        if accion in {"autorizar", "solicitar_ajuste"}:
+            if cupos_autorizados is None:
+                raise serializers.ValidationError(
+                    {"cupos_autorizados": "Debes indicar la cantidad autorizada."}
+                )
+        if accion == "autorizar":
+            if cupos_autorizados is None:
+                raise serializers.ValidationError(
+                    {"cupos_autorizados": "Debes indicar la cantidad autorizada."}
+                )
+            if cupos_autorizados < instancia.cupos_requeridos:
+                raise serializers.ValidationError(
+                    {
+                        "cupos_autorizados": "Para autorizar, la cantidad debe ser igual o superior a la solicitada.",
+                    }
+                )
+        if accion == "solicitar_ajuste":
+            if cupos_autorizados is None:
+                raise serializers.ValidationError(
+                    {"cupos_autorizados": "Debes indicar la cantidad máxima permitida."}
+                )
+            if cupos_autorizados >= instancia.cupos_requeridos:
+                raise serializers.ValidationError(
+                    {
+                        "cupos_autorizados": "El valor debe ser menor a los cupos solicitados por el alumno.",
+                    }
+                )
+        if accion == "aprobar_final" and instancia.estado not in {
+            "pendiente_aprobacion",
+            "pendiente",
+        }:
+            raise serializers.ValidationError(
+                {
+                    "accion": "Solo puedes aprobar definitivamente propuestas pendientes o pendientes de aprobación.",
+                }
+            )
+
+        docente_id = attrs.get("docente_id")
+        docente = None
+        if docente_id not in (None, "", 0):
+            try:
+                docente = Usuario.objects.get(id=int(docente_id), rol="docente")
+            except (ValueError, Usuario.DoesNotExist) as exc:
+                raise serializers.ValidationError({"docente_id": "Docente no válido."}) from exc
+
+        attrs["docente"] = docente
+        return attrs
+
+    def update(self, instance: PropuestaTema, validated_data):
+        accion = validated_data.get("accion")
+        comentario = validated_data.get("comentario_decision")
+        docente = validated_data.get("docente")
+        cupos_autorizados = validated_data.get("cupos_autorizados")
+
+        if docente is not None:
+            instance.docente = docente
+
+        if comentario is not None:
+            instance.comentario_decision = comentario
+
+        update_fields = ["comentario_decision", "estado", "updated_at"]
+
+        if accion == "solicitar_ajuste":
+            instance.cupos_maximo_autorizado = cupos_autorizados
+            instance.estado = "pendiente_ajuste"
+            update_fields.append("cupos_maximo_autorizado")
+        elif accion == "autorizar":
+            instance.cupos_maximo_autorizado = cupos_autorizados
+            instance.estado = "pendiente_aprobacion"
+            update_fields.append("cupos_maximo_autorizado")
+        elif accion == "rechazar":
+            instance.estado = "rechazada"
+        elif accion == "aprobar_final":
+            if (
+                instance.cupos_maximo_autorizado is not None
+                and instance.cupos_requeridos > instance.cupos_maximo_autorizado
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "accion": "Los cupos solicitados superan el máximo autorizado. Solicita un ajuste antes de aprobar.",
+                    }
+                )
+            if instance.cupos_maximo_autorizado is None:
+                instance.cupos_maximo_autorizado = instance.cupos_requeridos
+                update_fields.append("cupos_maximo_autorizado")
+            instance.estado = "aceptada"
+
+        if docente is not None:
+            update_fields.append("docente")
+
+        instance.save(update_fields=update_fields)
+        instance.refresh_from_db()
+        return instance
+
+
+class PropuestaTemaAlumnoAjusteSerializer(serializers.Serializer):
+    accion = serializers.CharField()
+    cupos_requeridos = serializers.IntegerField(min_value=1)
+    correos_companeros = serializers.ListField(
+        child=serializers.EmailField(), required=False, allow_empty=True
+    )
+
+    def validate(self, attrs):
+        accion = attrs.get("accion")
+        if accion != "confirmar_cupos":
+            raise serializers.ValidationError({"accion": "Acción inválida para el alumno."})
+
+        instancia: PropuestaTema = self.instance
+        if instancia.estado != "pendiente_ajuste":
+            raise serializers.ValidationError(
+                {
+                    "accion": "Solo puedes confirmar cupos cuando la propuesta está pendiente de ajuste.",
+                }
+            )
+
+        cupos = attrs.get("cupos_requeridos") or 1
+        maximo = instancia.cupos_maximo_autorizado or instancia.cupos_requeridos
+        if cupos > maximo:
+            raise serializers.ValidationError(
+                {
+                    "cupos_requeridos": f"Debes ajustar a {maximo} cupos o menos.",
+                }
+            )
+
+        correos = _procesar_correos_companeros(
+            instancia.alumno,
+            attrs.get("correos_companeros") or [],
+            cupos,
+            field_name="correos_companeros",
+        )
+
+        attrs["correos_limpios"] = correos
+        attrs["cupos_requeridos"] = cupos
+        return attrs
+
+    def update(self, instance: PropuestaTema, validated_data):
+        instance.cupos_requeridos = validated_data.get("cupos_requeridos", instance.cupos_requeridos)
+        instance.correos_companeros = validated_data.get("correos_limpios", [])
+        instance.estado = "pendiente_aprobacion"
+        instance.save(update_fields=["cupos_requeridos", "correos_companeros", "estado", "updated_at"])
+        instance.refresh_from_db()
+        return instance
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    usuario = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = Notificacion
+        fields = [
+            "id",
+            "titulo",
+            "mensaje",
+            "tipo",
+            "leida",
+            "meta",
+            "created_at",
+            "usuario",
+        ]

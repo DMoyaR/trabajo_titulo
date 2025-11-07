@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { ALUMNO_ROUTES } from './features/alumno/alumno.routes';
 export const routes: Routes = [
   // --- LOGIN ---
   {
@@ -10,9 +11,10 @@ export const routes: Routes = [
 
   // --- ALUMNO ---
   
-  { path: 'alumno', loadChildren: () => 
-      import('./features/alumno/alumno.routes')
-        .then(m => m.ALUMNO_ROUTES) },
+  {
+    path: 'alumno',
+    children: ALUMNO_ROUTES,
+  },
 
    // --- DOCENTE ---
   {
@@ -37,16 +39,16 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/docente/notificaciones/docente-notificaciones.component')
             .then((m) => m.DocenteNotificacionesComponent), },
-        
-        { path: 'temas',
-        loadComponent: () =>
-          import('./features/docente/temas/docente-temas.component')
-            .then((m) => m.DocenteTemasComponent), },
 
         { path: 'trabajo',
         loadComponent: () =>
           import('./features/docente/trabajolist/docente-trabajo-list.component')
             .then((m) => m.DocenteTrabajoListComponent), },
+
+        { path: 'temas',
+        loadComponent: () =>
+          import('./features/docente/temas/docente-temas.component')
+            .then((m) => m.DocenteTemasComponent), },
 
         { path: 'trabajodetalle',
         loadComponent: () =>
@@ -68,10 +70,6 @@ export const routes: Routes = [
           import('./features/docente/reunionesresumen/docente-reuniones.component')
             .then((m) => m.DocenteReunionesComponent),},
 
-        { path: 'bandeja',
-        loadComponent: () =>
-          import('./features/docente/bandejachat/docente-bandeja.component')
-            .then((m) => m.DocenteBandejaComponent), },
 
         { path: 'perfil',
         loadComponent: () =>
@@ -99,12 +97,6 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/coordinacion/Notificacion/notificacion.component')
             .then(m => m.CoordinacionNotificacionComponent),
-      },
-      {
-        path: 'bandeja',
-        loadComponent: () =>
-          import('./features/coordinacion/Bandeja/bandeja.component')
-            .then(m => m.CoordinacionBandejaComponent),
       },
       {
         path: 'estudiantes',

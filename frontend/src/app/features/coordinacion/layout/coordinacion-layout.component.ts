@@ -31,12 +31,6 @@ export class CoordinacionLayoutComponent implements OnDestroy {
       alt: 'Notificaciones',
     },
     {
-      route: 'bandeja',
-      label: 'Bandeja de Entrada',
-      icon: 'assets/Bandeja_entrada.png',
-      alt: 'Bandeja de entrada',
-    },
-    {
       route: 'estudiantes',
       label: 'Estudiantes',
       icon: 'assets/Estudiantes.png',

@@ -1,61 +1,157 @@
-<h2 class="ttl">Coordinación — Cartas de Práctica</h2>
+<h2 class="ttl">Coordinación — Prácticas</h2>
 
+<!-- ======= Pestañas principales ======= -->
 <div class="toolbar card">
-  <div class="tabs">
-    <button class="tab" [class.active]="estado()==='pendiente'" (click)="setEstado('pendiente')">Pendientes</button>
-    <button class="tab" [class.active]="estado()==='aprobado'" (click)="setEstado('aprobado')">Aprobadas</button>
-    <button class="tab" [class.active]="estado()==='rechazado'" (click)="setEstado('rechazado')">Rechazadas</button>
+  <div class="tabs main-tabs">
+<button class="tab"
+  [class.active]="mainTab()==='solicitudes'"
+  (click)="setMainTab('solicitudes')"
+  [style.background-color]="mainTab()==='solicitudes' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='solicitudes' ? '#00a35c' : null"
+  [style.color]="mainTab()==='solicitudes' ? '#fff' : null">
+  Solicitudes
+</button>
+
+<button class="tab"
+  [class.active]="mainTab()==='documentos'"
+  (click)="setMainTab('documentos')"
+  [style.background-color]="mainTab()==='documentos' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='documentos' ? '#00a35c' : null"
+  [style.color]="mainTab()==='documentos' ? '#fff' : null">
+  Documentos Oficiales
+</button>
   </div>
 
-  <div class="filters">
-    
-    <input  type="search"  placeholder="Buscar por alumno o empresa..."  [ngModel]="query()"  (ngModelChange)="query.set($event)"  (keyup.enter)="buscar()" />
-
+  <!-- Buscador SOLO en Solicitudes -->
+  <div class="filters" *ngIf="mainTab()==='solicitudes'">
+    <input type="search"
+           placeholder="Buscar por alumno o empresa..."
+           [ngModel]="query()"
+           (ngModelChange)="query.set($event)"
+           (keyup.enter)="buscar()" />
     <button class="btn" (click)="buscar()">Buscar</button>
   </div>
 </div>
 
-<div class="card">
-  <div class="list-head">
-    <span>Alumno</span>
-    <span>Carrera</span>
-    <span>Empresa</span>
-    <span>Duración</span>
-    <span>Estado</span>
-    <span></span>
-  </div>
-
-  <div *ngIf="loading()" class="loading">Cargando...</div>
-  <div *ngIf="error()" class="alert error">{{ error() }}</div>
-
-  <div class="list-body" *ngIf="!loading()">
-    <div class="row" *ngFor="let s of solicitudes()">
-      <div>{{ s.alumno.nombres }} {{ s.alumno.apellidos }}</div>
-      <div>{{ s.alumno.carrera }}</div>
-      <div>{{ s.destinatario.empresa }}</div>
-      <div>{{ s.practica.duracionHoras }} h</div>
-      <div>
-        <span class="chip"
-              [class.chip-warn]="s.estado==='pendiente'"
-              [class.chip-ok]="s.estado==='aprobado'"
-              [class.chip-bad]="s.estado==='rechazado'">{{ s.estado | titlecase }}</span>
-      </div>
-      <div class="actions">
-        <button class="btn sm" (click)="abrirDetalle(s)">Revisar</button>
-      </div>
-    </div>
-
-    <div class="pager" *ngIf="total() > size()">
-      <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
-      <span>Página {{ page() }}</span>
-      <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
-    </div>
+<!-- ======= SUBTABS de estado SOLO en Solicitudes ======= -->
+<div class="card subtabs-bar" *ngIf="mainTab()==='solicitudes'">
+  <div class="tabs subtabs">
+    <button class="tab sm" [class.active]="estado()==='pendiente'" (click)="setEstado('pendiente')">Pendientes</button>
+    <button class="tab sm" [class.active]="estado()==='aprobado'" (click)="setEstado('aprobado')">Aprobadas</button>
+    <button class="tab sm" [class.active]="estado()==='rechazado'" (click)="setEstado('rechazado')">Rechazadas</button>
   </div>
 </div>
 
+<!-- ======= CONTENIDO: DOCUMENTOS ======= -->
+<section *ngIf="mainTab()==='documentos'">
+  <div class="card docs-card">
+    <div class="card-head">
+      <h3>Documentos oficiales para alumnos</h3>
+    </div>
+
+    <form class="doc-form" [formGroup]="documentoForm" (ngSubmit)="subirDocumento()" novalidate>
+      <div class="doc-grid">
+        <label class="file-input">
+          <input
+            #archivoInput
+            type="file"
+            (change)="onArchivoSeleccionado($event)"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg"
+          />
+          <span>{{ archivoNombre() || 'Seleccionar archivo' }}</span>
+        </label>
+        <input type="text" placeholder="Nombre para mostrar" formControlName="nombre" />
+        <input type="text" placeholder="Descripción (opcional)" formControlName="descripcion" />
+      </div>
+
+      <div class="doc-actions">
+        <button class="btn primary" type="submit" [disabled]="gestionDocumentoLoading()">
+          {{ gestionDocumentoLoading() ? 'Guardando…' : 'Subir documento' }}
+        </button>
+        <button class="btn sm" type="button" (click)="limpiarFormularioDocumento()" [disabled]="gestionDocumentoLoading()">
+          Limpiar
+        </button>
+      </div>
+
+      <div class="help error" *ngIf="documentoUploadError()">{{ documentoUploadError() }}</div>
+      <div class="help error" *ngIf="documentoForm.get('nombre')?.invalid && documentoForm.get('nombre')?.touched">
+        Ingresa un nombre visible para el archivo.
+      </div>
+    </form>
+
+    <div class="doc-list">
+      <p class="muted" *ngIf="documentosLoading()">Cargando documentos…</p>
+      <div class="alert error" *ngIf="documentosError()">{{ documentosError() }}</div>
+      <p class="muted" *ngIf="!documentosLoading() && !documentosError() && !documentosCompartidos().length">
+        Aún no has compartido documentos oficiales con tus estudiantes.
+      </p>
+
+      <ul class="doc-items" *ngIf="!documentosLoading() && documentosCompartidos().length">
+        <li *ngFor="let doc of documentosCompartidos()">
+          <div class="doc-info">
+            <strong>{{ doc.nombre }}</strong>
+            <small class="muted">{{ formatFecha(doc.createdAt) }}</small>
+            <small class="muted" *ngIf="doc.descripcion">{{ doc.descripcion }}</small>
+          </div>
+          <div class="doc-buttons">
+            <a class="btn sm" *ngIf="doc.url; else sinArchivo" [href]="doc.url!" target="_blank" rel="noopener">Descargar</a>
+            <ng-template #sinArchivo>
+              <button class="btn sm" type="button" disabled>Sin archivo</button>
+            </ng-template>
+            <button class="btn danger sm" type="button" (click)="eliminarDocumento(doc.id)" [disabled]="gestionDocumentoLoading()">
+              Eliminar
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======= CONTENIDO: SOLICITUDES ======= -->
+<section *ngIf="mainTab()==='solicitudes'">
+  <div class="card">
+    <div class="list-head">
+      <span>Alumno</span>
+      <span>Carrera</span>
+      <span>Empresa</span>
+      <span>Duración</span>
+      <span>Estado</span>
+      <span></span>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Cargando...</div>
+    <div *ngIf="error()" class="alert error">{{ error() }}</div>
+
+    <div class="list-body" *ngIf="!loading()">
+      <div class="row" *ngFor="let s of solicitudes()">
+        <div>{{ s.alumno.nombres }} {{ s.alumno.apellidos }}</div>
+        <div>{{ s.alumno.carrera }}</div>
+        <div>{{ s.destinatario.empresa }}</div>
+        <div>{{ s.practica.duracionHoras }} h</div>
+        <div>
+          <span class="chip"
+                [class.chip-warn]="s.estado==='pendiente'"
+                [class.chip-ok]="s.estado==='aprobado'"
+                [class.chip-bad]="s.estado==='rechazado'">{{ s.estado | titlecase }}</span>
+        </div>
+        <div class="actions">
+          <button class="btn sm" (click)="abrirDetalle(s)">Revisar</button>
+        </div>
+      </div>
+
+      <div class="pager" *ngIf="total() > size()">
+        <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
+        <span>Página {{ page() }}</span>
+        <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <div class="toast" *ngIf="toast()">{{ toast() }}</div>
 
-<!-- ======= DETALLE ======= -->
+<!-- ======= DETALLE (sigue igual) ======= -->
 <ng-container *ngIf="showDetalle() && current() as c">
   <div class="backdrop" (click)="cerrarDetalle()"></div>
 
@@ -67,12 +163,36 @@
 
     <div class="detail">
       <div class="col">
-        <h4>Datos</h4>
-        <p><b>RUT:</b> {{ c.alumno.rut }}</p>
-        <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
-        <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
-        <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
-        <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+        <div class="info-group">
+          <h4>Datos del alumno</h4>
+          <p><b>RUT:</b> {{ c.alumno.rut }}</p>
+          <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
+          <p><b>Fecha de solicitud:</b> {{ formatFecha(c.creadoEn) }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Datos de la práctica</h4>
+          <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+          <p><b>Cargo del estudiante:</b> {{ c.practica.cargoAlumno }}</p>
+          <p><b>Fecha de inicio:</b> {{ formatFecha(c.practica.fechaInicio) }}</p>
+          <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+          <p><b>RUT de la empresa:</b> {{ c.practica.empresaRut }}</p>
+          <p><b>Sector de la empresa:</b> {{ c.practica.sectorEmpresa }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Empresa / Destinatario</h4>
+          <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
+          <p><b>Contacto:</b> {{ c.destinatario.nombres }} {{ c.destinatario.apellidos }}</p>
+          <p><b>Cargo del contacto:</b> {{ c.destinatario.cargo }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Escuela asignada</h4>
+          <p><b>Escuela:</b> {{ c.escuela.nombre }}</p>
+          <p><b>Dirección:</b> {{ c.escuela.direccion }}</p>
+          <p><b>Teléfono:</b> {{ c.escuela.telefono }}</p>
+        </div>
 
         <div class="actions">
           <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
@@ -87,19 +207,47 @@
         </div>
       </div>
 
-      <div class="col carta">
+      <div class="col carta-col">
         <h4>Vista previa</h4>
-        <div class="preview">
-          <div class="fecha">{{ fechaHoy() }}</div>
-          <p>
-            Me permito dirigirme a Ud. para presentar al Sr.
-            <b>{{ c.alumno.nombres }} {{ c.alumno.apellidos }}</b>,
-            alumno regular de la carrera de
-            <b>{{ c.alumno.carrera }}</b> de la Universidad Tecnológica Metropolitana.
-          </p>
-          <p>Duración: <b>{{ c.practica.duracionHoras }}</b> horas cronológicas.</p>
-          <p>Le saluda atentamente,</p>
-          <p><b>Coordinación de Carrera</b><br>Universidad Tecnológica Metropolitana</p>
+        <div class="preview-col">
+          <div class="carta-preview">
+            <header class="c-enc">
+              <div class="c-uni">Universidad Tecnológica Metropolitana</div>
+              <div class="c-addr">{{ cartaPreview().escuelaNombre }} — {{ cartaPreview().escuelaDireccion }} — Tel. {{ cartaPreview().escuelaTelefono }}</div>
+            </header>
+
+            <div class="c-fecha">{{ fechaHoy() }}</div>
+
+            <section class="c-dest">
+              <div>Señor</div>
+              <div class="c-dest-name">{{ cartaPreview().destNombres }} {{ cartaPreview().destApellidos }}</div>
+              <div class="c-dest-cargo">{{ cartaPreview().destCargo }}</div>
+              <div class="c-dest-emp">{{ cartaPreview().destEmpresa }}</div>
+              <div>Presente</div>
+            </section>
+
+            <section class="c-body">
+              <p>
+                Me permito dirigirme a Ud. para presentar al Sr. <b>{{ cartaPreview().alumnoNombres }} {{ cartaPreview().alumnoApellidos }}</b>,
+                RUT <b>{{ cartaPreview().alumnoRut }}</b>, alumno regular de la carrera de <b>{{ cartaPreview().carrera }}</b> de la
+                Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+              </p>
+              <p>
+                Esta práctica tiene una duración de
+                <b>{{ cartaPreview().duracionHoras }}</b> horas cronológicas
+                y sus objetivos son:
+              </p>
+              <ul class="c-obj"><li *ngFor="let obj of objetivosActuales()">{{ obj }}</li></ul>
+              <p>Le saluda atentamente,</p>
+            </section>
+
+            <footer class="c-sign">
+              <div class="c-firma-nombre">{{ firmaActual().nombre }}</div>
+              <div class="c-firma-cargo">{{ firmaActual().cargo }}</div>
+              <div class="c-web">{{ firmaActual().institucion || 'Universidad Tecnológica Metropolitana' }}</div>
+            </footer>
+          </div>
+          <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
         </div>
       </div>
     </div>

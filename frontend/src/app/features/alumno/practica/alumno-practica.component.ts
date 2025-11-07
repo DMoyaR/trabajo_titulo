@@ -18,10 +18,19 @@ interface Firma {
 }
 interface Documento {
   nombre: string;
-  tipo: 'PDF' | 'Carta';
+  tipo: 'PDF' | 'Carta' | 'Documento';
   estado?: 'En revisión' | 'Aprobado' | 'Rechazado';
   url?: string | null;
-    detalle?: string | null;
+  detalle?: string | null;
+}
+
+interface DocumentoOficialApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
 }
 
 type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
@@ -134,17 +143,22 @@ export class AlumnoPracticaComponent implements OnInit {
     { etapa: 'Cierre', pct: 10 },
   ]);
 
-  private readonly baseDocumentos: Documento[] = [
+  private readonly documentosPredefinidos: Documento[] = [
     { nombre: 'Certificado de práctica', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-practica.pdf' },
     { nombre: 'Certificado de cumplimiento', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-cumplimiento.pdf' },
   ];
-  documentos = signal<Documento[]>([...this.baseDocumentos]);
+  private documentosOficiales: Documento[] = [];
+  private documentosCartas: Documento[] = [];
+  documentos = signal<Documento[]>([...this.documentosPredefinidos]);
+  documentosOficialesError = signal<string | null>(null);
+  oficiales = signal<Documento[]>([]);
 
   solicitudes = signal<SolicitudCarta[]>([]);
   solicitudesLoading = signal(false);
   solicitudesError = signal<string | null>(null);
 
   private alumnoRut: string | null = null;
+  private carreraAlumno: string | null = null;
 
   // ===== Modal incrustado =====
   showCarta = signal(false);
@@ -183,6 +197,24 @@ export class AlumnoPracticaComponent implements OnInit {
     'Ingeniería en Informática','Ingeniería Industrial','Química Industrial','Ingeniería Electrónica'
   ];
 
+  private readonly carreraAliasMap: Record<string, string> = {
+    'Ing. Civil Biomédica': 'Ingeniería Civil Biomédica',
+    'Ing. Civil Química': 'Ingeniería Civil Química',
+    'Ing. Civil Matemática': 'Ingeniería Civil Matemática',
+    'Bachillerato en Ciencias de la Ing.': 'Bachillerato en Ciencias de la Ingeniería',
+    'Ing. Civil en Ciencia de Datos': 'Ingeniería Civil en Ciencia de Datos',
+    'Ing. Civil en Computación mención Informática': 'Ingeniería Civil en Computación mención Informática',
+    'Ing. Civil Electrónica': 'Ingeniería Civil Electrónica',
+    'Ing. Civil en Mecánica': 'Ingeniería Civil en Mecánica',
+    'Ing. Civil Industrial': 'Ingeniería Civil Industrial',
+    'Ing. en Biotecnología': 'Ingeniería en Biotecnología',
+    'Ing. en Geomensura': 'Ingeniería en Geomensura',
+    'Ing. en Alimentos': 'Ingeniería en Alimentos',
+    'Ing. en Informática': 'Ingeniería en Informática',
+    'Ing. Industrial': 'Ingeniería Industrial',
+    'Ing. Electrónica': 'Ingeniería Electrónica',
+  };
+
   carrerasPorEscuela: Record<string, string[]> = {
     inf: ['Ingeniería Civil en Computación mención Informática','Ingeniería en Informática','Ingeniería Civil en Ciencia de Datos'],
     ind: ['Ingeniería Civil Industrial','Ingeniería Industrial','Bachillerato en Ciencias de la Ingeniería','Dibujante Proyectista'],
@@ -193,20 +225,20 @@ export class AlumnoPracticaComponent implements OnInit {
   };
 
   firmasPorCarrera = {
-    'Ingeniería Civil en Computación mención Informática': { nombre:'Víctor Escobar Jeria', cargo:'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería en Informática': { nombre:'Patricia Mellado Acevedo', cargo:'Jefa de Carrera Ingeniería en Informática', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil en Ciencia de Datos': { nombre:'Jorge Vergara Quezada', cargo:'Jefe de Carrera Ingeniería Civil en Ciencia de Datos', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Industrial': { nombre:'Evelyn Gajardo Gutiérrez', cargo:'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Industrial': { nombre:'Alexis Rufatt Zafira', cargo:'Jefe de Carrera Ingeniería Industrial', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil en Mecánica': { nombre:'Christian Muñoz Valenzuela', cargo:'Director Escuela de Mecánica', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería en Geomensura': { nombre:'Juan Toledo Ibarra', cargo:'Director Escuela de Geomensura', institucion:'Universidad Tecnologica Metropolitana' },
-    'Bachillerato en Ciencias de la Ingeniería': { nombre:'Rafael Loyola Berríos', cargo:'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería', institucion:'Universidad Tecnologica Metropolitana' },
-    'Dibujante Proyectista': { nombre:'Marcelo Borges Quintanilla', cargo:'Jefe de Carrera Dibujante Proyectista', institucion:'Universidad Tecnologica Metropolitana' },
-    'Ingeniería Civil Biomédica': { nombre:'Raúl Caulier Cisterna', cargo:'Jefe de Carrera Ingeniería Civil Biomédica', institucion:'Universidad Tecnologica Metropolitana' }
+     'Ingeniería Civil en Computación mención Informática': { nombre:'Víctor Escobar Jeria', cargo:'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería en Informática': { nombre:'Patricia Mellado Acevedo', cargo:'Jefa de Carrera Ingeniería en Informática', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil en Ciencia de Datos': { nombre:'Jorge Vergara Quezada', cargo:'Jefe de Carrera Ingeniería Civil en Ciencia de Datos', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Industrial': { nombre:'Evelyn Gajardo Gutiérrez', cargo:'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Industrial': { nombre:'Alexis Rufatt Zafira', cargo:'Jefe de Carrera Ingeniería Industrial', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil en Mecánica': { nombre:'Christian Muñoz Valenzuela', cargo:'Director Escuela de Mecánica', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería en Geomensura': { nombre:'Juan Toledo Ibarra', cargo:'Director Escuela de Geomensura', institucion:'Universidad Tecnológica Metropolitana' },
+    'Bachillerato en Ciencias de la Ingeniería': { nombre:'Rafael Loyola Berríos', cargo:'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería', institucion:'Universidad Tecnológica Metropolitana' },
+    'Dibujante Proyectista': { nombre:'Marcelo Borges Quintanilla', cargo:'Jefe de Carrera Dibujante Proyectista', institucion:'Universidad Tecnológica Metropolitana' },
+    'Ingeniería Civil Biomédica': { nombre:'Raúl Caulier Cisterna', cargo:'Jefe de Carrera Ingeniería Civil Biomédica', institucion:'Universidad Tecnológica Metropolitana' }
   } as const;
-  firmaFallback: Firma = { nombre: 'Coordinación de Carrera — UTEM', cargo: '' };
+   firmaFallback: Firma = { nombre: 'Coordinación de Carrera — UTEM', cargo: '', institucion: 'Universidad Tecnológica Metropolitana' };
 
   objetivosPorEscuela: Record<string, string[]> = {
     inf: [
@@ -299,14 +331,15 @@ export class AlumnoPracticaComponent implements OnInit {
   };
 
   // ===== Form carta =====
+  // NOTA: escuelaId y carrera ya NO tienen Validators.required porque son solo lectura
   cartaForm: FormGroup = this.fb.group({
     // Datos para la carta
     alumnoNombres: ['', Validators.required],
     alumnoApellidos: ['', Validators.required],
     alumnoRut: ['', [Validators.required, rutValidator()]],
-    escuelaId: ['', Validators.required],
-    carrera: ['', Validators.required],
-    duracionHoras: [320, Validators.required], // 160 | 320
+    escuelaId: [''],      // Sin validación required - solo lectura
+    carrera: [''],        // Sin validación required - solo lectura
+    duracionHoras: [320, Validators.required],
     destNombres: ['', Validators.required],
     destApellidos: ['', Validators.required],
     destCargo: ['', Validators.required],
@@ -314,18 +347,16 @@ export class AlumnoPracticaComponent implements OnInit {
 
     // Datos de la práctica (empresa)
     empresaRut: ['', [Validators.required, rutValidator()]],
-    sectorEmpresa: ['', Validators.required], // select
-    sectorEmpresaOtro: [''],                  // requerido sólo si sectorEmpresa === 'Otro'
+    sectorEmpresa: ['', Validators.required],
+    sectorEmpresaOtro: [''],
     jefeDirecto: ['', Validators.required],
     fechaInicio: ['', Validators.required],
     cargoAlumno: ['', Validators.required],
   });
 
-  // --- Hace "sectorEmpresaOtro" requerido sólo cuando sectorEmpresa === 'Otro'
   constructor() {
     const sectorCtrl = this.cartaForm.get('sectorEmpresa')!;
     const otroCtrl   = this.cartaForm.get('sectorEmpresaOtro')!;
-    // Estado inicial
     otroCtrl.disable({ emitEvent: false });
 
     sectorCtrl.valueChanges.subscribe((val) => {
@@ -343,8 +374,7 @@ export class AlumnoPracticaComponent implements OnInit {
 
   ngOnInit(): void {
     const storedRutRaw = localStorage.getItem('alumnoRut');
-    const storedCarrera = localStorage.getItem('alumnoCarrera');
-     
+    const storedCarrera = this.normalizarCarrera(localStorage.getItem('alumnoCarrera'));
 
     if (storedRutRaw) {
       const rutFormateado = formatearRut(storedRutRaw);
@@ -354,15 +384,19 @@ export class AlumnoPracticaComponent implements OnInit {
     }
 
     if (storedCarrera) {
+      this.carreraAlumno = storedCarrera;
       this.cartaForm.get('carrera')?.setValue(storedCarrera);
+      localStorage.setItem('alumnoCarrera', storedCarrera);
       const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
       if (escuelaMatch) {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
-      }  
+      }
+      this.cargarDocumentosOficiales(storedCarrera);
+    } else {
+      this.refrescarDocumentos();
     }
     this.cargarDatosAlumnoDesdePerfil();
     this.cargarSolicitudes();
-
   }
 
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
@@ -424,10 +458,15 @@ export class AlumnoPracticaComponent implements OnInit {
     }
 
     if (profile.carrera) {
-      const carreraPerfil = profile.carrera.trim();
+      const carreraPerfil = this.normalizarCarrera(profile.carrera);
       if (carreraPerfil) {
         patch['carrera'] = carreraPerfil;
         localStorage.setItem('alumnoCarrera', carreraPerfil);
+
+        if (this.carreraAlumno !== carreraPerfil) {
+          this.carreraAlumno = carreraPerfil;
+          this.cargarDocumentosOficiales(carreraPerfil);
+        }
         const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) =>
           carreras.includes(carreraPerfil)
         );
@@ -469,13 +508,91 @@ export class AlumnoPracticaComponent implements OnInit {
     };
   }
 
-  private cargarSolicitudes(): void {
+  private normalizarCarrera(carrera: string | null | undefined): string {
+    const raw = (carrera ?? '').trim();
+    if (!raw) {
+      return '';
+    }
+    return this.carreraAliasMap[raw] || raw;
+  }
 
+  private carreraParaApi(carrera: string | null | undefined): string {
+    const limpia = (carrera ?? '').trim();
+    if (!limpia) {
+      return '';
+    }
+
+    const aliasEntry = Object.entries(this.carreraAliasMap).find(([, nombreLargo]) => nombreLargo === limpia);
+    if (aliasEntry) {
+      return aliasEntry[0];
+    }
+
+    return limpia;
+  }
+
+  private refrescarDocumentos(): void {
+    const combinados: Documento[] = [
+      ...this.documentosPredefinidos,
+      ...this.documentosOficiales,
+      ...this.documentosCartas,
+    ];
+    this.documentos.set(combinados);
+  }
+
+  private cargarDocumentosOficiales(carrera: string): void {
+    const carreraLimpia = (carrera || '').trim();
+    if (!carreraLimpia) {
+      this.documentosOficiales = [];
+      this.oficiales.set([]);
+      this.documentosOficialesError.set(null);
+      this.refrescarDocumentos();
+      return;
+    }
+
+    this.documentosOficialesError.set(null);
+
+    const carreraApi = this.carreraParaApi(carreraLimpia);
+
+    this.http
+      .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
+        params: { carrera: carreraApi },
+      })
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped: Documento[] = items.map((doc) => {
+            const fecha = this.formatFechaCorta(doc.created_at);
+            const partes: string[] = [];
+            if (doc.descripcion) partes.push(doc.descripcion);
+            if (fecha && fecha !== '—') partes.push(`Publicado: ${fecha}`);
+            return {
+              nombre: doc.nombre,
+              tipo: 'Documento',
+              url: doc.url,
+              detalle: partes.length ? partes.join(' · ') : undefined,
+            };
+          });
+
+          this.documentosOficiales = mapped;
+          this.oficiales.set(mapped);
+          this.documentosOficialesError.set(null);
+          this.refrescarDocumentos();
+        },
+        error: (error) => {
+          console.error('Error cargando documentos oficiales:', error);
+          this.documentosOficiales = [];
+          this.oficiales.set([]);
+          this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
+          this.refrescarDocumentos();
+        },
+      });
+  }
+
+  private cargarSolicitudes(): void {
     this.solicitudesLoading.set(true);
     this.solicitudesError.set(null);
 
     const params: Record<string, string> = {
-      
       page: '1',
       size: '50',
     };
@@ -483,15 +600,14 @@ export class AlumnoPracticaComponent implements OnInit {
       params['alumno_rut'] = this.alumnoRut;
     }
 
-
     this.http
       .get<{ items: SolicitudCarta[]; total: number }>('/api/practicas/solicitudes-carta/listar', { params })
       .subscribe({
         next: (res) => {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
-          
-          const documentos: Documento[] = [...this.baseDocumentos];
+
+          const cartas: Documento[] = [];
 
           items
             .filter((solicitud) => solicitud.estado === 'aprobado' && !!solicitud.url)
@@ -505,7 +621,7 @@ export class AlumnoPracticaComponent implements OnInit {
                 ? `Dirigida a ${solicitud.destinatario.empresa}. Cargo: ${solicitud.destinatario.cargo}.`
                 : `Dirigida a ${solicitud.destinatario.empresa}.`;
 
-              documentos.push({
+              cartas.push({
                 nombre: nombreCarta,
                 tipo: 'Carta',
                 estado: 'Aprobado',
@@ -514,8 +630,9 @@ export class AlumnoPracticaComponent implements OnInit {
               });
             });
 
-          this.documentos.set(documentos);
-          
+          this.documentosCartas = cartas;
+          this.refrescarDocumentos();
+
           if (!this.alumnoRut) {
             const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
             if (firstRut) {
@@ -531,12 +648,12 @@ export class AlumnoPracticaComponent implements OnInit {
           console.error('Error cargando solicitudes:', err);
           this.solicitudes.set([]);
           this.solicitudesError.set('No se pudieron cargar tus solicitudes de carta.');
-          this.documentos.set([...this.baseDocumentos]);
+          this.documentosCartas = [];
+          this.refrescarDocumentos();
           this.solicitudesLoading.set(false);
         },
       });
   }
-
 
   estadoEtiqueta(estado: EstadoSolicitud): Documento['estado'] {
     return this.estadoDocumento(estado);
@@ -578,7 +695,6 @@ export class AlumnoPracticaComponent implements OnInit {
     });
   }
 
-
   private estadoDocumento(estado: EstadoSolicitud): Documento['estado'] {
     switch (estado) {
       case 'aprobado':
@@ -590,8 +706,6 @@ export class AlumnoPracticaComponent implements OnInit {
     }
   }
 
-
-  // Sector resuelto (si eligen "Otro", usa el texto)
   sectorResuelto = computed(() => {
     const v = this.fv();
     const otro = (this.cartaForm.get('sectorEmpresaOtro')?.enabled ? (v.sectorEmpresaOtro || '').trim() : '');
@@ -617,7 +731,6 @@ export class AlumnoPracticaComponent implements OnInit {
     };
   });
 
-  // Máscara de RUT al salir del campo
   onRutBlur(controlName: 'alumnoRut' | 'empresaRut') {
     const ctrl = this.cartaForm.get(controlName);
     if (!ctrl) return;
@@ -626,10 +739,18 @@ export class AlumnoPracticaComponent implements OnInit {
     ctrl.updateValueAndValidity();
   }
 
-  // ===== Envío =====
   enviarAprobacion() {
     this.submitOk.set(null);
     this.submitError.set(null);
+
+    // Validación: verifica que escuela y carrera tengan valores
+    const carreraVal = this.cartaForm.get('carrera')?.value;
+    const escuelaVal = this.cartaForm.get('escuelaId')?.value;
+
+    if (!carreraVal || !escuelaVal) {
+      this.submitError.set('No se pudo determinar tu carrera o escuela. Por favor, contacta con soporte.');
+      return;
+    }
 
     if (this.cartaForm.invalid || !this.escuelaSel()) {
       this.cartaForm.markAllAsTouched();
@@ -671,13 +792,10 @@ export class AlumnoPracticaComponent implements OnInit {
 
     this.isSubmitting.set(true);
 
-    // ⚠️ Ajusta la URL a tu backend real si es distinta
     this.http.post('/api/practicas/solicitudes-carta', payload).subscribe({
       next: () => {
         this.submitOk.set('Solicitud enviada a Coordinación.');
-
         this.cargarSolicitudes();
-
         this.isSubmitting.set(false);
         this.closeCarta();
       },
@@ -689,7 +807,6 @@ export class AlumnoPracticaComponent implements OnInit {
     });
   }
 
-  // Helper para template (acceso corto a controles)
   f(name: string): AbstractControl {
     return this.cartaForm.get(name)!;
   }

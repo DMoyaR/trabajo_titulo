@@ -370,6 +370,57 @@ export class CalendarioComponent {
     return out;
   });
 
+  exportResumenCsv() {
+    const summary = this.resumen();
+    if (!summary.length || typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const lines: string[] = ['Fecha,Hora,Título,Lugar,Descripción'];
+    for (const day of summary) {
+      const dateLabel = this.toInputDate(day.date);
+      for (const ev of day.items) {
+        const row = [
+          this.csvCell(dateLabel),
+          this.csvCell(ev.hora),
+          this.csvCell(ev.titulo),
+          this.csvCell(ev.lugar),
+          this.csvCell(ev.descripcion)
+        ].join(',');
+        lines.push(row);
+      }
+    }
+
+    if (lines.length === 1) {
+      return;
+    }
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `resumen-reuniones-${this.timestamp()}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
+  private csvCell(value: string | undefined) {
+    const normalized = (value ?? '').replace(/\r?\n|\r/g, ' ').trim();
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  private timestamp() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `${yyyy}${mm}${dd}-${hh}${min}`;
+  }
+
   /* ===== Util ===== */
   private toInputDate(d: Date) {
     const yyyy = d.getFullYear();
