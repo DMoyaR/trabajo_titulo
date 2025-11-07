@@ -68,7 +68,7 @@
           <span class="chip ghost">Cupos: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
           <span class="chip ghost" *ngIf="tema.fecha">Fecha publicación: {{ tema.fecha | date:'shortDate' }}</span>
           <span class="chip ghost">Reservas confirmadas: {{ tema.inscripcionesActivas.length }}</span>
-          <span class="badge">{{ tema.carrera }}</span>
+          <span class="badge">{{ tema.rama }}</span>
         </div>
 
         <div class="temas-item__actions">
@@ -322,12 +322,12 @@
     </div>
 
     <div class="field">
-      <label>Carrera del tema <span class="req">*</span></label>
-      <select [(ngModel)]="nuevoTema.carrera" name="carrera" required>
-        <option value="">Selecciona una carrera</option>
-        <option *ngFor="let carrera of carreras" [value]="carrera">{{ carrera }}</option>
+      <label>Rama de la carrera <span class="req">*</span></label>
+      <select [(ngModel)]="nuevoTema.rama" name="rama" required>
+        <option value="">Selecciona una rama</option>
+        <option *ngFor="let r of ramas" [value]="r">{{ r }}</option>
       </select>
-      <div class="err" *ngIf="!nuevoTema.carrera">Obligatorio.</div>
+      <div class="err" *ngIf="!nuevoTema.rama">Obligatorio.</div>
     </div>
 
     <div class="field">

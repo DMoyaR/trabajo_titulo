@@ -1,32 +1,10 @@
 import json
 
-from django.test import SimpleTestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
 from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion, InscripcionTema
-from .views import _carreras_coinciden
-
-
-class CarrerasCoincidenTests(SimpleTestCase):
-    def test_computacion_e_informatica_son_equivalentes(self):
-        self.assertTrue(_carreras_coinciden("Computación", "Informática"))
-
-    def test_mencion_informatica_equivale_a_computacion(self):
-        carrera_alumno = "Ingeniería Civil en Computación mención Informática"
-        self.assertTrue(_carreras_coinciden(carrera_alumno, "Computación"))
-
-    def test_carreras_distintas_no_coinciden(self):
-        self.assertFalse(_carreras_coinciden("Química Industrial", "Informática"))
-
-    def test_carrera_con_tokens_adicionales_coincide(self):
-        self.assertTrue(
-            _carreras_coinciden(
-                "Trabajo de Título Informática",
-                "Ingeniería Civil Informática",
-            )
-        )
 
 
 class TemaDisponibleAPITestCase(APITestCase):

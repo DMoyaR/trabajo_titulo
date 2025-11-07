@@ -10,7 +10,8 @@ import {
   ActualizarPropuestaPayload,
 } from '../../../shared/services/propuesta.service';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
-import { CARRERAS_TEMA } from '../../../shared/constants/carreras';
+
+type Rama = 'Empresa' | 'Desarrollo de software' | 'Investigación' | 'Artículo' | 'I+D' | 'Otro';
 
 type TemaCreator = {
   nombre: string;
@@ -23,7 +24,7 @@ type TemaDisponible = {
   titulo: string;
   objetivo: string;
   descripcion: string;
-  carrera: string;
+  rama: string;
   cupos: number;
   cuposDisponibles: number;
   requisitos: string;
@@ -67,7 +68,7 @@ type TemaDetalleDocente = {
   styleUrls: ['./docente-temas.component.css'],
 })
 export class DocenteTemasComponent implements OnInit {
-  readonly carreras = CARRERAS_TEMA;
+  readonly ramas: Rama[] = ['Empresa', 'Desarrollo de software', 'Investigación', 'Artículo', 'I+D', 'Otro'];
 
   temas: TemaDisponible[] = [];
   temasCargando = false;
@@ -122,7 +123,7 @@ export class DocenteTemasComponent implements OnInit {
   }
 
   guardarTema() {
-    if (!this.nuevoTema.titulo || !this.nuevoTema.descripcion || !this.nuevoTema.carrera) {
+    if (!this.nuevoTema.titulo || !this.nuevoTema.descripcion || !this.nuevoTema.rama) {
       return;
     }
 
@@ -134,7 +135,7 @@ export class DocenteTemasComponent implements OnInit {
 
     const payload: CrearTemaPayload = {
       titulo: (this.nuevoTema.titulo ?? '').trim(),
-      carrera: (this.nuevoTema.carrera ?? '').trim(),
+      carrera: (this.nuevoTema.rama ?? '').trim(),
       descripcion: (this.nuevoTema.descripcion ?? '').trim(),
       requisitos: requisitosArray,
       cupos: Number(this.nuevoTema.cupos ?? 1),
@@ -169,7 +170,7 @@ export class DocenteTemasComponent implements OnInit {
             titulo: temaCreado.titulo,
             objetivo: temaCreado.requisitos?.[0] ?? temaCreado.descripcion,
             descripcion: temaCreado.descripcion,
-            carrera: temaCreado.carrera,
+            rama: temaCreado.carrera,
             cupos: temaCreado.cupos,
             cuposDisponibles: temaCreado.cuposDisponibles,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
@@ -195,7 +196,7 @@ export class DocenteTemasComponent implements OnInit {
       titulo: '',
       objetivo: '',
       descripcion: '',
-      carrera: '',
+      rama: '',
       cupos: 1,
       requisitos: '',
       docenteACargo: null,
@@ -260,7 +261,7 @@ export class DocenteTemasComponent implements OnInit {
       id: tema.id,
       titulo: tema.titulo,
       descripcion: tema.descripcion,
-      carrera: tema.carrera,
+      carrera: tema.rama,
       cupos: tema.cupos,
       cuposDisponibles: tema.cuposDisponibles,
       requisitos: [],
@@ -586,7 +587,7 @@ export class DocenteTemasComponent implements OnInit {
       titulo: t.titulo,
       objetivo: t.requisitos?.[0] ?? t.descripcion,
       descripcion: t.descripcion,
-      carrera: t.carrera,
+      rama: t.carrera,
       cupos: t.cupos,
       cuposDisponibles: t.cuposDisponibles,
       requisitos: t.requisitos?.join(', ') ?? '',
