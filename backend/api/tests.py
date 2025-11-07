@@ -105,6 +105,9 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(propuesta.preferencias_docentes, [self.usuario.pk])
         self.assertEqual(propuesta.correos_companeros, [])
 
+        tema = TemaDisponible.objects.get()
+        self.assertEqual(tema.propuesta, propuesta)
+
     def test_create_tema_disponible_rechaza_creador_alumno(self):
         alumno = Usuario.objects.create(
             nombre_completo="Alumno creador",
@@ -208,6 +211,31 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.data[0]["titulo"], "Tema 1")
         self.assertTrue(all("cuposDisponibles" in item for item in response.data))
         self.assertTrue(all("inscripcionesActivas" in item for item in response.data))
+
+    def test_propuesta_docente_aceptada_se_convierte_en_tema(self):
+        propuesta = PropuestaTema.objects.create(
+            alumno=None,
+            docente=self.usuario,
+            titulo="Tema docente",
+            objetivo="Objetivo docente",
+            descripcion="Descripción docente",
+            rama="Computación",
+            estado="aceptada",
+            cupos_requeridos=2,
+            cupos_maximo_autorizado=3,
+        )
+
+        response = self.client.get(self.list_url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(TemaDisponible.objects.count(), 1)
+
+        tema = TemaDisponible.objects.get()
+        self.assertEqual(tema.propuesta, propuesta)
+        self.assertEqual(tema.cupos, 2)
+        self.assertEqual(tema.created_by, self.usuario)
+        self.assertEqual(tema.docente_responsable, self.usuario)
+        self.assertEqual(tema.carrera, "Computación")
 
     def test_list_temas_disponibles_filtra_por_alumno(self):
         TemaDisponible.objects.create(

@@ -7,7 +7,7 @@ import unicodedata
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
@@ -272,6 +272,52 @@ def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
         return queryset.none()
 
     return queryset.filter(pk__in=matching_ids)
+
+
+def _sincronizar_propuestas_docentes() -> None:
+    propuestas = (
+        PropuestaTemaDocente.objects.filter(
+            estado="aceptada", tema_generado__isnull=True
+        )
+        .select_related("docente")
+        .order_by("created_at")
+    )
+
+    for propuesta in propuestas:
+        docente = propuesta.docente
+        if not docente or docente.rol != "docente":
+            continue
+
+        cupos = int(propuesta.cupos_requeridos or 1)
+        if propuesta.cupos_maximo_autorizado:
+            cupos = min(cupos, int(propuesta.cupos_maximo_autorizado))
+        if cupos < 1:
+            cupos = 1
+
+        carrera = (propuesta.rama or "").strip()
+        if not carrera:
+            carrera = (docente.carrera or "").strip()
+        if not carrera:
+            carrera = "Carrera no especificada"
+
+        requisitos: list[str] = []
+        if propuesta.objetivo:
+            requisitos.append(propuesta.objetivo)
+
+        try:
+            with transaction.atomic():
+                TemaDisponible.objects.create(
+                    titulo=propuesta.titulo,
+                    carrera=carrera,
+                    descripcion=propuesta.descripcion,
+                    requisitos=requisitos,
+                    cupos=cupos,
+                    created_by=docente,
+                    docente_responsable=docente,
+                    propuesta=propuesta,
+                )
+        except IntegrityError:
+            continue
 
 
 def _obtener_usuario_por_id(valor: str | None) -> Usuario | None:
@@ -684,6 +730,7 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         )
 
     def get_queryset(self):
+        _sincronizar_propuestas_docentes()
         queryset = super().get_queryset()
         usuario = _obtener_usuario_para_temas(self.request)
 
@@ -766,7 +813,7 @@ def _registrar_propuesta_docente_desde_tema(
 
     cupos = tema.cupos or 1
 
-    PropuestaTemaDocente.objects.create(
+    propuesta = PropuestaTemaDocente.objects.create(
         alumno=None,
         docente=docente,
         titulo=tema.titulo,
@@ -779,6 +826,10 @@ def _registrar_propuesta_docente_desde_tema(
         cupos_maximo_autorizado=cupos,
         correos_companeros=[],
     )
+
+    if tema.propuesta_id != propuesta.pk:
+        tema.propuesta = propuesta
+        tema.save(update_fields=["propuesta"])
 
 
 @api_view(["POST"])
@@ -1589,6 +1640,7 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
             cupos=cupos,
             created_by=created_by,
             docente_responsable=docente_responsable,
+            propuesta=propuesta,
         )
 
         participantes: list[tuple[Usuario, bool]] = [(alumno, True)]
