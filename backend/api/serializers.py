@@ -537,10 +537,13 @@ class PropuestaTemaDocenteDecisionSerializer(serializers.Serializer):
                         "cupos_autorizados": "El valor debe ser menor a los cupos solicitados por el alumno.",
                     }
                 )
-        if accion == "aprobar_final" and instancia.estado != "pendiente_aprobacion":
+        if accion == "aprobar_final" and instancia.estado not in {
+            "pendiente_aprobacion",
+            "pendiente",
+        }:
             raise serializers.ValidationError(
                 {
-                    "accion": "Solo puedes aprobar definitivamente propuestas en estado pendiente de aprobación.",
+                    "accion": "Solo puedes aprobar definitivamente propuestas pendientes o pendientes de aprobación.",
                 }
             )
 
@@ -589,6 +592,9 @@ class PropuestaTemaDocenteDecisionSerializer(serializers.Serializer):
                         "accion": "Los cupos solicitados superan el máximo autorizado. Solicita un ajuste antes de aprobar.",
                     }
                 )
+            if instance.cupos_maximo_autorizado is None:
+                instance.cupos_maximo_autorizado = instance.cupos_requeridos
+                update_fields.append("cupos_maximo_autorizado")
             instance.estado = "aceptada"
 
         if docente is not None:

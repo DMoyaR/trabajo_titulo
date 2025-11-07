@@ -73,22 +73,13 @@ export class DocenteTemasComponent implements OnInit {
   temas: TemaDisponible[] = [];
   temasCargando = false;
   temasError: string | null = null;
-
+  eliminarTemaEnCurso = false;
+  temaEliminandoTitulo: string | null = null;
   showModalTema = false;
   enviarTema = false;
   enviarTemaError: string | null = null;
 
-  nuevoTema: Partial<TemaDisponible> = {
-    titulo: '',
-    objetivo: '',
-    descripcion: '',
-    rama: '',
-    cupos: 1,
-    requisitos: '',
-    docenteACargo: null,
-    docenteResponsableId: null,
-    inscripcionesActivas: [],
-  };
+  nuevoTema: Partial<TemaDisponible> = this.crearNuevoTemaInicial();
 
   showDetalleTema = false;
   temaDetalle: TemaDetalleDocente | null = null;
@@ -99,6 +90,7 @@ export class DocenteTemasComponent implements OnInit {
   propuestaSeleccionada: Propuesta | null = null;
   comentarioDecision = '';
   cuposAutorizados: number | null = null;
+  comentarioError: string | null = null;
   propuestas: Propuesta[] = [];
   propuestasCargando = false;
   propuestasError: string | null = null;
@@ -120,22 +112,12 @@ export class DocenteTemasComponent implements OnInit {
     this.enviarTemaError = null;
   }
 
-  cerrarModalTema() {
-    if (this.enviarTema) {
+  cerrarModalTema(force = false) {
+    if (this.enviarTema && !force) {
       return;
     }
     this.showModalTema = false;
-    this.nuevoTema = {
-      titulo: '',
-      objetivo: '',
-      descripcion: '',
-      rama: '',
-      cupos: 1,
-      requisitos: '',
-      docenteACargo: null,
-      docenteResponsableId: null,
-      inscripcionesActivas: [],
-    };
+    this.nuevoTema = this.crearNuevoTemaInicial();
     this.enviarTema = false;
     this.enviarTemaError = null;
   }
@@ -173,6 +155,8 @@ export class DocenteTemasComponent implements OnInit {
         }
       : null;
 
+    const temaPrevio = { ...this.nuevoTema };
+    this.cerrarModalTema(true);
     this.enviarTema = true;
     this.enviarTemaError = null;
 
@@ -197,13 +181,30 @@ export class DocenteTemasComponent implements OnInit {
             inscripcionesActivas: temaCreado.inscripcionesActivas ?? [],
           };
           this.temas = [temaUI, ...this.temas];
-          this.cerrarModalTema();
+
         },
         error: () => {
           this.enviarTemaError = 'No se pudo guardar el tema. Inténtalo nuevamente.';
+          this.nuevoTema = temaPrevio;
+          this.showModalTema = true;
         },
       });
   }
+
+  private crearNuevoTemaInicial(): Partial<TemaDisponible> {
+    return {
+      titulo: '',
+      objetivo: '',
+      descripcion: '',
+      rama: '',
+      cupos: 1,
+      requisitos: '',
+      docenteACargo: null,
+      docenteResponsableId: null,
+      inscripcionesActivas: [],
+    };
+  }
+
 
   eliminarTema(tema: TemaDisponible) {
     if (!tema.id) {
@@ -216,14 +217,36 @@ export class DocenteTemasComponent implements OnInit {
       return;
     }
 
-    this.temaService.eliminarTema(tema.id).subscribe({
-      next: () => {
-        this.temas = this.temas.filter((t) => t.id !== tema.id);
-      },
-      error: () => {
-        alert('No se pudo eliminar el tema. Inténtalo nuevamente.');
-      },
-    });
+    this.temas = this.temas.filter((t) => t.id !== tema.id);
+
+    if (this.eliminarTemaEnCurso) {
+      return;
+    }
+
+    const temasAntesDeEliminar = [...this.temas];
+    this.temaEliminandoTitulo = tema.titulo;
+    this.eliminarTemaEnCurso = true;
+    this.temas = this.temas.filter((t) => t.id !== tema.id);
+
+    this.temaService
+      .eliminarTema(tema.id)
+      .pipe(
+        finalize(() => {
+          this.eliminarTemaEnCurso = false;
+          this.temaEliminandoTitulo = null;
+        }),
+      )
+      .subscribe({
+        next: () => {
+          if (tema.id !== undefined) {
+            this.recargarTemasDespuesDeEliminar(tema.id);
+          }
+        },
+        error: () => {
+          alert('No se pudo eliminar el tema. Inténtalo nuevamente.');
+          this.temas = temasAntesDeEliminar;
+        },
+      });
   }
 
   verDetalleTema(tema: TemaDisponible) {
@@ -301,6 +324,7 @@ export class DocenteTemasComponent implements OnInit {
     } else {
       this.propuestaSeleccionada = null;
       this.comentarioDecision = '';
+      this.comentarioError = null;
       this.cuposAutorizados = null;
       this.decisionEnCurso = false;
     }
@@ -309,8 +333,17 @@ export class DocenteTemasComponent implements OnInit {
   seleccionarPropuesta(p: Propuesta) {
     this.propuestaSeleccionada = p;
     this.comentarioDecision = p.comentarioDecision ?? '';
+    this.comentarioError = null;
     this.cuposAutorizados = p.cuposMaximoAutorizado ?? p.cuposRequeridos;
   }
+
+  onComentarioChange(value: string) {
+    this.comentarioDecision = value;
+    if (value.trim()) {
+      this.comentarioError = null;
+    }
+  }
+
 
   solicitarAjuste() {
     if (!this.propuestaSeleccionada) {
@@ -348,24 +381,39 @@ export class DocenteTemasComponent implements OnInit {
 
     const comentario = this.comentarioDecision.trim();
 
+    if (!comentario) {
+      this.comentarioError = 'Debes ingresar un comentario para aprobar la propuesta.';
+      return;
+    }
+
+    this.comentarioError = null;
+
     this.enviarAccion({
       accion: 'aprobar_final',
-      comentarioDecision: comentario || undefined,
+      comentarioDecision: comentario,
     });
   }
 
   rechazarPropuesta() {
     const comentario = this.comentarioDecision.trim();
-    if (!this.propuestaSeleccionada || !comentario) {
-      this.propuestasError = 'Explica el motivo del rechazo.';
+    if (!this.propuestaSeleccionada) {
       return;
     }
+
+    if (!comentario) {
+      this.comentarioError = 'Debes ingresar un comentario para rechazar la propuesta.';
+      return;
+    }
+
+    this.comentarioError = null;
 
     this.enviarAccion({
       accion: 'rechazar',
       comentarioDecision: comentario,
     });
   }
+
+  
 
   estadoChipClase(estado: Propuesta['estado']): string {
     switch (estado) {
@@ -409,21 +457,7 @@ export class DocenteTemasComponent implements OnInit {
       .pipe(finalize(() => (this.temasCargando = false)))
       .subscribe({
         next: (temasApi: TemaAPI[]) => {
-          this.temas = temasApi.map((t) => ({
-            id: t.id,
-            titulo: t.titulo,
-            objetivo: t.requisitos?.[0] ?? t.descripcion,
-            descripcion: t.descripcion,
-            rama: t.carrera,
-            cupos: t.cupos,
-            cuposDisponibles: t.cuposDisponibles,
-            requisitos: (t.requisitos?.join(', ') ?? ''),
-            fecha: t.created_at ? new Date(t.created_at) : new Date(),
-            creadoPor: t.creadoPor ?? null,
-            docenteACargo: t.docenteACargo ?? null,
-            docenteResponsableId: t.docente_responsable ?? null,
-            inscripcionesActivas: t.inscripcionesActivas ?? [],
-          }));
+          this.temas = temasApi.map((t) => this.mapearTemaDisponible(t));
         },
         error: () => {
           this.temasError = 'No fue posible cargar los temas disponibles.';
@@ -519,5 +553,49 @@ export class DocenteTemasComponent implements OnInit {
   private obtenerDocenteIdActual(): number | null {
     const perfil = this.currentUserService.getProfile();
     return perfil?.id ?? null;
+  }
+  private recargarTemasDespuesDeEliminar(temaId: number, intentosRestantes = 5) {
+    if (!temaId) {
+      return;
+    }
+
+    const perfil = this.currentUserService.getProfile();
+    const opciones = perfil?.id != null ? { usuarioId: perfil.id } : undefined;
+
+    this.temaService.getTemas(opciones).subscribe({
+      next: (temasApi: TemaAPI[]) => {
+        const temaPersistente = temasApi.some((tema) => tema.id === temaId);
+
+        if (temaPersistente && intentosRestantes > 0) {
+          setTimeout(() => this.recargarTemasDespuesDeEliminar(temaId, intentosRestantes - 1), 800);
+          return;
+        }
+
+        if (!temaPersistente) {
+          this.temas = temasApi.map((t) => this.mapearTemaDisponible(t));
+        }
+      },
+      error: () => {
+        this.temasError = this.temasError ?? 'No fue posible sincronizar los temas tras la eliminación.';
+      },
+    });
+  }
+
+  private mapearTemaDisponible(t: TemaAPI): TemaDisponible {
+    return {
+      id: t.id,
+      titulo: t.titulo,
+      objetivo: t.requisitos?.[0] ?? t.descripcion,
+      descripcion: t.descripcion,
+      rama: t.carrera,
+      cupos: t.cupos,
+      cuposDisponibles: t.cuposDisponibles,
+      requisitos: t.requisitos?.join(', ') ?? '',
+      fecha: t.created_at ? new Date(t.created_at) : new Date(),
+      creadoPor: t.creadoPor ?? null,
+      docenteACargo: t.docenteACargo ?? null,
+      docenteResponsableId: t.docente_responsable ?? null,
+      inscripcionesActivas: t.inscripcionesActivas ?? [],
+    };
   }
 }

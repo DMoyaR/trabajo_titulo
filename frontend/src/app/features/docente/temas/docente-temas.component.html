@@ -72,8 +72,22 @@
         </div>
 
         <div class="temas-item__actions">
-          <button class="btn light" type="button" (click)="verDetalleTema(tema)">Ver detalle</button>
-          <button class="btn danger" type="button" (click)="eliminarTema(tema)">Eliminar</button>
+          <button
+            class="btn light"
+            type="button"
+            (click)="verDetalleTema(tema)"
+            [disabled]="eliminarTemaEnCurso"
+          >
+            Ver detalle
+          </button>
+          <button
+            class="btn danger"
+            type="button"
+            (click)="eliminarTema(tema)"
+            [disabled]="eliminarTemaEnCurso"
+          >
+            Eliminar
+          </button>
         </div>
       </li>
     </ul>
@@ -247,7 +261,15 @@
       </div>
 
       <label for="comentario">Comentario</label>
-      <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
+
+      <textarea
+        id="comentario"
+        [(ngModel)]="comentarioDecision"
+        (ngModelChange)="onComentarioChange($event)"
+        placeholder="Fundamente su decisión..."
+      ></textarea>
+      <div class="err" *ngIf="comentarioError">{{ comentarioError }}</div>
+
       <div class="actions">
         <button
           class="btn light"
@@ -259,13 +281,16 @@
           class="btn primary"
           type="button"
           (click)="aprobarDefinitivo()"
-          [disabled]="decisionEnCurso || sel.estado !== 'pendiente_aprobacion'"
+          [disabled]="
+            decisionEnCurso ||
+            (sel.estado !== 'pendiente_aprobacion' && sel.estado !== 'pendiente')
+          "
         >Aprobar definitivamente</button>
         <button
           class="btn danger"
           type="button"
           (click)="rechazarPropuesta()"
-          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+          [disabled]="decisionEnCurso"
         >Rechazar</button>
       </div>
       <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>

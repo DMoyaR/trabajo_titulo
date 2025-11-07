@@ -13,7 +13,7 @@
             <p class="muted tema-asignado-carrera" *ngIf="tema.carrera">{{ tema.carrera }}</p>
           </div>
           <div class="chips meta">
-            <span class="chip ghost">Cupos ocupados: {{ tema.inscripcionesActivas?.length || 0 }} / {{ tema.cupos }}</span>
+            <span class="chip ghost">Cupos ocupados: {{ tema.inscripcionesActivas.length }} / {{ tema.cupos }}</span>
             <span class="chip">Disponibles: {{ tema.cuposDisponibles }}</span>
           </div>
         </div>
