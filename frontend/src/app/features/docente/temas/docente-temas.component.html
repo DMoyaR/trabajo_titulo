@@ -72,8 +72,22 @@
         </div>
 
         <div class="temas-item__actions">
-          <button class="btn light" type="button" (click)="verDetalleTema(tema)">Ver detalle</button>
-          <button class="btn danger" type="button" (click)="eliminarTema(tema)">Eliminar</button>
+          <button
+            class="btn light"
+            type="button"
+            (click)="verDetalleTema(tema)"
+            [disabled]="eliminarTemaEnCurso"
+          >
+            Ver detalle
+          </button>
+          <button
+            class="btn danger"
+            type="button"
+            (click)="eliminarTema(tema)"
+            [disabled]="eliminarTemaEnCurso"
+          >
+            Eliminar
+          </button>
         </div>
       </li>
     </ul>
