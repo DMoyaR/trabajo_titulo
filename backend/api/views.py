@@ -247,10 +247,53 @@ def _normalizar_texto(valor: str | None) -> str:
     return texto.casefold().strip()
 
 
+_CARRERA_TOKENS_STOPWORDS = {
+    "en",
+    "de",
+    "del",
+    "la",
+    "el",
+    "y",
+    "ing",
+    "ingenieria",
+    "civil",
+    "mencion",
+    "plan",
+    "comun",
+}
+
+
+_CARRERA_TOKEN_EQUIVALENCIAS = {
+    "informatica": "computacion",
+    "computacion": "computacion",
+    "industria": "industrial",
+}
+
+
+def _normalizar_carrera(valor: str | None) -> str:
+    if not valor:
+        return ""
+
+    texto = _normalizar_texto(valor)
+    tokens = [token for token in re.split(r"[^a-z0-9]+", texto) if token]
+
+    relevantes = [token for token in tokens if token not in _CARRERA_TOKENS_STOPWORDS]
+    candidatos = relevantes or tokens
+    if not candidatos:
+        return ""
+
+    principal = candidatos[0]
+    return _CARRERA_TOKEN_EQUIVALENCIAS.get(principal, principal)
+
+
 def _carreras_coinciden(a: str | None, b: str | None) -> bool:
-    if not a or not b:
+    carrera_a = _normalizar_carrera(a)
+    carrera_b = _normalizar_carrera(b)
+
+    if not carrera_a or not carrera_b:
         return False
-    return _normalizar_texto(a) == _normalizar_texto(b)
+
+    return carrera_a == carrera_b
 
 
 def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
