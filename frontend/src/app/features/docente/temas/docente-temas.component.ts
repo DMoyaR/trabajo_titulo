@@ -133,14 +133,15 @@ export class DocenteTemasComponent implements OnInit {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const descripcion = (this.nuevoTema.descripcion ?? '').trim();
     const payload: CrearTemaPayload = {
-        titulo: (this.nuevoTema.titulo ?? '').trim(),
-        carrera: (this.nuevoTema.rama ?? '').trim(),
-        descripcion: (this.nuevoTema.descripcion ?? '').trim(),
-        requisitos: requisitosArray,
-        cupos: Number(this.nuevoTema.cupos ?? 1),
-        inscripcionesActivas: [],
-      };
+      titulo: (this.nuevoTema.titulo ?? '').trim(),
+      carrera: (this.nuevoTema.rama ?? '').trim(),
+      descripcion,
+      requisitos: requisitosArray,
+      cupos: Number(this.nuevoTema.cupos ?? 1),
+      inscripcionesActivas: [],
+    };
 
     const perfil = this.currentUserService.getProfile();
     if (perfil?.id) {
@@ -165,9 +166,11 @@ export class DocenteTemasComponent implements OnInit {
       .pipe(finalize(() => (this.enviarTema = false)))
       .subscribe({
         next: (temaCreado: TemaAPI) => {
-          const objetivoTema = (payload.objetivo ?? '').trim()
-            || temaCreado.requisitos?.[0]
-            || temaCreado.descripcion;
+          const objetivoTema =
+            (temaPrevio.objetivo ?? '').trim() ||
+            requisitosArray[0] ||
+            descripcion ||
+            temaCreado.descripcion;
           const temaUI: TemaDisponible = {
             id: temaCreado.id,
             titulo: temaCreado.titulo,
@@ -219,8 +222,6 @@ export class DocenteTemasComponent implements OnInit {
     if (!confirmado) {
       return;
     }
-
-    this.temas = this.temas.filter((t) => t.id !== tema.id);
 
     if (this.eliminarTemaEnCurso) {
       return;
