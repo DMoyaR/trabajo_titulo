@@ -75,6 +75,36 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(docente.get("carrera"), self.usuario.carrera)
         self.assertEqual(response.data.get("inscripcionesActivas"), [])
 
+    def test_create_tema_disponible_registra_propuesta_docente(self):
+        data = {
+            "titulo": "Tema docente",
+            "carrera": "Investigación",
+            "descripcion": "Descripción docente",
+            "requisitos": ["Requisito 1"],
+            "cupos": 4,
+            "created_by": self.usuario.pk,
+            "objetivo": "Objetivo docente",
+        }
+
+        response = self.client.post(self.list_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(TemaDisponible.objects.count(), 1)
+        self.assertEqual(PropuestaTema.objects.count(), 1)
+
+        propuesta = PropuestaTema.objects.get()
+        self.assertIsNone(propuesta.alumno)
+        self.assertEqual(propuesta.docente, self.usuario)
+        self.assertEqual(propuesta.titulo, data["titulo"])
+        self.assertEqual(propuesta.objetivo, data["objetivo"])
+        self.assertEqual(propuesta.descripcion, data["descripcion"])
+        self.assertEqual(propuesta.rama, data["carrera"])
+        self.assertEqual(propuesta.estado, "aceptada")
+        self.assertEqual(propuesta.cupos_requeridos, data["cupos"])
+        self.assertEqual(propuesta.cupos_maximo_autorizado, data["cupos"])
+        self.assertEqual(propuesta.preferencias_docentes, [self.usuario.pk])
+        self.assertEqual(propuesta.correos_companeros, [])
+
     def test_create_tema_disponible_rechaza_creador_alumno(self):
         alumno = Usuario.objects.create(
             nombre_completo="Alumno creador",

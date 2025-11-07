@@ -136,6 +136,7 @@ export class DocenteTemasComponent implements OnInit {
     const payload: CrearTemaPayload = {
       titulo: (this.nuevoTema.titulo ?? '').trim(),
       carrera: (this.nuevoTema.rama ?? '').trim(),
+      objetivo: (this.nuevoTema.objetivo ?? '').trim(),
       descripcion: (this.nuevoTema.descripcion ?? '').trim(),
       requisitos: requisitosArray,
       cupos: Number(this.nuevoTema.cupos ?? 1),
@@ -165,10 +166,13 @@ export class DocenteTemasComponent implements OnInit {
       .pipe(finalize(() => (this.enviarTema = false)))
       .subscribe({
         next: (temaCreado: TemaAPI) => {
+          const objetivoTema = (payload.objetivo ?? '').trim()
+            || temaCreado.requisitos?.[0]
+            || temaCreado.descripcion;
           const temaUI: TemaDisponible = {
             id: temaCreado.id,
             titulo: temaCreado.titulo,
-            objetivo: temaCreado.requisitos?.[0] ?? temaCreado.descripcion,
+            objetivo: objetivoTema,
             descripcion: temaCreado.descripcion,
             rama: temaCreado.carrera,
             cupos: temaCreado.cupos,

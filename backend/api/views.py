@@ -24,6 +24,7 @@ from .models import (
     Notificacion,
     PracticaDocumento,
     PropuestaTema,
+    PropuestaTemaDocente,
     SolicitudCartaPractica,
     TemaDisponible,
     Usuario,
@@ -641,6 +642,7 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         creador = serializer.validated_data.get("created_by")
         responsable = serializer.validated_data.get("docente_responsable")
+        objetivo = serializer.validated_data.pop("objetivo", None)
 
         if not creador:
             creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
@@ -665,9 +667,21 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             save_kwargs["docente_responsable"] = responsable
 
         if save_kwargs:
-            serializer.save(**save_kwargs)
+            tema = serializer.save(**save_kwargs)
         else:
-            serializer.save()
+            tema = serializer.save()
+
+        docente_propuesta = None
+        if responsable and responsable.rol == "docente":
+            docente_propuesta = responsable
+        elif creador and creador.rol == "docente":
+            docente_propuesta = creador
+
+        _registrar_propuesta_docente_desde_tema(
+            tema,
+            docente_propuesta,
+            objetivo,
+        )
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -731,6 +745,40 @@ def tema_disponible_detalle(request, pk: int):
         context={"request": request, "alumno_id": alumno_id},
     )
     return Response(serializer.data)
+
+
+def _registrar_propuesta_docente_desde_tema(
+    tema: TemaDisponible,
+    docente: Usuario | None,
+    objetivo: str | None,
+) -> None:
+    if not docente or docente.rol != "docente":
+        return
+
+    objetivo_limpio = (objetivo or "").strip() if isinstance(objetivo, str) else ""
+
+    if not objetivo_limpio:
+        requisitos = tema.requisitos or []
+        if requisitos:
+            objetivo_limpio = str(requisitos[0])
+        else:
+            objetivo_limpio = tema.descripcion or ""
+
+    cupos = tema.cupos or 1
+
+    PropuestaTemaDocente.objects.create(
+        alumno=None,
+        docente=docente,
+        titulo=tema.titulo,
+        objetivo=objetivo_limpio,
+        descripcion=tema.descripcion,
+        rama=tema.carrera or "",
+        estado="aceptada",
+        preferencias_docentes=[docente.pk] if docente.pk else [],
+        cupos_requeridos=cupos,
+        cupos_maximo_autorizado=cupos,
+        correos_companeros=[],
+    )
 
 
 @api_view(["POST"])
