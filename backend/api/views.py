@@ -261,27 +261,11 @@ def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
     if not carrera_normalizada:
         return queryset.none()
 
-    posibles = queryset.values(
-        "pk",
-        "carrera",
-        "created_by__carrera",
-        "docente_responsable__carrera",
-    )
-
-    matching_ids: set[int] = set()
-    for registro in posibles:
-        if _normalizar_texto(registro.get("carrera")) == carrera_normalizada:
-            matching_ids.add(registro["pk"])
-            continue
-
-        creador_carrera = registro.get("created_by__carrera")
-        if _normalizar_texto(creador_carrera) == carrera_normalizada:
-            matching_ids.add(registro["pk"])
-            continue
-
-        responsable_carrera = registro.get("docente_responsable__carrera")
-        if _normalizar_texto(responsable_carrera) == carrera_normalizada:
-            matching_ids.add(registro["pk"])
+    matching_ids = [
+        pk
+        for pk, carrera_tema in queryset.values_list("pk", "carrera")
+        if _normalizar_texto(carrera_tema) == carrera_normalizada
+    ]
 
     if not matching_ids:
         return queryset.none()

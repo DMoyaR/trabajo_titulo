@@ -79,17 +79,7 @@ export class DocenteTemasComponent implements OnInit {
   enviarTema = false;
   enviarTemaError: string | null = null;
 
-  nuevoTema: Partial<TemaDisponible> = {
-    titulo: '',
-    objetivo: '',
-    descripcion: '',
-    rama: '',
-    cupos: 1,
-    requisitos: '',
-    docenteACargo: null,
-    docenteResponsableId: null,
-    inscripcionesActivas: [],
-  };
+  nuevoTema: Partial<TemaDisponible> = this.crearNuevoTemaInicial();
 
   showDetalleTema = false;
   temaDetalle: TemaDetalleDocente | null = null;
@@ -122,22 +112,12 @@ export class DocenteTemasComponent implements OnInit {
     this.enviarTemaError = null;
   }
 
-  cerrarModalTema() {
-    if (this.enviarTema) {
+  cerrarModalTema(force = false) {
+    if (this.enviarTema && !force) {
       return;
     }
     this.showModalTema = false;
-    this.nuevoTema = {
-      titulo: '',
-      objetivo: '',
-      descripcion: '',
-      rama: '',
-      cupos: 1,
-      requisitos: '',
-      docenteACargo: null,
-      docenteResponsableId: null,
-      inscripcionesActivas: [],
-    };
+    this.nuevoTema = this.crearNuevoTemaInicial();
     this.enviarTema = false;
     this.enviarTemaError = null;
   }
@@ -175,6 +155,8 @@ export class DocenteTemasComponent implements OnInit {
         }
       : null;
 
+    const temaPrevio = { ...this.nuevoTema };
+    this.cerrarModalTema(true);
     this.enviarTema = true;
     this.enviarTemaError = null;
 
@@ -199,13 +181,30 @@ export class DocenteTemasComponent implements OnInit {
             inscripcionesActivas: temaCreado.inscripcionesActivas ?? [],
           };
           this.temas = [temaUI, ...this.temas];
-          this.cerrarModalTema();
+
         },
         error: () => {
           this.enviarTemaError = 'No se pudo guardar el tema. Inténtalo nuevamente.';
+          this.nuevoTema = temaPrevio;
+          this.showModalTema = true;
         },
       });
   }
+
+  private crearNuevoTemaInicial(): Partial<TemaDisponible> {
+    return {
+      titulo: '',
+      objetivo: '',
+      descripcion: '',
+      rama: '',
+      cupos: 1,
+      requisitos: '',
+      docenteACargo: null,
+      docenteResponsableId: null,
+      inscripcionesActivas: [],
+    };
+  }
+
 
   eliminarTema(tema: TemaDisponible) {
     if (!tema.id) {
