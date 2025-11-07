@@ -259,7 +259,10 @@
           class="btn primary"
           type="button"
           (click)="aprobarDefinitivo()"
-          [disabled]="decisionEnCurso || sel.estado !== 'pendiente_aprobacion'"
+          [disabled]="
+            decisionEnCurso ||
+            (sel.estado !== 'pendiente_aprobacion' && sel.estado !== 'pendiente')
+          "
         >Aprobar definitivamente</button>
         <button
           class="btn danger"
