@@ -247,7 +247,15 @@
       </div>
 
       <label for="comentario">Comentario</label>
-      <textarea id="comentario" [(ngModel)]="comentarioDecision" placeholder="Fundamente su decisión..."></textarea>
+
+      <textarea
+        id="comentario"
+        [(ngModel)]="comentarioDecision"
+        (ngModelChange)="onComentarioChange($event)"
+        placeholder="Fundamente su decisión..."
+      ></textarea>
+      <div class="err" *ngIf="comentarioError">{{ comentarioError }}</div>
+
       <div class="actions">
         <button
           class="btn light"
@@ -268,7 +276,7 @@
           class="btn danger"
           type="button"
           (click)="rechazarPropuesta()"
-          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+          [disabled]="decisionEnCurso"
         >Rechazar</button>
       </div>
       <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>

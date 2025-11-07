@@ -99,6 +99,7 @@ export class DocenteTemasComponent implements OnInit {
   propuestaSeleccionada: Propuesta | null = null;
   comentarioDecision = '';
   cuposAutorizados: number | null = null;
+  comentarioError: string | null = null;
   propuestas: Propuesta[] = [];
   propuestasCargando = false;
   propuestasError: string | null = null;
@@ -301,6 +302,7 @@ export class DocenteTemasComponent implements OnInit {
     } else {
       this.propuestaSeleccionada = null;
       this.comentarioDecision = '';
+      this.comentarioError = null;
       this.cuposAutorizados = null;
       this.decisionEnCurso = false;
     }
@@ -309,8 +311,17 @@ export class DocenteTemasComponent implements OnInit {
   seleccionarPropuesta(p: Propuesta) {
     this.propuestaSeleccionada = p;
     this.comentarioDecision = p.comentarioDecision ?? '';
+    this.comentarioError = null;
     this.cuposAutorizados = p.cuposMaximoAutorizado ?? p.cuposRequeridos;
   }
+
+  onComentarioChange(value: string) {
+    this.comentarioDecision = value;
+    if (value.trim()) {
+      this.comentarioError = null;
+    }
+  }
+
 
   solicitarAjuste() {
     if (!this.propuestaSeleccionada) {
@@ -348,24 +359,39 @@ export class DocenteTemasComponent implements OnInit {
 
     const comentario = this.comentarioDecision.trim();
 
+    if (!comentario) {
+      this.comentarioError = 'Debes ingresar un comentario para aprobar la propuesta.';
+      return;
+    }
+
+    this.comentarioError = null;
+
     this.enviarAccion({
       accion: 'aprobar_final',
-      comentarioDecision: comentario || undefined,
+      comentarioDecision: comentario,
     });
   }
 
   rechazarPropuesta() {
     const comentario = this.comentarioDecision.trim();
-    if (!this.propuestaSeleccionada || !comentario) {
-      this.propuestasError = 'Explica el motivo del rechazo.';
+    if (!this.propuestaSeleccionada) {
       return;
     }
+
+    if (!comentario) {
+      this.comentarioError = 'Debes ingresar un comentario para rechazar la propuesta.';
+      return;
+    }
+
+    this.comentarioError = null;
 
     this.enviarAccion({
       accion: 'rechazar',
       comentarioDecision: comentario,
     });
   }
+
+  
 
   estadoChipClase(estado: Propuesta['estado']): string {
     switch (estado) {
