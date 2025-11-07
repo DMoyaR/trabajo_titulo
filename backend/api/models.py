@@ -96,6 +96,13 @@ class TemaDisponible(models.Model):
         blank=True,
         related_name="temas_a_cargo",
     )
+    propuesta = models.OneToOneField(
+        "PropuestaTema",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tema_generado",
+    )
 
     class Meta:
         db_table = "temas_disponibles"
