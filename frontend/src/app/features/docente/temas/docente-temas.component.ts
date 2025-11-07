@@ -120,8 +120,8 @@ export class DocenteTemasComponent implements OnInit {
     this.enviarTemaError = null;
   }
 
-  cerrarModalTema(force = false) {
-    if (this.enviarTema && !force) {
+  cerrarModalTema() {
+    if (this.enviarTema) {
       return;
     }
     this.showModalTema = false;
@@ -197,7 +197,7 @@ export class DocenteTemasComponent implements OnInit {
             inscripcionesActivas: temaCreado.inscripcionesActivas ?? [],
           };
           this.temas = [temaUI, ...this.temas];
-          this.cerrarModalTema(true);
+          this.cerrarModalTema();
         },
         error: () => {
           this.enviarTemaError = 'No se pudo guardar el tema. Inténtalo nuevamente.';
@@ -215,16 +215,13 @@ export class DocenteTemasComponent implements OnInit {
     if (!confirmado) {
       return;
     }
-    const temasPrevios = this.temas;
-    this.temas = this.temas.filter((t) => t.id !== tema.id);
 
     this.temaService.eliminarTema(tema.id).subscribe({
       next: () => {
-        // No action needed, el tema ya fue removido de la lista.
+        this.temas = this.temas.filter((t) => t.id !== tema.id);
       },
       error: () => {
         alert('No se pudo eliminar el tema. Inténtalo nuevamente.');
-        this.temas = temasPrevios;
       },
     });
   }
