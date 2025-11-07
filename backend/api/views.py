@@ -248,24 +248,68 @@ def _normalizar_texto(valor: str | None) -> str:
     return texto.casefold().strip()
 
 
+_CARRERA_STOPWORDS = {
+    "ing",
+    "ingenieria",
+    "civil",
+    "mencion",
+    "en",
+    "de",
+    "del",
+    "la",
+    "el",
+    "y",
+    "para",
+}
+
+
+def _tokenizar_carrera(valor: str | None) -> set[str]:
+    if not valor:
+        return set()
+
+    texto = _normalizar_texto(valor)
+    tokens = [
+        token
+        for token in re.split(r"[^a-z0-9]+", texto)
+        if token and token not in _CARRERA_STOPWORDS
+    ]
+
+    if not tokens:
+        return set()
+
+    return set(tokens)
+
+
 def _carreras_coinciden(a: str | None, b: str | None) -> bool:
-    if not a or not b:
+    tokens_a = _tokenizar_carrera(a)
+    tokens_b = _tokenizar_carrera(b)
+
+    if not tokens_a or not tokens_b:
         return False
-    return _normalizar_texto(a) == _normalizar_texto(b)
+
+    if tokens_a == tokens_b:
+        return True
+
+    if tokens_a.issubset(tokens_b) or tokens_b.issubset(tokens_a):
+        return True
+
+    comunes = tokens_a & tokens_b
+    return len(comunes) >= 2
 
 
 def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
     if not carrera:
         return queryset.none()
 
-    carrera_normalizada = _normalizar_texto(carrera)
-    if not carrera_normalizada:
+    tokens_objetivo = _tokenizar_carrera(carrera)
+    if not tokens_objetivo:
         return queryset.none()
 
     matching_ids = [
         pk
         for pk, carrera_tema in queryset.values_list("pk", "carrera")
-        if _normalizar_texto(carrera_tema) == carrera_normalizada
+        if _carreras_coinciden(carrera_tema, carrera)
+        or _tokenizar_carrera(carrera_tema) == tokens_objetivo
     ]
 
     if not matching_ids:
