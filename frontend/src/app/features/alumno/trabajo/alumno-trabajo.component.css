@@ -735,6 +735,50 @@ textarea {
   line-height: 1.4;
 }
 
+.restricciones {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.restricciones-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.restricciones-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.restriccion-icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.restriccion-texto h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: #1a3e6a;
+}
+
+.restriccion-texto p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

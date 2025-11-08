@@ -34,6 +34,11 @@ type EntregaDestacada = EntregaAlumno & {
   encabezado: string;
 };
 
+type Restriccion = {
+  titulo: string;
+  descripcion: string;
+};
+
 const CARRERAS_SIN_TRABAJO_TITULO = new Set(
   [
     'Bachillerato en Ciencias de la Ingeniería',
@@ -162,6 +167,44 @@ export class AlumnoTrabajoComponent {
       profesorGuia: 'Prof. Ana Díaz',
     },
   });
+
+  readonly restricciones = signal<Restriccion[]>([
+    {
+      titulo: 'Un solo tema activo',
+      descripcion:
+        'Solo puedes tener un trabajo de título activo a la vez. Si necesitas cambiar de tema debes gestionar primero la liberación del actual con la coordinación.',
+    },
+    {
+      titulo: 'Entregas solo en etapas habilitadas',
+      descripcion:
+        'Las entregas pueden subirse únicamente cuando la coordinación habilita la etapa correspondiente; fuera de esas ventanas los envíos quedan bloqueados.',
+    },
+    {
+      titulo: 'Sin edición tras confirmar',
+      descripcion:
+        'Una vez que confirmas una entrega el archivo queda bloqueado para resguardar la integridad documental, por lo que no podrás reemplazarlo.',
+    },
+    {
+      titulo: 'Formularios completos',
+      descripcion:
+        'Todos los campos obligatorios deben estar completados para enviar solicitudes o entregas; los formularios incompletos no se pueden enviar.',
+    },
+    {
+      titulo: 'Certificados solo al finalizar etapas',
+      descripcion:
+        'No se habilita la emisión de certificados hasta que finalices todas las etapas del proceso de título según tu malla.',
+    },
+    {
+      titulo: 'Descarga tras validación',
+      descripcion:
+        'La descarga de certificados estará disponible únicamente después de que la coordinación valide el documento; no se generan automáticamente.',
+    },
+    {
+      titulo: 'Documentos internos protegidos',
+      descripcion:
+        'Los documentos de revisión interna de docentes o coordinación, como rúbricas privadas u observaciones, no están visibles para estudiantes.',
+    },
+  ]);
 
   readonly nivelActual = computed<Nivel | null>(() => {
     const seleccionado = this.nivelSeleccionado();
