@@ -1,14 +1,54 @@
 /* Título y contenedor */
 .ttl { color:#1a3e6a; margin-bottom:10px; font-weight:800; }
 .card {
-  background:#fff; border:1px solid #e9eef6; border-radius:12px;
-  padding:14px; box-shadow:0 8px 28px rgba(0,0,0,.06); margin-bottom:12px;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
 }
 
 /* Tabs */
-.tabs { display:flex; gap:18px; align-items:center; padding:0 6px 8px; }
-.tabs button { background:none; border:0; color:#4b5563; font-weight:700; cursor:pointer; padding:6px 0; }
-.tabs button.active { color:#0590a8; border-bottom:2px solid #0590a8; }
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #dfe5ee;
+  align-items: center;
+}
+
+.tabs button,
+.tabs a {
+  border: none;
+  background: transparent;
+  border-bottom: 3px solid transparent;
+  padding: 12px 24px;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.tabs a.btn.link {
+  margin-left: auto;
+  padding: 12px 24px;
+  color: #666;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+}
+
+.tabs a.btn.link:hover {
+  color: #00bcd4;
+  text-decoration: none;
+  border-bottom: 3px solid #00bcd4;
+}
+
+.tabs a.btn.link:hover {
+  text-decoration: underline;
+}
 
 .row-head {
   display:flex; align-items:center; justify-content:space-between;
@@ -24,6 +64,7 @@
 .btn.danger { background:#d32f2f; color:#fff; font-weight: bold; }
 .btn.light { background:#eef2f7; color:#1f2937; }
 .btn.sm { padding:4px 10px; font-size:.9rem; }
+
 
 /* Chips */
 .chip { border-radius:999px; padding:2px 8px; font-weight:800; font-size:.8rem; }

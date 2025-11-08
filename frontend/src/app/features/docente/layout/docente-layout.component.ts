@@ -24,7 +24,6 @@ export class DocenteLayoutComponent implements OnDestroy {
 
   readonly navItems: DocenteNavItem[] = [
     { route: 'notificaciones', label: 'Notificaciones', icon: 'assets/Notificaciones.png', alt: 'Notificaciones' },
-    { route: 'bandeja', label: 'Bandeja de Entrada', icon: 'assets/Bandeja_entrada.png', alt: 'Bandeja de entrada' },
     { route: 'dashboard', label: 'Panel Docente', icon: 'assets/Inicio.png', alt: 'Panel docente' },
     { route: 'trabajo', label: 'Trabajo de Título', icon: 'assets/Procesos.png', alt: 'Trabajo de título' },
     { route: 'temas', label: 'Temas', icon: 'assets/Reportes.png', alt: 'Temas de trabajo de título' },

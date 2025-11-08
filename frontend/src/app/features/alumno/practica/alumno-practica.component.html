@@ -165,22 +165,16 @@
           </small>
         </div>
 
+        <!-- ESCUELA - SOLO LECTURA -->
         <div>
           <label class="lbl req">Escuela</label>
-          <select formControlName="escuelaId">
-            <option value="" disabled selected>Selecciona</option>
-            <option *ngFor="let e of escuelas" [value]="e.id">{{e.nombre}}</option>
-          </select>
-          <small class="help" *ngIf="f('escuelaId').invalid && f('escuelaId').touched">Campo requerido.</small>
+          <div class="readonly">{{ escuelaSel()?.nombre || 'No asignada' }}</div>
         </div>
 
+        <!-- CARRERA - SOLO LECTURA -->
         <div>
           <label class="lbl req">Carrera</label>
-          <select formControlName="carrera">
-            <option value="" disabled selected>Selecciona</option>
-            <option *ngFor="let c of carrerasDisponibles()" [value]="c">{{c}}</option>
-          </select>
-          <small class="help" *ngIf="f('carrera').invalid && f('carrera').touched">Campo requerido.</small>
+          <div class="readonly">{{ cartaForm.get('carrera')?.value || 'No asignada' }}</div>
         </div>
 
         <div>
@@ -242,7 +236,7 @@
           <label class="lbl req">Especifica el sector</label>
           <input type="text" formControlName="sectorEmpresaOtro" placeholder="Describe el sector o área"/>
           <small class="help" *ngIf="f('sectorEmpresaOtro').invalid && f('sectorEmpresaOtro').touched">
-            Este campo es obligatorio cuando seleccionas “Otro”.
+            Este campo es obligatorio cuando seleccionas "Otro".
           </small>
         </div>
 

@@ -70,10 +70,6 @@ export const routes: Routes = [
           import('./features/docente/reunionesresumen/docente-reuniones.component')
             .then((m) => m.DocenteReunionesComponent),},
 
-        { path: 'bandeja',
-        loadComponent: () =>
-          import('./features/docente/bandejachat/docente-bandeja.component')
-            .then((m) => m.DocenteBandejaComponent), },
 
         { path: 'perfil',
         loadComponent: () =>
@@ -101,12 +97,6 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/coordinacion/Notificacion/notificacion.component')
             .then(m => m.CoordinacionNotificacionComponent),
-      },
-      {
-        path: 'bandeja',
-        loadComponent: () =>
-          import('./features/coordinacion/Bandeja/bandeja.component')
-            .then(m => m.CoordinacionBandejaComponent),
       },
       {
         path: 'estudiantes',
