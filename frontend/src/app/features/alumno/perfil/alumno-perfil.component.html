@@ -1,22 +1,5 @@
 <h2 class="ttl">Perfil de usuario</h2>
 
-<section class="restricciones" aria-labelledby="restricciones-alumno-titulo">
-  <h3 id="restricciones-alumno-titulo" class="section-title">Restricciones para estudiantes</h3>
-  <p class="restricciones-intro">
-    Estas reglas definen el comportamiento del sistema según tu progreso y los datos registrados. Se aplican de forma
-    automática para asegurar la trazabilidad del proceso de trabajo de título.
-  </p>
-  <ul class="restricciones-list">
-    <li *ngFor="let item of restricciones()">
-      <span class="restriccion-icon" aria-hidden="true">⚠️</span>
-      <div class="restriccion-texto">
-        <h4>{{ item.titulo }}</h4>
-        <p>{{ item.descripcion }}</p>
-      </div>
-    </li>
-  </ul>
-</section>
-
 <div class="grid">
   <div class="card">
     <h3>Información Personal</h3>
@@ -44,3 +27,20 @@
   <h3>Historial de Sesiones</h3>
   <ul class="list"><li>Último acceso: 23 de abril de 2024</li></ul>
 </div>
+
+<section class="restricciones" aria-labelledby="restricciones-alumno-titulo">
+  <h3 id="restricciones-alumno-titulo" class="section-title">Restricciones para estudiantes</h3>
+  <p class="restricciones-intro">
+    Estas reglas definen el comportamiento del sistema según tu progreso y los datos registrados. Se aplican de forma
+    automática para asegurar la trazabilidad del proceso de trabajo de título.
+  </p>
+  <ul class="restricciones-list">
+    <li *ngFor="let item of restricciones()">
+      <span class="restriccion-icon" aria-hidden="true">⚠️</span>
+      <div class="restriccion-texto">
+        <h4>{{ item.titulo }}</h4>
+        <p>{{ item.descripcion }}</p>
+      </div>
+    </li>
+  </ul>
+</section>
