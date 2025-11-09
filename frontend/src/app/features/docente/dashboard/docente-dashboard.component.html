@@ -96,3 +96,20 @@
     </div>
   </div>
 </div>
+
+<section class="restricciones" aria-labelledby="restricciones-docente-titulo">
+  <h3 id="restricciones-docente-titulo" class="section-title">Restricciones para docentes</h3>
+  <p class="restricciones-intro">
+    Estas políticas delimitan el acceso y las acciones disponibles dentro del proceso de trabajo de título. Todas se
+    aplican automáticamente según la información registrada en el sistema institucional.
+  </p>
+  <ul class="restricciones-list">
+    <li *ngFor="let item of restricciones()">
+      <span class="restriccion-icon" aria-hidden="true">⚠️</span>
+      <div class="restriccion-texto">
+        <h4>{{ item.titulo }}</h4>
+        <p>{{ item.descripcion }}</p>
+      </div>
+    </li>
+  </ul>
+</section>
