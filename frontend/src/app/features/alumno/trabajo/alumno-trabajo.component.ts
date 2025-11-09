@@ -170,39 +170,74 @@ export class AlumnoTrabajoComponent {
 
   readonly restricciones = signal<Restriccion[]>([
     {
-      titulo: 'Un solo tema activo',
+      titulo: 'Una postulación activa por alumno',
       descripcion:
-        'Solo puedes tener un trabajo de título activo a la vez. Si necesitas cambiar de tema debes gestionar primero la liberación del actual con la coordinación.',
+        'Si ya tienes una postulación en estado pendiente, en revisión, aceptada o rechazada con observaciones no podrás crear otra hasta que se cierre la actual.',
+    },
+    {
+      titulo: 'Sin edición de postulación tras el envío',
+      descripcion:
+        'Una vez enviada la postulación queda bloqueada. Solo vuelve a estar editable si el docente la marca como “observada”.',
+    },
+    {
+      titulo: 'Contenido filtrado por carrera',
+      descripcion:
+        'Solo verás docentes, propuestas y temáticas asociadas a tu carrera (career_id/codigo_carrera) para asegurar la pertinencia del proceso.',
     },
     {
       titulo: 'Entregas solo en etapas habilitadas',
       descripcion:
-        'Las entregas pueden subirse únicamente cuando la coordinación habilita la etapa correspondiente; fuera de esas ventanas los envíos quedan bloqueados.',
+        'Cada entrega se habilita únicamente si la etapa está activa y dentro de las fechas publicadas por la coordinación.',
     },
     {
-      titulo: 'Sin edición tras confirmar',
+      titulo: 'Entregas bloqueadas tras confirmar',
       descripcion:
-        'Una vez que confirmas una entrega el archivo queda bloqueado para resguardar la integridad documental, por lo que no podrás reemplazarlo.',
+        'Al confirmar una entrega el archivo queda protegido; el botón de edición se oculta para mantener la integridad documental.',
+    },
+    {
+      titulo: 'Evaluaciones docentes cuando están publicadas',
+      descripcion:
+        'Los comentarios y resultados del docente solo se muestran cuando visible == true, tras la publicación de la retroalimentación.',
+    },
+    {
+      titulo: 'Agendamiento condicionado a profesor guía',
+      descripcion:
+        'Solo puedes agendar reuniones si cuentas con profesor guía asignado y el calendario se encuentra publicado (docente_asignado y calendario_publicado).',
+    },
+    {
+      titulo: 'Validación de archivos al subir',
+      descripcion:
+        'El sistema acepta únicamente archivos .pdf, .docx o .zip con un máximo de 25 MB, validado tanto en frontend como en backend.',
     },
     {
       titulo: 'Formularios completos',
       descripcion:
-        'Todos los campos obligatorios deben estar completados para enviar solicitudes o entregas; los formularios incompletos no se pueden enviar.',
+        'Las solicitudes y entregas se pueden enviar únicamente si todos los campos obligatorios están completos; no se permiten formularios incompletos.',
     },
     {
-      titulo: 'Certificados solo al finalizar etapas',
+      titulo: 'Certificados tras finalizar el proceso',
       descripcion:
-        'No se habilita la emisión de certificados hasta que finalices todas las etapas del proceso de título según tu malla.',
+        'El certificado de aprobación se habilita solo si status_proceso == "finalizado" y evaluacion_final == "aprobada".',
     },
     {
-      titulo: 'Descarga tras validación',
+      titulo: 'Descarga de actas validada',
       descripcion:
-        'La descarga de certificados estará disponible únicamente después de que la coordinación valide el documento; no se generan automáticamente.',
+        'Las actas pueden descargarse únicamente cuando cuentan con la firma del docente (acta_firmada) y la validación de la coordinación.',
+    },
+    {
+      titulo: 'Integrantes fijos tras postular',
+      descripcion:
+        'Al enviar la postulación queda bloqueada la edición del grupo de trabajo para mantener consistencia en el registro de integrantes.',
+    },
+    {
+      titulo: 'Acceso restringido a otros grupos',
+      descripcion:
+        'No es posible visualizar documentos o procesos de otros estudiantes; el aislamiento se asegura por grupo_id desde el backend.',
     },
     {
       titulo: 'Documentos internos protegidos',
       descripcion:
-        'Los documentos de revisión interna de docentes o coordinación, como rúbricas privadas u observaciones, no están visibles para estudiantes.',
+        'Las rúbricas internas, observaciones privadas y otros documentos de revisión docente o de coordinación no están disponibles para los estudiantes.',
     },
   ]);
 
