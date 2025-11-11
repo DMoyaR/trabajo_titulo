@@ -249,7 +249,8 @@
         <div>
           <label class="lbl req">Fecha de inicio</label>
           <input type="date" formControlName="fechaInicio"/>
-          <small class="help" *ngIf="f('fechaInicio').invalid && f('fechaInicio').touched">Campo requerido.</small>
+          <small class="help" *ngIf="f('fechaInicio').hasError('required') && f('fechaInicio').touched">Campo requerido.</small>
+          <small class="help" *ngIf="f('fechaInicio').hasError('fechaInvalida') && f('fechaInicio').touched" style="color:rgb(204, 3, 3)">La fecha no es válida.</small>
         </div>
 
         <div class="full">

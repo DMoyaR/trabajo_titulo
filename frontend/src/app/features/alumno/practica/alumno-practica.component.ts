@@ -118,6 +118,28 @@ function rutValidator(): ValidatorFn {
   };
 }
 
+function fechaNoPasadaValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value as string | null | undefined;
+    if (!value) {
+      return null;
+    }
+
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) {
+      return { fechaInvalida: true };
+    }
+
+    const fechaSeleccionada = new Date(year, month - 1, day);
+    fechaSeleccionada.setHours(0, 0, 0, 0);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    return fechaSeleccionada < hoy ? { fechaInvalida: true } : null;
+  };
+}
+
+
 @Component({
   selector: 'alumno-practica',
   standalone: true,
@@ -350,7 +372,7 @@ export class AlumnoPracticaComponent implements OnInit {
     sectorEmpresa: ['', Validators.required],
     sectorEmpresaOtro: [''],
     jefeDirecto: ['', Validators.required],
-    fechaInicio: ['', Validators.required],
+    fechaInicio: ['', [Validators.required, fechaNoPasadaValidator()]],
     cargoAlumno: ['', Validators.required],
   });
 
