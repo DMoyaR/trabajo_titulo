@@ -379,6 +379,29 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
+    def test_list_temas_disponibles_docente_con_carrera_sin_coincidencias_entrega_vacio(self):
+        TemaDisponible.objects.create(
+            titulo="Tema carrera",
+            carrera="Ingeniería Industrial",
+            descripcion="Descripción",
+            requisitos=["Req"],
+            cupos=2,
+        )
+        TemaDisponible.objects.create(
+            titulo="Tema distinto",
+            carrera="Ingeniería Civil",
+            descripcion="Descripción",
+            requisitos=["Req"],
+            cupos=2,
+        )
+
+        response = self.client.get(
+            self.list_url, {"usuario": self.usuario.pk}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
     def test_list_temas_disponibles_alumno_sin_carrera_no_filtra(self):
         TemaDisponible.objects.create(
             titulo="Tema carrera",
