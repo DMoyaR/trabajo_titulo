@@ -268,7 +268,7 @@ export class AlumnoTemasComponent {
     if (this.reservandoTemaId() === tema.id) {
       return 'Reservando…';
     }
-    return 'Pedir tema';
+    return 'Inscribir tema';
   }
 
   temaSeleccionado(): TemaDisponible | null {

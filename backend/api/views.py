@@ -781,16 +781,20 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         if usuario:
             if usuario.carrera:
                 filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                if usuario.rol == "docente":
+                    return filtrado
+                if usuario.rol == "alumno":
+                    return filtrado
                 if filtrado.exists():
                     return filtrado
+            if usuario.rol == "alumno":
+                return queryset.none()
             return queryset
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
             filtrado = _filtrar_queryset_por_carrera(queryset, carrera)
-            if filtrado.exists():
-                return filtrado
-            return queryset
+            return filtrado
 
         return queryset
 
