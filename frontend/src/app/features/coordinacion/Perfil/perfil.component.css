@@ -38,11 +38,12 @@
 
 .row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px dashed #eef3fb;
+  flex-wrap: wrap;
 }
 
 .row:last-child {
@@ -51,10 +52,15 @@
 
 .row b {
   color: #1a3e6a;
+  min-width: 120px;
 }
 
-.row span {
+.row span,
+.row .inp,
+.row div {
   color: #333333;
+  flex: 1;
+  min-width: 200px;
 }
 
 .inp {
@@ -62,6 +68,7 @@
   border-radius: 10px;
   padding: 8px 10px;
   flex: 1;
+  width: 100%;
 }
 
 .link {
