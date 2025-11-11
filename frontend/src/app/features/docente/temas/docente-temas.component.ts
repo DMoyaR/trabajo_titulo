@@ -25,6 +25,7 @@ type TemaDisponible = {
   objetivo: string;
   descripcion: string;
   rama: string;
+  carrera: string;
   cupos: number;
   cuposDisponibles: number;
   requisitos: string;
@@ -50,6 +51,7 @@ type TemaDetalleDocente = {
   titulo: string;
   descripcion: string;
   carrera: string;
+  rama: string | null;
   cupos: number;
   cuposDisponibles: number;
   requisitos: string[];
@@ -133,10 +135,13 @@ export class DocenteTemasComponent implements OnInit {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const descripcion = (this.nuevoTema.descripcion ?? '').trim();
+    const ramaSeleccionada = (this.nuevoTema.rama ?? '').trim();
     const payload: CrearTemaPayload = {
       titulo: (this.nuevoTema.titulo ?? '').trim(),
-      carrera: (this.nuevoTema.rama ?? '').trim(),
-      descripcion: (this.nuevoTema.descripcion ?? '').trim(),
+      carrera: '',
+      rama: ramaSeleccionada || null,
+      descripcion,
       requisitos: requisitosArray,
       cupos: Number(this.nuevoTema.cupos ?? 1),
       inscripcionesActivas: [],
@@ -145,6 +150,11 @@ export class DocenteTemasComponent implements OnInit {
     const perfil = this.currentUserService.getProfile();
     if (perfil?.id) {
       payload.created_by = perfil.id;
+    }
+    if (perfil?.carrera) {
+      payload.carrera = perfil.carrera.trim();
+    } else {
+      payload.carrera = ramaSeleccionada;
     }
 
     const autorActual = perfil
@@ -165,12 +175,20 @@ export class DocenteTemasComponent implements OnInit {
       .pipe(finalize(() => (this.enviarTema = false)))
       .subscribe({
         next: (temaCreado: TemaAPI) => {
+          const objetivoTema =
+            (temaPrevio.objetivo ?? '').trim() ||
+            requisitosArray[0] ||
+            descripcion ||
+            temaCreado.descripcion;
+          const carreraTema = temaCreado.carrera ?? payload.carrera ?? '';
+          const ramaTema = temaCreado.rama ?? ramaSeleccionada ?? '';
           const temaUI: TemaDisponible = {
             id: temaCreado.id,
             titulo: temaCreado.titulo,
-            objetivo: temaCreado.requisitos?.[0] ?? temaCreado.descripcion,
+            objetivo: objetivoTema,
             descripcion: temaCreado.descripcion,
-            rama: temaCreado.carrera,
+            rama: ramaTema,
+            carrera: carreraTema,
             cupos: temaCreado.cupos,
             cuposDisponibles: temaCreado.cuposDisponibles,
             requisitos: (temaCreado.requisitos?.join(', ') ?? ''),
@@ -197,6 +215,7 @@ export class DocenteTemasComponent implements OnInit {
       objetivo: '',
       descripcion: '',
       rama: '',
+      carrera: '',
       cupos: 1,
       requisitos: '',
       docenteACargo: null,
@@ -216,8 +235,6 @@ export class DocenteTemasComponent implements OnInit {
     if (!confirmado) {
       return;
     }
-
-    this.temas = this.temas.filter((t) => t.id !== tema.id);
 
     if (this.eliminarTemaEnCurso) {
       return;
@@ -261,7 +278,8 @@ export class DocenteTemasComponent implements OnInit {
       id: tema.id,
       titulo: tema.titulo,
       descripcion: tema.descripcion,
-      carrera: tema.rama,
+      carrera: tema.carrera,
+      rama: tema.rama ?? null,
       cupos: tema.cupos,
       cuposDisponibles: tema.cuposDisponibles,
       requisitos: [],
@@ -282,6 +300,7 @@ export class DocenteTemasComponent implements OnInit {
           titulo: temaApi.titulo,
           descripcion: temaApi.descripcion,
           carrera: temaApi.carrera,
+          rama: temaApi.rama ?? null,
           cupos: temaApi.cupos,
           cuposDisponibles: temaApi.cuposDisponibles,
           requisitos: temaApi.requisitos ?? [],
@@ -587,7 +606,8 @@ export class DocenteTemasComponent implements OnInit {
       titulo: t.titulo,
       objetivo: t.requisitos?.[0] ?? t.descripcion,
       descripcion: t.descripcion,
-      rama: t.carrera,
+      rama: t.rama ?? '',
+      carrera: t.carrera,
       cupos: t.cupos,
       cuposDisponibles: t.cuposDisponibles,
       requisitos: t.requisitos?.join(', ') ?? '',

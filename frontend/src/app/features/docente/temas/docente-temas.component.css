@@ -22,7 +22,7 @@
 .btn.outline { background:#eef5ff; color:#1a56db; border:1px solid #c7d8ff; }
 .btn.outline:hover { background:#dbe8ff; }
 .btn.danger { background:#d32f2f; color:#fff; font-weight: bold; }
-.btn.light { background:#eef2f7; color:#1f2937; }
+.btn.light { background:#eef2f7; color:#1f2937; margin-right: 10px;}
 .btn.sm { padding:4px 10px; font-size:.9rem; }
 .btn[disabled] {
   opacity:.6;

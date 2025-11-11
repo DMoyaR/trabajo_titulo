@@ -7,7 +7,7 @@ import unicodedata
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
@@ -24,6 +24,7 @@ from .models import (
     Notificacion,
     PracticaDocumento,
     PropuestaTema,
+    PropuestaTemaDocente,
     SolicitudCartaPractica,
     TemaDisponible,
     Usuario,
@@ -247,30 +248,120 @@ def _normalizar_texto(valor: str | None) -> str:
     return texto.casefold().strip()
 
 
+_CARRERA_STOPWORDS = {
+    "ing",
+    "ingenieria",
+    "civil",
+    "mencion",
+    "en",
+    "de",
+    "del",
+    "la",
+    "el",
+    "y",
+    "para",
+}
+
+
+def _tokenizar_carrera(valor: str | None) -> set[str]:
+    if not valor:
+        return set()
+
+    texto = _normalizar_texto(valor)
+    tokens = [
+        token
+        for token in re.split(r"[^a-z0-9]+", texto)
+        if token and token not in _CARRERA_STOPWORDS
+    ]
+
+    if not tokens:
+        return set()
+
+    return set(tokens)
+
+
 def _carreras_coinciden(a: str | None, b: str | None) -> bool:
-    if not a or not b:
+    tokens_a = _tokenizar_carrera(a)
+    tokens_b = _tokenizar_carrera(b)
+
+    if not tokens_a or not tokens_b:
         return False
-    return _normalizar_texto(a) == _normalizar_texto(b)
+
+    if tokens_a == tokens_b:
+        return True
+
+    if tokens_a.issubset(tokens_b) or tokens_b.issubset(tokens_a):
+        return True
+
+    comunes = tokens_a & tokens_b
+    return len(comunes) >= 2
 
 
 def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
     if not carrera:
         return queryset.none()
 
-    carrera_normalizada = _normalizar_texto(carrera)
-    if not carrera_normalizada:
+    tokens_objetivo = _tokenizar_carrera(carrera)
+    if not tokens_objetivo:
         return queryset.none()
 
     matching_ids = [
         pk
         for pk, carrera_tema in queryset.values_list("pk", "carrera")
-        if _normalizar_texto(carrera_tema) == carrera_normalizada
+        if _carreras_coinciden(carrera_tema, carrera)
+        or _tokenizar_carrera(carrera_tema) == tokens_objetivo
     ]
 
     if not matching_ids:
         return queryset.none()
 
     return queryset.filter(pk__in=matching_ids)
+
+
+def _sincronizar_propuestas_docentes() -> None:
+    propuestas = (
+        PropuestaTemaDocente.objects.filter(
+            estado="aceptada", tema_generado__isnull=True
+        )
+        .select_related("docente")
+        .order_by("created_at")
+    )
+
+    for propuesta in propuestas:
+        docente = propuesta.docente
+        if not docente or docente.rol != "docente":
+            continue
+
+        cupos = int(propuesta.cupos_requeridos or 1)
+        if propuesta.cupos_maximo_autorizado:
+            cupos = min(cupos, int(propuesta.cupos_maximo_autorizado))
+        if cupos < 1:
+            cupos = 1
+
+        carrera = (propuesta.rama or "").strip()
+        if not carrera:
+            carrera = (docente.carrera or "").strip()
+        if not carrera:
+            carrera = "Carrera no especificada"
+
+        requisitos: list[str] = []
+        if propuesta.objetivo:
+            requisitos.append(propuesta.objetivo)
+
+        try:
+            with transaction.atomic():
+                TemaDisponible.objects.create(
+                    titulo=propuesta.titulo,
+                    carrera=carrera,
+                    descripcion=propuesta.descripcion,
+                    requisitos=requisitos,
+                    cupos=cupos,
+                    created_by=docente,
+                    docente_responsable=docente,
+                    propuesta=propuesta,
+                )
+        except IntegrityError:
+            continue
 
 
 def _obtener_usuario_por_id(valor: str | None) -> Usuario | None:
@@ -641,6 +732,7 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         creador = serializer.validated_data.get("created_by")
         responsable = serializer.validated_data.get("docente_responsable")
+        objetivo = serializer.validated_data.pop("objetivo", None)
 
         if not creador:
             creador = _obtener_usuario_por_id(self.request.data.get("created_by"))
@@ -665,11 +757,24 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
             save_kwargs["docente_responsable"] = responsable
 
         if save_kwargs:
-            serializer.save(**save_kwargs)
+            tema = serializer.save(**save_kwargs)
         else:
-            serializer.save()
+            tema = serializer.save()
+
+        docente_propuesta = None
+        if responsable and responsable.rol == "docente":
+            docente_propuesta = responsable
+        elif creador and creador.rol == "docente":
+            docente_propuesta = creador
+
+        _registrar_propuesta_docente_desde_tema(
+            tema,
+            docente_propuesta,
+            objetivo,
+        )
 
     def get_queryset(self):
+        _sincronizar_propuestas_docentes()
         queryset = super().get_queryset()
         usuario = _obtener_usuario_para_temas(self.request)
 
@@ -731,6 +836,44 @@ def tema_disponible_detalle(request, pk: int):
         context={"request": request, "alumno_id": alumno_id},
     )
     return Response(serializer.data)
+
+
+def _registrar_propuesta_docente_desde_tema(
+    tema: TemaDisponible,
+    docente: Usuario | None,
+    objetivo: str | None,
+) -> None:
+    if not docente or docente.rol != "docente":
+        return
+
+    objetivo_limpio = (objetivo or "").strip() if isinstance(objetivo, str) else ""
+
+    if not objetivo_limpio:
+        requisitos = tema.requisitos or []
+        if requisitos:
+            objetivo_limpio = str(requisitos[0])
+        else:
+            objetivo_limpio = tema.descripcion or ""
+
+    cupos = tema.cupos or 1
+
+    propuesta = PropuestaTemaDocente.objects.create(
+        alumno=None,
+        docente=docente,
+        titulo=tema.titulo,
+        objetivo=objetivo_limpio,
+        descripcion=tema.descripcion,
+        rama=tema.rama or tema.carrera or "",
+        estado="aceptada",
+        preferencias_docentes=[docente.pk] if docente.pk else [],
+        cupos_requeridos=cupos,
+        cupos_maximo_autorizado=cupos,
+        correos_companeros=[],
+    )
+
+    if tema.propuesta_id != propuesta.pk:
+        tema.propuesta = propuesta
+        tema.save(update_fields=["propuesta"])
 
 
 @api_view(["POST"])
@@ -1531,16 +1674,19 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
 
     docente_responsable = propuesta.docente
     created_by = alumno if alumno else propuesta.docente
+    rama = (propuesta.rama or "").strip()
 
     with transaction.atomic():
         tema = TemaDisponible.objects.create(
             titulo=propuesta.titulo,
             carrera=carrera,
+            rama=rama,
             descripcion=propuesta.descripcion,
             requisitos=requisitos,
             cupos=cupos,
             created_by=created_by,
             docente_responsable=docente_responsable,
+            propuesta=propuesta,
         )
 
         participantes: list[tuple[Usuario, bool]] = [(alumno, True)]

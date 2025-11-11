@@ -113,6 +113,7 @@
       <div class="chips meta">
         <span class="chip ghost">Cupos disponibles: {{ detalle.cuposDisponibles }} / {{ detalle.cupos }}</span>
         <span class="chip ghost">Carrera: {{ detalle.carrera }}</span>
+        <span class="chip ghost" *ngIf="detalle.rama">Rama: {{ detalle.rama }}</span>
         <span class="chip ghost" *ngIf="detalle.creadoEn">Creado: {{ detalle.creadoEn | date:'shortDate' }}</span>
       </div>
 

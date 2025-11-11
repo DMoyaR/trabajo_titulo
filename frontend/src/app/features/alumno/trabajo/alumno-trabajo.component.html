@@ -146,4 +146,18 @@
       <a routerLink="/alumno/temas">Temas</a>.
     </p>
   </ng-template>
+
+  <section class="restricciones" aria-labelledby="restricciones-titulo">
+    <h3 id="restricciones-titulo" class="section-title">Restricciones para estudiantes</h3>
+    <p class="muted">Estas políticas definen qué acciones están limitadas dentro del proceso de trabajo de título.</p>
+    <ul class="restricciones-list">
+      <li *ngFor="let item of restricciones()">
+        <span class="restriccion-icon" aria-hidden="true">⚠️</span>
+        <div class="restriccion-texto">
+          <h4>{{ item.titulo }}</h4>
+          <p>{{ item.descripcion }}</p>
+        </div>
+      </li>
+    </ul>
+  </section>
 </div>

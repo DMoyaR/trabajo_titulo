@@ -5,14 +5,15 @@
 
 .ttl {
   color: #1a3e6a;
-  margin: 0;
-  font-size: 1.6rem;
+  margin-bottom: 12px;
+  font-size: 24px;
   font-weight: 600;
 }
 
 .acciones {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -26,7 +27,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .item {

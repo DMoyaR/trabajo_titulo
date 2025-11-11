@@ -21,7 +21,6 @@ export class AlumnoLayoutComponent {
 
   readonly navItems: AlumnoNavItem[] = [
     { route: 'notifications', label: 'Notificaciones', icon: 'assets/Notificaciones.png', alt: 'Notificaciones' },
-    { route: 'bandeja', label: 'Bandeja Entrada', icon: 'assets/Bandeja_entrada.png', alt: 'Bandeja de entrada' },
     { route: 'dashboard', label: 'Inicio', icon: 'assets/Inicio.png', alt: 'Panel alumno' },
     { route: 'calendar', label: 'Calendario', icon: 'assets/Calendario.png', alt: 'Calendario' },
     { route: 'reuniones', label: 'Reuniones', icon: 'assets/Calendario.png', alt: 'Reuniones' },

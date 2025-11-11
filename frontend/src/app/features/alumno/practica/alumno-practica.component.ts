@@ -215,8 +215,6 @@ export class AlumnoPracticaComponent implements OnInit {
     'Ing. Electrónica': 'Ingeniería Electrónica',
   };
 
-
-
   carrerasPorEscuela: Record<string, string[]> = {
     inf: ['Ingeniería Civil en Computación mención Informática','Ingeniería en Informática','Ingeniería Civil en Ciencia de Datos'],
     ind: ['Ingeniería Civil Industrial','Ingeniería Industrial','Bachillerato en Ciencias de la Ingeniería','Dibujante Proyectista'],
@@ -333,14 +331,15 @@ export class AlumnoPracticaComponent implements OnInit {
   };
 
   // ===== Form carta =====
+  // NOTA: escuelaId y carrera ya NO tienen Validators.required porque son solo lectura
   cartaForm: FormGroup = this.fb.group({
     // Datos para la carta
     alumnoNombres: ['', Validators.required],
     alumnoApellidos: ['', Validators.required],
     alumnoRut: ['', [Validators.required, rutValidator()]],
-    escuelaId: ['', Validators.required],
-    carrera: ['', Validators.required],
-    duracionHoras: [320, Validators.required], // 160 | 320
+    escuelaId: [''],      // Sin validación required - solo lectura
+    carrera: [''],        // Sin validación required - solo lectura
+    duracionHoras: [320, Validators.required],
     destNombres: ['', Validators.required],
     destApellidos: ['', Validators.required],
     destCargo: ['', Validators.required],
@@ -348,18 +347,16 @@ export class AlumnoPracticaComponent implements OnInit {
 
     // Datos de la práctica (empresa)
     empresaRut: ['', [Validators.required, rutValidator()]],
-    sectorEmpresa: ['', Validators.required], // select
-    sectorEmpresaOtro: [''],                  // requerido sólo si sectorEmpresa === 'Otro'
+    sectorEmpresa: ['', Validators.required],
+    sectorEmpresaOtro: [''],
     jefeDirecto: ['', Validators.required],
     fechaInicio: ['', Validators.required],
     cargoAlumno: ['', Validators.required],
   });
 
-  // --- Hace "sectorEmpresaOtro" requerido sólo cuando sectorEmpresa === 'Otro'
   constructor() {
     const sectorCtrl = this.cartaForm.get('sectorEmpresa')!;
     const otroCtrl   = this.cartaForm.get('sectorEmpresaOtro')!;
-    // Estado inicial
     otroCtrl.disable({ emitEvent: false });
 
     sectorCtrl.valueChanges.subscribe((val) => {
@@ -378,7 +375,6 @@ export class AlumnoPracticaComponent implements OnInit {
   ngOnInit(): void {
     const storedRutRaw = localStorage.getItem('alumnoRut');
     const storedCarrera = this.normalizarCarrera(localStorage.getItem('alumnoCarrera'));
-     
 
     if (storedRutRaw) {
       const rutFormateado = formatearRut(storedRutRaw);
@@ -396,12 +392,11 @@ export class AlumnoPracticaComponent implements OnInit {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
       }
       this.cargarDocumentosOficiales(storedCarrera);
-      } else {
-        this.refrescarDocumentos();  
+    } else {
+      this.refrescarDocumentos();
     }
     this.cargarDatosAlumnoDesdePerfil();
     this.cargarSolicitudes();
-
   }
 
   fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
@@ -535,7 +530,6 @@ export class AlumnoPracticaComponent implements OnInit {
     return limpia;
   }
 
-
   private refrescarDocumentos(): void {
     const combinados: Documento[] = [
       ...this.documentosPredefinidos,
@@ -545,63 +539,60 @@ export class AlumnoPracticaComponent implements OnInit {
     this.documentos.set(combinados);
   }
 
-private cargarDocumentosOficiales(carrera: string): void {
-  const carreraLimpia = (carrera || '').trim();
-  if (!carreraLimpia) {
-    this.documentosOficiales = [];
-    this.oficiales.set([]); // ← si estás usando la signal
+  private cargarDocumentosOficiales(carrera: string): void {
+    const carreraLimpia = (carrera || '').trim();
+    if (!carreraLimpia) {
+      this.documentosOficiales = [];
+      this.oficiales.set([]);
+      this.documentosOficialesError.set(null);
+      this.refrescarDocumentos();
+      return;
+    }
+
     this.documentosOficialesError.set(null);
-    this.refrescarDocumentos();
-    return;
+
+    const carreraApi = this.carreraParaApi(carreraLimpia);
+
+    this.http
+      .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
+        params: { carrera: carreraApi },
+      })
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped: Documento[] = items.map((doc) => {
+            const fecha = this.formatFechaCorta(doc.created_at);
+            const partes: string[] = [];
+            if (doc.descripcion) partes.push(doc.descripcion);
+            if (fecha && fecha !== '—') partes.push(`Publicado: ${fecha}`);
+            return {
+              nombre: doc.nombre,
+              tipo: 'Documento',
+              url: doc.url,
+              detalle: partes.length ? partes.join(' · ') : undefined,
+            };
+          });
+
+          this.documentosOficiales = mapped;
+          this.oficiales.set(mapped);
+          this.documentosOficialesError.set(null);
+          this.refrescarDocumentos();
+        },
+        error: (error) => {
+          console.error('Error cargando documentos oficiales:', error);
+          this.documentosOficiales = [];
+          this.oficiales.set([]);
+          this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
+          this.refrescarDocumentos();
+        },
+      });
   }
 
-  this.documentosOficialesError.set(null);
-
-  const carreraApi = this.carreraParaApi(carreraLimpia);
-
-  this.http
-    .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
-      params: { carrera: carreraApi },
-    })
-    .subscribe({
-      next: (res) => {
-        const items = Array.isArray(res.items) ? res.items : [];
-        const mapped: Documento[] = items.map((doc) => {
-          const fecha = this.formatFechaCorta(doc.created_at);
-          const partes: string[] = [];
-          if (doc.descripcion) partes.push(doc.descripcion);
-          if (fecha && fecha !== '—') partes.push(`Publicado: ${fecha}`);
-          return {
-            nombre: doc.nombre,
-            tipo: 'Documento',
-            url: doc.url,
-            detalle: partes.length ? partes.join(' · ') : undefined,
-          };
-        });
-
-        this.documentosOficiales = mapped;   // opcional, si quieres conservar el array interno
-        this.oficiales.set(mapped);          // ← importante si usas la signal en el template
-        this.documentosOficialesError.set(null);
-        this.refrescarDocumentos();
-      },
-      error: (error) => {
-        console.error('Error cargando documentos oficiales:', error);
-        this.documentosOficiales = [];
-        this.oficiales.set([]);              // ← vacía la signal
-        this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
-        this.refrescarDocumentos();
-      },
-    });
-}
-
-
   private cargarSolicitudes(): void {
-
     this.solicitudesLoading.set(true);
     this.solicitudesError.set(null);
 
     const params: Record<string, string> = {
-      
       page: '1',
       size: '50',
     };
@@ -609,14 +600,13 @@ private cargarDocumentosOficiales(carrera: string): void {
       params['alumno_rut'] = this.alumnoRut;
     }
 
-
     this.http
       .get<{ items: SolicitudCarta[]; total: number }>('/api/practicas/solicitudes-carta/listar', { params })
       .subscribe({
         next: (res) => {
           const items = Array.isArray(res.items) ? res.items : [];
           this.solicitudes.set(items);
-          
+
           const cartas: Documento[] = [];
 
           items
@@ -642,7 +632,7 @@ private cargarDocumentosOficiales(carrera: string): void {
 
           this.documentosCartas = cartas;
           this.refrescarDocumentos();
-          
+
           if (!this.alumnoRut) {
             const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
             if (firstRut) {
@@ -664,7 +654,6 @@ private cargarDocumentosOficiales(carrera: string): void {
         },
       });
   }
-
 
   estadoEtiqueta(estado: EstadoSolicitud): Documento['estado'] {
     return this.estadoDocumento(estado);
@@ -706,7 +695,6 @@ private cargarDocumentosOficiales(carrera: string): void {
     });
   }
 
-
   private estadoDocumento(estado: EstadoSolicitud): Documento['estado'] {
     switch (estado) {
       case 'aprobado':
@@ -718,8 +706,6 @@ private cargarDocumentosOficiales(carrera: string): void {
     }
   }
 
-
-  // Sector resuelto (si eligen "Otro", usa el texto)
   sectorResuelto = computed(() => {
     const v = this.fv();
     const otro = (this.cartaForm.get('sectorEmpresaOtro')?.enabled ? (v.sectorEmpresaOtro || '').trim() : '');
@@ -745,7 +731,6 @@ private cargarDocumentosOficiales(carrera: string): void {
     };
   });
 
-  // Máscara de RUT al salir del campo
   onRutBlur(controlName: 'alumnoRut' | 'empresaRut') {
     const ctrl = this.cartaForm.get(controlName);
     if (!ctrl) return;
@@ -754,10 +739,18 @@ private cargarDocumentosOficiales(carrera: string): void {
     ctrl.updateValueAndValidity();
   }
 
-  // ===== Envío =====
   enviarAprobacion() {
     this.submitOk.set(null);
     this.submitError.set(null);
+
+    // Validación: verifica que escuela y carrera tengan valores
+    const carreraVal = this.cartaForm.get('carrera')?.value;
+    const escuelaVal = this.cartaForm.get('escuelaId')?.value;
+
+    if (!carreraVal || !escuelaVal) {
+      this.submitError.set('No se pudo determinar tu carrera o escuela. Por favor, contacta con soporte.');
+      return;
+    }
 
     if (this.cartaForm.invalid || !this.escuelaSel()) {
       this.cartaForm.markAllAsTouched();
@@ -799,13 +792,10 @@ private cargarDocumentosOficiales(carrera: string): void {
 
     this.isSubmitting.set(true);
 
-    // ⚠️ Ajusta la URL a tu backend real si es distinta
     this.http.post('/api/practicas/solicitudes-carta', payload).subscribe({
       next: () => {
         this.submitOk.set('Solicitud enviada a Coordinación.');
-
         this.cargarSolicitudes();
-
         this.isSubmitting.set(false);
         this.closeCarta();
       },
@@ -817,7 +807,6 @@ private cargarDocumentosOficiales(carrera: string): void {
     });
   }
 
-  // Helper para template (acceso corto a controles)
   f(name: string): AbstractControl {
     return this.cartaForm.get(name)!;
   }

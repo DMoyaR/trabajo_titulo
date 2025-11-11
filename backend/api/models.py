@@ -78,6 +78,7 @@ class Usuario(models.Model):
 class TemaDisponible(models.Model):
     titulo = models.CharField(max_length=160)
     carrera = models.CharField(max_length=100)
+    rama = models.CharField(max_length=120, blank=True, default="")
     descripcion = models.TextField()
     requisitos = models.JSONField(default=list, blank=True)
     cupos = models.PositiveIntegerField(default=1)
@@ -95,6 +96,13 @@ class TemaDisponible(models.Model):
         null=True,
         blank=True,
         related_name="temas_a_cargo",
+    )
+    propuesta = models.OneToOneField(
+        "PropuestaTema",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tema_generado",
     )
 
     class Meta:
@@ -240,9 +248,20 @@ class PropuestaTema(models.Model):
     class Meta:
         db_table = "propuestas_tema"
         ordering = ["-created_at"]
+        verbose_name = "Propuesta tema alumno"
+        verbose_name_plural = "Propuestas temas alumno"
 
     def __str__(self) -> str:
         return f"{self.titulo} ({self.get_estado_display()})"
+
+
+class PropuestaTemaDocente(PropuestaTema):
+    """Proxy model para separar las propuestas creadas por docentes."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Propuesta tema docente"
+        verbose_name_plural = "Propuestas tema docente"
 
 
 class Notificacion(models.Model):

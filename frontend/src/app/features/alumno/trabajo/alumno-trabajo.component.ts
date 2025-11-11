@@ -34,6 +34,11 @@ type EntregaDestacada = EntregaAlumno & {
   encabezado: string;
 };
 
+type Restriccion = {
+  titulo: string;
+  descripcion: string;
+};
+
 const CARRERAS_SIN_TRABAJO_TITULO = new Set(
   [
     'Bachillerato en Ciencias de la Ingeniería',
@@ -162,6 +167,79 @@ export class AlumnoTrabajoComponent {
       profesorGuia: 'Prof. Ana Díaz',
     },
   });
+
+  readonly restricciones = signal<Restriccion[]>([
+    {
+      titulo: 'Una postulación activa por alumno',
+      descripcion:
+        'Si ya tienes una postulación en estado pendiente, en revisión, aceptada o rechazada con observaciones no podrás crear otra hasta que se cierre la actual.',
+    },
+    {
+      titulo: 'Sin edición de postulación tras el envío',
+      descripcion:
+        'Una vez enviada la postulación queda bloqueada. Solo vuelve a estar editable si el docente la marca como “observada”.',
+    },
+    {
+      titulo: 'Contenido filtrado por carrera',
+      descripcion:
+        'Solo verás docentes, propuestas y temáticas asociadas a tu carrera (career_id/codigo_carrera) para asegurar la pertinencia del proceso.',
+    },
+    {
+      titulo: 'Entregas solo en etapas habilitadas',
+      descripcion:
+        'Cada entrega se habilita únicamente si la etapa está activa y dentro de las fechas publicadas por la coordinación.',
+    },
+    {
+      titulo: 'Entregas bloqueadas tras confirmar',
+      descripcion:
+        'Al confirmar una entrega el archivo queda protegido; el botón de edición se oculta para mantener la integridad documental.',
+    },
+    {
+      titulo: 'Evaluaciones docentes cuando están publicadas',
+      descripcion:
+        'Los comentarios y resultados del docente solo se muestran cuando visible == true, tras la publicación de la retroalimentación.',
+    },
+    {
+      titulo: 'Agendamiento condicionado a profesor guía',
+      descripcion:
+        'Solo puedes agendar reuniones si cuentas con profesor guía asignado y el calendario se encuentra publicado (docente_asignado y calendario_publicado).',
+    },
+    {
+      titulo: 'Validación de archivos al subir',
+      descripcion:
+        'El sistema acepta únicamente archivos .pdf, .docx o .zip con un máximo de 25 MB, validado tanto en frontend como en backend.',
+    },
+    {
+      titulo: 'Formularios completos',
+      descripcion:
+        'Las solicitudes y entregas se pueden enviar únicamente si todos los campos obligatorios están completos; no se permiten formularios incompletos.',
+    },
+    {
+      titulo: 'Certificados tras finalizar el proceso',
+      descripcion:
+        'El certificado de aprobación se habilita solo si status_proceso == "finalizado" y evaluacion_final == "aprobada".',
+    },
+    {
+      titulo: 'Descarga de actas validada',
+      descripcion:
+        'Las actas pueden descargarse únicamente cuando cuentan con la firma del docente (acta_firmada) y la validación de la coordinación.',
+    },
+    {
+      titulo: 'Integrantes fijos tras postular',
+      descripcion:
+        'Al enviar la postulación queda bloqueada la edición del grupo de trabajo para mantener consistencia en el registro de integrantes.',
+    },
+    {
+      titulo: 'Acceso restringido a otros grupos',
+      descripcion:
+        'No es posible visualizar documentos o procesos de otros estudiantes; el aislamiento se asegura por grupo_id desde el backend.',
+    },
+    {
+      titulo: 'Documentos internos protegidos',
+      descripcion:
+        'Las rúbricas internas, observaciones privadas y otros documentos de revisión docente o de coordinación no están disponibles para los estudiantes.',
+    },
+  ]);
 
   readonly nivelActual = computed<Nivel | null>(() => {
     const seleccionado = this.nivelSeleccionado();
