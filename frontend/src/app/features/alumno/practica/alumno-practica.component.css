@@ -2,7 +2,13 @@
 .ttl { color:#1a3e6a; margin-bottom:12px; font-weight:800; }
 
 /* ===== Layout base ===== */
-.grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 0 auto 16px;
+}
+
 .card { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:14px; box-shadow:0 8px 28px var(--utem-shadow, rgba(10,36,77,.06)); }
 .card h3 { margin:0 0 10px; color:#0a244d; }
 .card-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
