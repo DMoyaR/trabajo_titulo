@@ -48,7 +48,7 @@ class Usuario(models.Model):
     nombre_completo = models.CharField(max_length=100)
     correo = models.EmailField(unique=True, max_length=100)
     carrera = models.CharField(max_length=50, choices=CARRERA_CHOICES, blank=True, null=True)
-    rut = models.CharField(max_length=15, unique=True)
+    rut = models.CharField(max_length=15, unique=True, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     docente_guia = models.ForeignKey(
         "self",
@@ -248,6 +248,8 @@ class SolicitudReunion(models.Model):
     class Meta:
         db_table = "solicitudes_reunion"
         ordering = ["-creado_en"]
+        verbose_name = "Solicitud reuniones alumno"
+        verbose_name_plural = "Solicitudes reuniones alumno"
 
     def __str__(self) -> str:
         alumno = self.alumno.nombre_completo if self.alumno else "Alumno desconocido"
@@ -311,6 +313,8 @@ class Reunion(models.Model):
         indexes = [
             models.Index(fields=["docente", "fecha", "hora_inicio", "hora_termino"]),
         ]
+        verbose_name = "Solicitud reuniones docente"
+        verbose_name_plural = "Solicitudes reuniones docente"
 
     def __str__(self) -> str:
         alumno = self.alumno.nombre_completo if self.alumno else "Alumno"

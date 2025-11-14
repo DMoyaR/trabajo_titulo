@@ -9,6 +9,9 @@ from .models import (
     PropuestaTemaDocente,
     Notificacion,
     PracticaDocumento,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
 )
 
 
@@ -107,3 +110,51 @@ class PracticaDocumentoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "carrera", "uploaded_by", "created_at")
     list_filter = ("carrera",)
     search_fields = ("nombre", "descripcion", "uploaded_by__nombre_completo")
+
+
+@admin.register(SolicitudReunion)
+class SolicitudReunionAdmin(admin.ModelAdmin):
+    list_display = ("id", "alumno", "docente", "estado", "creado_en")
+    list_filter = ("estado", "docente")
+    search_fields = (
+        "alumno__nombre_completo",
+        "alumno__correo",
+        "docente__nombre_completo",
+        "motivo",
+    )
+    readonly_fields = ("creado_en", "actualizado_en")
+    autocomplete_fields = ("alumno", "docente")
+
+
+@admin.register(Reunion)
+class ReunionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "fecha",
+        "hora_inicio",
+        "docente",
+        "alumno",
+        "estado",
+    )
+    list_filter = ("estado", "modalidad", "docente")
+    search_fields = (
+        "alumno__nombre_completo",
+        "alumno__correo",
+        "docente__nombre_completo",
+        "motivo",
+    )
+    readonly_fields = ("creado_en", "actualizado_en")
+    autocomplete_fields = ("alumno", "docente", "solicitud", "creado_por")
+
+
+@admin.register(TrazabilidadReunion)
+class TrazabilidadReunionAdmin(admin.ModelAdmin):
+    list_display = ("id", "tipo", "solicitud", "reunion", "usuario", "creado_en")
+    list_filter = ("tipo",)
+    search_fields = (
+        "solicitud__alumno__nombre_completo",
+        "reunion__docente__nombre_completo",
+        "usuario__nombre_completo",
+    )
+    readonly_fields = ("creado_en",)
+    autocomplete_fields = ("solicitud", "reunion", "usuario")
