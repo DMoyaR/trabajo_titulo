@@ -58,3 +58,75 @@
     <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
   </div>
 </div>
+
+<div class="card calendar-card">
+  <div class="calendar-header">
+    <div>
+      <h3>Reuniones agendadas</h3>
+      <p class="calendar-subtitle">Selecciona un día para revisar los detalles de tus reuniones.</p>
+    </div>
+    <div class="calendar-controls">
+      <button type="button" class="calendar-btn" (click)="goToToday()">Hoy</button>
+      <button type="button" class="calendar-btn" (click)="goToPreviousMonth()">◀</button>
+      <span class="calendar-label">{{ calendarMonthLabel }}</span>
+      <button type="button" class="calendar-btn" (click)="goToNextMonth()">▶</button>
+    </div>
+  </div>
+
+  <div *ngIf="meetingsLoading" class="calendar-state">Cargando reuniones...</div>
+  <div *ngIf="meetingsError" class="calendar-state error">{{ meetingsError }}</div>
+
+  <div class="calendar-body" *ngIf="!meetingsLoading && !meetingsError">
+    <div class="calendar-grid">
+      <div class="calendar-dow" *ngFor="let dow of weekDays">{{ dow }}</div>
+      <ng-container *ngFor="let week of calendarWeeks">
+        <button
+          type="button"
+          *ngFor="let day of week"
+          class="calendar-day"
+          [class.empty]="day === 0"
+          [class.today]="isToday(day)"
+          [class.selected]="isSelected(day)"
+          [class.has-meetings]="hasMeetings(day)"
+          (click)="selectDay(day)"
+        >
+          <span *ngIf="day > 0" class="day-number">{{ day }}</span>
+          <span *ngIf="hasMeetings(day)" class="day-indicator"></span>
+        </button>
+      </ng-container>
+    </div>
+
+    <div class="calendar-details">
+      <ng-container *ngIf="selectedDay; else promptSelect">
+        <h4 class="details-title">{{ selectedDateLabel }}</h4>
+
+        <ng-container *ngIf="selectedMeetings.length > 0; else noMeetings">
+          <div class="meeting-item" *ngFor="let meeting of selectedMeetings">
+            <div class="meeting-time">{{ meeting.horaInicio }} – {{ meeting.horaTermino }}</div>
+            <div class="meeting-title">{{ meeting.motivo }}</div>
+            <div class="meeting-meta">
+              <span class="chip">{{ meeting.modalidad | titlecase }}</span>
+              <span class="chip status">Estado: {{ meeting.estado | titlecase }}</span>
+            </div>
+            <div class="meeting-student" *ngIf="meeting.alumno">Con: {{ meeting.alumno }}</div>
+            <div class="meeting-notes" *ngIf="meeting.observaciones">Notas: {{ meeting.observaciones }}</div>
+          </div>
+        </ng-container>
+      </ng-container>
+    </div>
+  </div>
+
+  <ng-template #promptSelect>
+    <div class="calendar-hint" *ngIf="hasAnyMeeting; else noMeetingsRegistered">
+      Selecciona un día del calendario para ver tus reuniones.
+    </div>
+  </ng-template>
+
+  <ng-template #noMeetings>
+    <div class="calendar-hint">No hay reuniones agendadas para esta fecha.</div>
+  </ng-template>
+
+  <ng-template #noMeetingsRegistered>
+    <div class="calendar-hint">Aún no registras reuniones agendadas.</div>
+  </ng-template>
+</div>
