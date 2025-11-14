@@ -50,6 +50,14 @@ class Usuario(models.Model):
     carrera = models.CharField(max_length=50, choices=CARRERA_CHOICES, blank=True, null=True)
     rut = models.CharField(max_length=15, unique=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    docente_guia = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alumnos_guia",
+        limit_choices_to={"rol": "docente"},
+    )
     rol = models.CharField(max_length=20, choices=ROL_CHOICES)
     contrasena = models.CharField(max_length=128)
 
@@ -207,6 +215,152 @@ class SolicitudCartaPractica(models.Model):
 
     def __str__(self) -> str:
         return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"
+
+
+class SolicitudReunion(models.Model):
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("aprobada", "Aprobada"),
+        ("rechazada", "Rechazada"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_reunion",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_reunion_recibidas",
+        limit_choices_to={"rol": "docente"},
+    )
+    motivo = models.TextField()
+    disponibilidad_sugerida = models.CharField(max_length=255, blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "solicitudes_reunion"
+        ordering = ["-creado_en"]
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno desconocido"
+        return f"Solicitud de reunión de {alumno} ({self.estado})"
+
+
+class Reunion(models.Model):
+    ESTADOS = [
+        ("aprobada", "Aprobada"),
+        ("finalizada", "Finalizada"),
+        ("no_realizada", "No realizada"),
+        ("reprogramada", "Reprogramada"),
+    ]
+    MODALIDADES = [
+        ("presencial", "Presencial"),
+        ("online", "Online"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_alumno",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_docente",
+        limit_choices_to={"rol": "docente"},
+    )
+    solicitud = models.OneToOneField(
+        SolicitudReunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reunion",
+    )
+    fecha = models.DateField()
+    hora_inicio = models.TimeField()
+    hora_termino = models.TimeField()
+    modalidad = models.CharField(max_length=20, choices=MODALIDADES)
+    motivo = models.TextField()
+    observaciones = models.TextField(blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="aprobada")
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_registradas",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reuniones"
+        ordering = ["-fecha", "-hora_inicio"]
+        indexes = [
+            models.Index(fields=["docente", "fecha", "hora_inicio", "hora_termino"]),
+        ]
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno"
+        fecha = self.fecha.isoformat()
+        return f"Reunión {fecha} - {alumno} ({self.estado})"
+
+
+class TrazabilidadReunion(models.Model):
+    TIPOS = [
+        ("creacion_solicitud", "Creación de solicitud"),
+        ("aprobada_desde_solicitud", "Aprobada desde solicitud"),
+        ("agendada_directamente", "Agendada directamente"),
+        ("rechazo", "Rechazo"),
+        ("cierre_final", "Cierre final"),
+    ]
+
+    solicitud = models.ForeignKey(
+        SolicitudReunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trazabilidad",
+    )
+    reunion = models.ForeignKey(
+        Reunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trazabilidad",
+    )
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    tipo = models.CharField(max_length=40, choices=TIPOS)
+    estado_anterior = models.CharField(max_length=20, blank=True, null=True)
+    estado_nuevo = models.CharField(max_length=20, blank=True, null=True)
+    comentario = models.TextField(blank=True, null=True)
+    datos = models.JSONField(default=dict, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "trazabilidad_reuniones"
+        ordering = ["-creado_en"]
+
+    def __str__(self) -> str:
+        referencia = "reunión" if self.reunion_id else "solicitud"
+        return f"Registro de {referencia} ({self.tipo})"
 
 
 class PropuestaTema(models.Model):
