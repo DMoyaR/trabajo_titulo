@@ -837,21 +837,29 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    tema = serializers.PrimaryKeyRelatedField(
+        queryset=TemaDisponible.objects.all(),
+        required=True,
+        allow_null=False,
+    )
     fecha = serializers.DateField(required=False, allow_null=True)
+    grupo = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
         fields = [
             "id",
             "docente",
+            "tema",
             "grupo_nombre",
             "titulo",
             "fecha",
             "estado",
             "created_at",
             "updated_at",
+            "grupo",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "estado", "grupo_nombre"]
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
         if docente and docente.rol != "docente":
@@ -883,3 +891,82 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         if data.get("fecha") in ("", None):
             data["fecha"] = None
         return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tema = attrs.get("tema")
+        docente = attrs.get("docente")
+
+        if not tema:
+            raise serializers.ValidationError(
+                {"tema": "Debes seleccionar un grupo activo."}
+            )
+
+        if docente and not self._tema_pertenece_a_docente(tema, docente):
+            raise serializers.ValidationError(
+                {"tema": "El grupo seleccionado no pertenece al docente."}
+            )
+
+        if not tema.inscripciones.filter(activo=True).exists():
+            raise serializers.ValidationError(
+                {"tema": "Solo puedes registrar evaluaciones para grupos activos."}
+            )
+
+        return attrs
+
+    def get_grupo(self, obj):
+        tema = obj.tema
+        if not tema:
+            return None
+
+        inscripciones = getattr(tema, "inscripciones_activas", None)
+        if inscripciones is None:
+            inscripciones = (
+                tema.inscripciones.filter(activo=True)
+                .select_related("alumno")
+                .order_by("created_at")
+            )
+
+        integrantes: list[str] = []
+        for inscripcion in inscripciones:
+            alumno = getattr(inscripcion, "alumno", None)
+            if alumno and alumno.nombre_completo:
+                integrantes.append(alumno.nombre_completo)
+
+        return {
+            "id": tema.id,
+            "nombre": tema.titulo,
+            "integrantes": integrantes,
+        }
+
+    def _tema_pertenece_a_docente(self, tema: TemaDisponible, docente: Usuario) -> bool:
+        return (
+            tema.docente_responsable_id == docente.id
+            or tema.created_by_id == docente.id
+        )
+
+
+class DocenteGrupoActivoSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="titulo")
+    integrantes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TemaDisponible
+        fields = ["id", "nombre", "integrantes"]
+
+    def get_integrantes(self, obj: TemaDisponible) -> list[str]:
+        inscripciones = getattr(obj, "inscripciones_activas", None)
+        if inscripciones is None:
+            inscripciones = (
+                obj.inscripciones.filter(activo=True)
+                .select_related("alumno")
+                .order_by("created_at")
+            )
+
+        integrantes: list[str] = []
+        for inscripcion in inscripciones:
+            alumno = getattr(inscripcion, "alumno", None)
+            if alumno and alumno.nombre_completo:
+                integrantes.append(alumno.nombre_completo)
+
+        return integrantes

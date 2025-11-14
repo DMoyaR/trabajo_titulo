@@ -23,6 +23,7 @@ from .views import (
     gestionar_documentos_practica,
     eliminar_documento_practica,
     DocenteEvaluacionListCreateView,
+    DocenteGruposActivosListView,
 )
 
 urlpatterns = [
@@ -129,5 +130,10 @@ urlpatterns = [
         "docentes/evaluaciones/",
         DocenteEvaluacionListCreateView.as_view(),
         name="docente-evaluaciones",
+    ),
+    path(
+        "docentes/grupos/activos/",
+        DocenteGruposActivosListView.as_view(),
+        name="docente-grupos-activos",
     ),
 ]

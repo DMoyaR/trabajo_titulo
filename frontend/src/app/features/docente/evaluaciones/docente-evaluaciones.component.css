@@ -41,6 +41,56 @@
   background: #fff;
 }
 
+.field-hint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.field-hint.warning {
+  color: #b45309;
+}
+
+.field-hint.error {
+  color: #b91c1c;
+}
+
+.status-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #1f2a37;
+}
+
+.status-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: #e5edff;
+  color: #1a3e6a;
+}
+
+.status-preview.pendiente {
+  background: #fff4e6;
+  color: #b45309;
+}
+
+.status-preview.en-progreso {
+  background: #e0f2fe;
+  color: #0f4c81;
+}
+
+.status-preview.evaluada {
+  background: #def7ec;
+  color: #047857;
+}
+
 .btn {
   border: 0;
   border-radius: 10px;

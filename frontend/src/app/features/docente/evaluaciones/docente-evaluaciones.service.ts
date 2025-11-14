@@ -5,25 +5,37 @@ import { Observable } from 'rxjs';
 export interface EvaluacionGrupoDto {
   id: number;
   docente: number | null;
+  tema: number | null;
   grupo_nombre: string;
   titulo: string;
   fecha: string | null;
   estado: string;
   created_at: string;
   updated_at: string;
+  grupo: {
+    id: number;
+    nombre: string;
+    integrantes: string[];
+  } | null;
 }
 
 export type CrearEvaluacionPayload = {
   docente?: number | null;
-  grupo_nombre: string;
+  tema: number;
   titulo: string;
   fecha?: string | null;
-  estado: string;
 };
+
+export interface GrupoActivoDto {
+  id: number;
+  nombre: string;
+  integrantes: string[];
+}
 
 @Injectable({ providedIn: 'root' })
 export class DocenteEvaluacionesService {
   private readonly baseUrl = 'http://localhost:8000/api/docentes/evaluaciones/';
+  private readonly gruposActivosUrl = 'http://localhost:8000/api/docentes/grupos/activos/';
 
   constructor(private readonly http: HttpClient) {}
 
@@ -40,9 +52,8 @@ export class DocenteEvaluacionesService {
 
   crear(payload: CrearEvaluacionPayload): Observable<EvaluacionGrupoDto> {
     const body: Record<string, unknown> = {
-      grupo_nombre: payload.grupo_nombre,
+      tema: payload.tema,
       titulo: payload.titulo,
-      estado: payload.estado,
     };
 
     if (payload.fecha) {
@@ -56,5 +67,16 @@ export class DocenteEvaluacionesService {
     }
 
     return this.http.post<EvaluacionGrupoDto>(this.baseUrl, body);
+  }
+
+  listarGruposActivos(docenteId?: number | null): Observable<GrupoActivoDto[]> {
+    let params = new HttpParams();
+
+    if (docenteId != null) {
+      params = params.set('docente', String(docenteId));
+    }
+
+    const options = params.keys().length ? { params } : {};
+    return this.http.get<GrupoActivoDto[]>(this.gruposActivosUrl, options);
   }
 }

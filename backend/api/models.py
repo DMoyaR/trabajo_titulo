@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password as auth_check_password
 
 class Usuario(models.Model):
@@ -382,6 +383,13 @@ class EvaluacionGrupoDocente(models.Model):
         related_name="evaluaciones_grupo",
         limit_choices_to={"rol": "docente"},
     )
+    tema = models.ForeignKey(
+        "TemaDisponible",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluaciones_docente",
+    )
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
     fecha = models.DateField(null=True, blank=True)
@@ -394,10 +402,31 @@ class EvaluacionGrupoDocente(models.Model):
         ordering = ["grupo_nombre", "-fecha", "-created_at"]
         indexes = [
             models.Index(fields=["docente", "grupo_nombre", "estado"]),
+            models.Index(fields=["tema", "fecha"]),
         ]
 
     def __str__(self) -> str:
         return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
+
+    def sincronizar_estado(self) -> None:
+        hoy = timezone.localdate()
+
+        if not self.fecha:
+            self.estado = "Pendiente"
+            return
+
+        if self.fecha > hoy:
+            self.estado = "Pendiente"
+        elif self.fecha == hoy:
+            self.estado = "En progreso"
+        else:
+            self.estado = "Evaluada"
+
+    def save(self, *args, **kwargs):
+        if self.tema:
+            self.grupo_nombre = self.tema.titulo
+        self.sincronizar_estado()
+        super().save(*args, **kwargs)
 
 
 class PropuestaTema(models.Model):

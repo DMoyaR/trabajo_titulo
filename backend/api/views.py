@@ -8,7 +8,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value
+from django.db.models import Q, Value, Prefetch
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -58,6 +58,7 @@ from .serializers import (
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
     EvaluacionGrupoDocenteSerializer,
+    DocenteGrupoActivoSerializer,
 )
 
 
@@ -2228,13 +2229,57 @@ def cerrar_reunion(request, pk: int):
     return Response(output.data)
 
 
+class DocenteGruposActivosListView(generics.ListAPIView):
+    serializer_class = DocenteGrupoActivoSerializer
+
+    def get_queryset(self):
+        docente_param = self.request.query_params.get("docente")
+        if docente_param in (None, "", "null"):
+            return TemaDisponible.objects.none()
+
+        try:
+            docente_id = int(docente_param)
+        except (TypeError, ValueError):
+            return TemaDisponible.objects.none()
+
+        queryset = (
+            TemaDisponible.objects.filter(
+                Q(docente_responsable_id=docente_id)
+                | Q(created_by_id=docente_id),
+                inscripciones__activo=True,
+            )
+            .prefetch_related(
+                Prefetch(
+                    "inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
+            .distinct()
+            .order_by("titulo")
+        )
+
+        return queryset
+
+
 class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
     serializer_class = EvaluacionGrupoDocenteSerializer
 
     def get_queryset(self):
         queryset = (
             EvaluacionGrupoDocente.objects.all()
-            .select_related("docente")
+            .select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
             .order_by("grupo_nombre", "-fecha", "-created_at")
         )
         docente_id = self.request.query_params.get("docente")
