@@ -6,6 +6,9 @@ from .models import (
     PracticaDocumento,
     PropuestaTema,
     Notificacion,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
 )
 
 
@@ -359,6 +362,154 @@ class UsuarioResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+
+
+class TrazabilidadReunionSerializer(serializers.ModelSerializer):
+    usuario = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = TrazabilidadReunion
+        fields = [
+            "id",
+            "tipo",
+            "estado_anterior",
+            "estado_nuevo",
+            "comentario",
+            "datos",
+            "creado_en",
+            "usuario",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        usuario = base.get("usuario")
+        return {
+            "id": base["id"],
+            "tipo": base["tipo"],
+            "estadoAnterior": base.get("estado_anterior"),
+            "estadoNuevo": base.get("estado_nuevo"),
+            "comentario": base.get("comentario"),
+            "datos": base.get("datos", {}),
+            "fecha": instance.creado_en.isoformat(),
+            "usuario": usuario,
+        }
+
+
+class SolicitudReunionSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+    trazabilidad = TrazabilidadReunionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SolicitudReunion
+        fields = [
+            "id",
+            "alumno",
+            "docente",
+            "motivo",
+            "disponibilidad_sugerida",
+            "estado",
+            "creado_en",
+            "actualizado_en",
+            "trazabilidad",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        return {
+            "id": base["id"],
+            "estado": base["estado"],
+            "motivo": base["motivo"],
+            "disponibilidadSugerida": base.get("disponibilidad_sugerida"),
+            "creadoEn": instance.creado_en.isoformat(),
+            "actualizadoEn": instance.actualizado_en.isoformat(),
+            "alumno": base.get("alumno"),
+            "docente": base.get("docente"),
+            "trazabilidad": base.get("trazabilidad", []),
+        }
+
+
+class SolicitudReunionCreateSerializer(serializers.Serializer):
+    alumno = serializers.IntegerField()
+    motivo = serializers.CharField()
+    disponibilidadSugerida = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+
+
+class AprobarSolicitudReunionSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    fecha = serializers.DateField()
+    horaInicio = serializers.TimeField()
+    horaTermino = serializers.TimeField()
+    modalidad = serializers.ChoiceField(choices=[choice[0] for choice in Reunion.MODALIDADES])
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class RechazarSolicitudReunionSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class ReunionSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+    trazabilidad = TrazabilidadReunionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Reunion
+        fields = [
+            "id",
+            "alumno",
+            "docente",
+            "solicitud",
+            "fecha",
+            "hora_inicio",
+            "hora_termino",
+            "modalidad",
+            "motivo",
+            "observaciones",
+            "estado",
+            "creado_en",
+            "actualizado_en",
+            "trazabilidad",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        return {
+            "id": base["id"],
+            "estado": base["estado"],
+            "motivo": base["motivo"],
+            "observaciones": base.get("observaciones"),
+            "fecha": instance.fecha.isoformat(),
+            "horaInicio": instance.hora_inicio.isoformat(),
+            "horaTermino": instance.hora_termino.isoformat(),
+            "modalidad": base["modalidad"],
+            "creadoEn": instance.creado_en.isoformat(),
+            "actualizadoEn": instance.actualizado_en.isoformat(),
+            "alumno": base.get("alumno"),
+            "docente": base.get("docente"),
+            "solicitudId": base.get("solicitud"),
+            "trazabilidad": base.get("trazabilidad", []),
+        }
+
+
+class ReunionCreateSerializer(serializers.Serializer):
+    alumno = serializers.IntegerField()
+    docente = serializers.IntegerField()
+    fecha = serializers.DateField()
+    horaInicio = serializers.TimeField()
+    horaTermino = serializers.TimeField()
+    modalidad = serializers.ChoiceField(choices=[choice[0] for choice in Reunion.MODALIDADES])
+    motivo = serializers.CharField()
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class ReunionCerrarSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    estado = serializers.ChoiceField(choices=["finalizada", "no_realizada"])
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class PropuestaTemaSerializer(serializers.ModelSerializer):

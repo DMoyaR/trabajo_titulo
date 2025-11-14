@@ -10,6 +10,11 @@ from .views import (
     listar_solicitudes_carta_practica,
     aprobar_solicitud_carta_practica,
     rechazar_solicitud_carta_practica,
+    gestionar_solicitudes_reunion,
+    aprobar_solicitud_reunion,
+    rechazar_solicitud_reunion,
+    gestionar_reuniones,
+    cerrar_reunion,
     PropuestaTemaListCreateView,
     PropuestaTemaRetrieveUpdateView,
     DocenteListView,
@@ -93,5 +98,30 @@ urlpatterns = [
         "practicas/documentos/",
         gestionar_documentos_practica,
         name="listar-documentos-practica",
+    ),
+    path(
+        "reuniones/solicitudes/",
+        gestionar_solicitudes_reunion,
+        name="gestionar-solicitudes-reunion",
+    ),
+    path(
+        "reuniones/solicitudes/<int:pk>/aprobar/",
+        aprobar_solicitud_reunion,
+        name="aprobar-solicitud-reunion",
+    ),
+    path(
+        "reuniones/solicitudes/<int:pk>/rechazar/",
+        rechazar_solicitud_reunion,
+        name="rechazar-solicitud-reunion",
+    ),
+    path(
+        "reuniones/",
+        gestionar_reuniones,
+        name="gestionar-reuniones",
+    ),
+    path(
+        "reuniones/<int:pk>/cerrar/",
+        cerrar_reunion,
+        name="cerrar-reunion",
     ),
 ]

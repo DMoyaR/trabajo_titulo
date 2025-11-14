@@ -26,6 +26,9 @@ from .models import (
     PropuestaTema,
     PropuestaTemaDocente,
     SolicitudCartaPractica,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
     TemaDisponible,
     Usuario,
 )
@@ -44,6 +47,13 @@ from .serializers import (
     PropuestaTemaSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
+    SolicitudReunionSerializer,
+    SolicitudReunionCreateSerializer,
+    AprobarSolicitudReunionSerializer,
+    RechazarSolicitudReunionSerializer,
+    ReunionSerializer,
+    ReunionCreateSerializer,
+    ReunionCerrarSerializer,
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
 )
@@ -379,6 +389,65 @@ def _obtener_usuario_para_temas(request) -> Usuario | None:
     if usuario:
         return usuario
     return _obtener_usuario_por_id(request.query_params.get("alumno"))
+
+
+def _validar_docente_asignado(alumno: Usuario | None, docente: Usuario | None) -> bool:
+    if not alumno or alumno.rol != "alumno":
+        return False
+    if not docente or docente.rol != "docente":
+        return False
+    if alumno.docente_guia_id is None:
+        return False
+    return alumno.docente_guia_id == docente.pk
+
+
+def _registrar_trazabilidad_reunion(
+    *,
+    tipo: str,
+    usuario: Usuario | None,
+    solicitud: SolicitudReunion | None = None,
+    reunion: Reunion | None = None,
+    estado_anterior: str | None = None,
+    estado_nuevo: str | None = None,
+    comentario: str | None = None,
+    datos: dict | None = None,
+) -> TrazabilidadReunion:
+    payload = datos or {}
+    return TrazabilidadReunion.objects.create(
+        solicitud=solicitud,
+        reunion=reunion,
+        usuario=usuario,
+        tipo=tipo,
+        estado_anterior=estado_anterior,
+        estado_nuevo=estado_nuevo,
+        comentario=comentario or None,
+        datos=payload,
+    )
+
+
+def _validar_disponibilidad_docente(
+    *,
+    docente: Usuario,
+    fecha,
+    hora_inicio,
+    hora_termino,
+    excluir: Reunion | None = None,
+) -> Reunion | None:
+    if hora_termino <= hora_inicio:
+        raise ValueError("La hora de término debe ser posterior a la hora de inicio.")
+
+    queryset = Reunion.objects.filter(
+        docente=docente,
+        fecha=fecha,
+        estado__in=["aprobada"],
+    )
+    if excluir:
+        queryset = queryset.exclude(pk=excluir.pk)
+
+    for existente in queryset:
+        if hora_inicio < existente.hora_termino and hora_termino > existente.hora_inicio:
+            return existente
+    return None
 
 
 def _formatear_rut(valor: str | None) -> str:
@@ -1452,6 +1521,432 @@ def listar_solicitudes_carta_practica(request):
         items, many=True, context={"request": request}
     )
     return Response({"items": serializer.data, "total": total})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def gestionar_solicitudes_reunion(request):
+    if request.method == "GET":
+        queryset = (
+            SolicitudReunion.objects.select_related("alumno", "docente")
+            .prefetch_related("trazabilidad__usuario")
+            .order_by("-creado_en")
+        )
+
+        alumno = _obtener_usuario_por_id(request.query_params.get("alumno"))
+        docente = _obtener_usuario_por_id(request.query_params.get("docente"))
+        coordinador = _obtener_usuario_por_id(request.query_params.get("coordinador"))
+
+        if alumno:
+            if alumno.rol != "alumno":
+                return Response(
+                    {"alumno": "El identificador no corresponde a un alumno."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(alumno=alumno)
+        elif docente:
+            if docente.rol != "docente":
+                return Response(
+                    {"docente": "El identificador no corresponde a un docente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(docente=docente)
+        elif coordinador:
+            if coordinador.rol != "coordinador":
+                return Response(
+                    {"coordinador": "El identificador no corresponde a coordinación."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"detail": "Debe indicar un alumno, docente o coordinador para listar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estado = request.query_params.get("estado")
+        if estado in {"pendiente", "aprobada", "rechazada"}:
+            queryset = queryset.filter(estado=estado)
+
+        serializer = SolicitudReunionSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    serializer = SolicitudReunionCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    alumno = _obtener_usuario_por_id(serializer.validated_data.get("alumno"))
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"alumno": "El identificador de alumno no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docente = alumno.docente_guia
+    if not docente:
+        return Response(
+            {"detail": "El alumno no tiene un docente guía asignado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    disponibilidad = serializer.validated_data.get("disponibilidadSugerida")
+
+    solicitud = SolicitudReunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        motivo=serializer.validated_data["motivo"],
+        disponibilidad_sugerida=disponibilidad,
+    )
+
+    _registrar_trazabilidad_reunion(
+        tipo="creacion_solicitud",
+        usuario=alumno,
+        solicitud=solicitud,
+        estado_nuevo="pendiente",
+        datos={
+            "motivo": solicitud.motivo,
+            "disponibilidadSugerida": disponibilidad,
+        },
+    )
+
+    output = SolicitudReunionSerializer(solicitud)
+    headers = {"Location": f"/api/reuniones/solicitudes/{solicitud.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def aprobar_solicitud_reunion(request, pk: int):
+    solicitud = get_object_or_404(
+        SolicitudReunion.objects.select_related("alumno", "docente"), pk=pk
+    )
+
+    if solicitud.estado != "pendiente":
+        return Response(
+            {"detail": "Solo es posible aprobar solicitudes en estado pendiente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = AprobarSolicitudReunionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = solicitud.alumno
+    if not _validar_docente_asignado(alumno, docente):
+        return Response(
+            {"detail": "El docente no está asignado como guía del alumno."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    fecha = serializer.validated_data["fecha"]
+    hora_inicio = serializer.validated_data["horaInicio"]
+    hora_termino = serializer.validated_data["horaTermino"]
+
+    try:
+        conflicto = _validar_disponibilidad_docente(
+            docente=docente,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_termino=hora_termino,
+        )
+    except ValueError as exc:
+        return Response(
+            {"horaTermino": [str(exc)]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if conflicto:
+        return Response(
+            {
+                "detail": "El horario se solapa con otra reunión ya agendada.",
+                "reunionConflictoId": conflicto.pk,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    modalidad = serializer.validated_data["modalidad"]
+    comentario = serializer.validated_data.get("comentario")
+
+    reunion = Reunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        solicitud=solicitud,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_termino=hora_termino,
+        modalidad=modalidad,
+        motivo=solicitud.motivo,
+        observaciones=comentario or solicitud.disponibilidad_sugerida,
+        estado="aprobada",
+        creado_por=docente,
+    )
+
+    estado_anterior = solicitud.estado
+    solicitud.estado = "aprobada"
+    if solicitud.docente_id != docente.pk:
+        solicitud.docente = docente
+    solicitud.save(update_fields=["estado", "docente", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="aprobada_desde_solicitud",
+        usuario=docente,
+        solicitud=solicitud,
+        reunion=reunion,
+        estado_anterior=estado_anterior,
+        estado_nuevo="aprobada",
+        comentario=comentario,
+        datos={
+            "fecha": fecha.isoformat(),
+            "horaInicio": hora_inicio.isoformat(),
+            "horaTermino": hora_termino.isoformat(),
+            "modalidad": modalidad,
+            "motivoAlumno": solicitud.motivo,
+        },
+    )
+
+    output = ReunionSerializer(reunion)
+    headers = {"Location": f"/api/reuniones/{reunion.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def rechazar_solicitud_reunion(request, pk: int):
+    solicitud = get_object_or_404(
+        SolicitudReunion.objects.select_related("alumno", "docente"), pk=pk
+    )
+
+    if solicitud.estado != "pendiente":
+        return Response(
+            {"detail": "Solo es posible rechazar solicitudes en estado pendiente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = RechazarSolicitudReunionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = solicitud.alumno
+    if not _validar_docente_asignado(alumno, docente) and (
+        solicitud.docente_id and solicitud.docente_id != docente.pk
+    ):
+        return Response(
+            {"detail": "El docente no está asignado a esta solicitud."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    comentario = serializer.validated_data.get("comentario")
+
+    estado_anterior = solicitud.estado
+    solicitud.estado = "rechazada"
+    if solicitud.docente_id != docente.pk:
+        solicitud.docente = docente
+    solicitud.save(update_fields=["estado", "docente", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="rechazo",
+        usuario=docente,
+        solicitud=solicitud,
+        estado_anterior=estado_anterior,
+        estado_nuevo="rechazada",
+        comentario=comentario,
+        datos={"motivoAlumno": solicitud.motivo},
+    )
+
+    output = SolicitudReunionSerializer(solicitud)
+    return Response(output.data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def gestionar_reuniones(request):
+    if request.method == "GET":
+        queryset = (
+            Reunion.objects.select_related("alumno", "docente", "solicitud")
+            .prefetch_related("trazabilidad__usuario")
+            .order_by("-fecha", "-hora_inicio")
+        )
+
+        alumno = _obtener_usuario_por_id(request.query_params.get("alumno"))
+        docente = _obtener_usuario_por_id(request.query_params.get("docente"))
+        coordinador = _obtener_usuario_por_id(request.query_params.get("coordinador"))
+
+        if alumno:
+            if alumno.rol != "alumno":
+                return Response(
+                    {"alumno": "El identificador no corresponde a un alumno."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(alumno=alumno)
+        elif docente:
+            if docente.rol != "docente":
+                return Response(
+                    {"docente": "El identificador no corresponde a un docente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(docente=docente)
+        elif coordinador:
+            if coordinador.rol != "coordinador":
+                return Response(
+                    {"coordinador": "El identificador no corresponde a coordinación."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"detail": "Debe indicar un alumno, docente o coordinador para listar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estado = request.query_params.get("estado")
+        if estado in {"aprobada", "finalizada", "no_realizada", "reprogramada"}:
+            queryset = queryset.filter(estado=estado)
+
+        serializer = ReunionSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    serializer = ReunionCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    alumno = _obtener_usuario_por_id(serializer.validated_data.get("alumno"))
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"alumno": "El identificador del alumno no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not _validar_docente_asignado(alumno, docente):
+        return Response(
+            {"detail": "El docente no está asignado como guía del alumno."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    fecha = serializer.validated_data["fecha"]
+    hora_inicio = serializer.validated_data["horaInicio"]
+    hora_termino = serializer.validated_data["horaTermino"]
+
+    try:
+        conflicto = _validar_disponibilidad_docente(
+            docente=docente,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_termino=hora_termino,
+        )
+    except ValueError as exc:
+        return Response(
+            {"horaTermino": [str(exc)]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if conflicto:
+        return Response(
+            {
+                "detail": "El horario se solapa con otra reunión ya agendada.",
+                "reunionConflictoId": conflicto.pk,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reunion = Reunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_termino=hora_termino,
+        modalidad=serializer.validated_data["modalidad"],
+        motivo=serializer.validated_data["motivo"],
+        observaciones=serializer.validated_data.get("observaciones"),
+        estado="aprobada",
+        creado_por=docente,
+    )
+
+    _registrar_trazabilidad_reunion(
+        tipo="agendada_directamente",
+        usuario=docente,
+        reunion=reunion,
+        estado_nuevo="aprobada",
+        comentario=serializer.validated_data.get("observaciones"),
+        datos={
+            "fecha": fecha.isoformat(),
+            "horaInicio": hora_inicio.isoformat(),
+            "horaTermino": hora_termino.isoformat(),
+            "modalidad": reunion.modalidad,
+            "motivo": reunion.motivo,
+        },
+    )
+
+    output = ReunionSerializer(reunion)
+    headers = {"Location": f"/api/reuniones/{reunion.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def cerrar_reunion(request, pk: int):
+    reunion = get_object_or_404(Reunion.objects.select_related("docente", "alumno"), pk=pk)
+
+    serializer = ReunionCerrarSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if reunion.docente_id != docente.pk:
+        return Response(
+            {"detail": "Solo el docente asignado puede cerrar la reunión."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if reunion.estado not in {"aprobada", "reprogramada"}:
+        return Response(
+            {"detail": "La reunión ya fue cerrada previamente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nuevo_estado = serializer.validated_data["estado"]
+    comentario = serializer.validated_data.get("comentario")
+    estado_anterior = reunion.estado
+    reunion.estado = nuevo_estado
+    reunion.save(update_fields=["estado", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="cierre_final",
+        usuario=docente,
+        reunion=reunion,
+        solicitud=reunion.solicitud,
+        estado_anterior=estado_anterior,
+        estado_nuevo=nuevo_estado,
+        comentario=comentario,
+        datos={
+            "fecha": reunion.fecha.isoformat(),
+            "horaInicio": reunion.hora_inicio.isoformat(),
+            "horaTermino": reunion.hora_termino.isoformat(),
+            "modalidad": reunion.modalidad,
+        },
+    )
+
+    output = ReunionSerializer(reunion)
+    return Response(output.data)
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
