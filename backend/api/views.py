@@ -434,13 +434,33 @@ def _obtener_usuario_para_temas(request) -> Usuario | None:
 
 
 def _validar_docente_asignado(alumno: Usuario | None, docente: Usuario | None) -> bool:
-    if not alumno or alumno.rol != "alumno":
-        return False
     if not docente or docente.rol != "docente":
         return False
-    if alumno.docente_guia_id is None:
-        return False
-    return alumno.docente_guia_id == docente.pk
+    asignado = _obtener_docente_a_cargo(alumno)
+    return bool(asignado and asignado.pk == docente.pk)
+
+
+def _obtener_docente_a_cargo(alumno: Usuario | None) -> Usuario | None:
+    if not alumno or alumno.rol != "alumno":
+        return None
+
+    if alumno.docente_guia_id:
+        return alumno.docente_guia
+
+    inscripcion = (
+        InscripcionTema.objects.filter(
+            alumno=alumno,
+            activo=True,
+            tema__docente_responsable__isnull=False,
+        )
+        .select_related("tema__docente_responsable")
+        .order_by("-created_at")
+        .first()
+    )
+    if inscripcion:
+        return inscripcion.tema.docente_responsable
+
+    return None
 
 
 def _registrar_trazabilidad_reunion(
@@ -1823,10 +1843,14 @@ def gestionar_solicitudes_reunion(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    docente = alumno.docente_guia
+    docente = _obtener_docente_a_cargo(alumno)
     if not docente:
         return Response(
-            {"detail": "El alumno no tiene un docente guía asignado."},
+            {
+                "detail": (
+                    "El alumno no tiene un docente guía ni un trabajo de título a cargo."
+                )
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
