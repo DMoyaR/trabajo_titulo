@@ -3,6 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CurrentUserService, CurrentUserProfile } from '../../../shared/services/current-user.service';
 
+interface Restriccion {
+  titulo: string;
+  descripcion: string;
+}
+
 @Component({
   selector: 'alumno-perfil',
   standalone: true,
@@ -12,6 +17,49 @@ import { CurrentUserService, CurrentUserProfile } from '../../../shared/services
 })
 export class AlumnoPerfilComponent implements OnInit {
   private readonly currentUserService = inject(CurrentUserService);
+
+  private readonly restriccionesData: Restriccion[] = [
+    {
+      titulo: 'Respetar los plazos establecidos',
+      descripcion: 'Debes cumplir con las fechas límite indicadas por la universidad para cada entrega.',
+    },
+    {
+      titulo: 'Uso responsable de la plataforma',
+      descripcion: 'Evita compartir tus credenciales y mantén la seguridad de tu cuenta.',
+    },
+    {
+      titulo: 'Actualización de datos personales',
+      descripcion: 'Mantén tu información de contacto actualizada para recibir notificaciones importantes.',
+    },
+    {
+      titulo: 'Comunicación respetuosa',
+      descripcion: 'Trata con respeto a docentes y compañeros en todos los canales oficiales.',
+    },
+    {
+      titulo: 'Entrega de documentación válida',
+      descripcion: 'Los documentos enviados deben ser legibles y corresponder a los formatos solicitados.',
+    },
+    {
+      titulo: 'Uso adecuado de recursos compartidos',
+      descripcion: 'No elimines ni modifiques archivos que no sean de tu autoría sin autorización.',
+    },
+    {
+      titulo: 'Participación en reuniones programadas',
+      descripcion: 'Confirma tu asistencia o justifica tus ausencias con anticipación.',
+    },
+    {
+      titulo: 'Respeto por la propiedad intelectual',
+      descripcion: 'Asegúrate de citar correctamente las fuentes utilizadas en tus trabajos.',
+    },
+    {
+      titulo: 'Cumplimiento del reglamento institucional',
+      descripcion: 'Revisa y cumple con las normas establecidas por tu carrera y la universidad.',
+    },
+    {
+      titulo: 'Uso responsable de los canales de soporte',
+      descripcion: 'Utiliza los medios oficiales de soporte únicamente para consultas relacionadas con tu práctica.',
+    },
+  ];
 
   userProfile: CurrentUserProfile | null = null;
   tel = '';
@@ -90,6 +138,10 @@ export class AlumnoPerfilComponent implements OnInit {
       console.log('Cerrando sesión...');
       // Aquí puedes agregar la lógica para cerrar sesión
     }
+  }
+
+  restricciones(): Restriccion[] {
+    return this.restriccionesData;
   }
 
   private showSuccessMessage(message: string): void {
