@@ -273,6 +273,23 @@ _CARRERA_STOPWORDS = {
 }
 
 
+_CARRERA_EQUIVALENCIAS = [
+    {"computacion", "informatica"},
+    {"industrial", "industria"},
+]
+
+
+def _expandir_tokens_equivalentes(tokens: set[str]) -> set[str]:
+    if not tokens:
+        return set()
+
+    resultado = set(tokens)
+    for grupo in _CARRERA_EQUIVALENCIAS:
+        if resultado & grupo:
+            resultado |= grupo
+    return resultado
+
+
 def _tokenizar_carrera(valor: str | None) -> set[str]:
     if not valor:
         return set()
@@ -307,19 +324,44 @@ def _carreras_coinciden(a: str | None, b: str | None) -> bool:
     return len(comunes) >= 2
 
 
-def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
+def _carreras_equivalentes(a: str | None, b: str | None) -> bool:
+    tokens_a = _expandir_tokens_equivalentes(_tokenizar_carrera(a))
+    tokens_b = _expandir_tokens_equivalentes(_tokenizar_carrera(b))
+
+    if not tokens_a or not tokens_b:
+        return False
+
+    return bool(tokens_a & tokens_b)
+
+
+def _carreras_compatibles(a: str | None, b: str | None) -> bool:
+    return _carreras_coinciden(a, b) or _carreras_equivalentes(a, b)
+
+
+def _filtrar_queryset_por_carrera(
+    queryset,
+    carrera: str | None,
+    *,
+    permitir_equivalencias: bool = True,
+):
     if not carrera:
-        return queryset.none()
+        return queryset
 
     tokens_objetivo = _tokenizar_carrera(carrera)
     if not tokens_objetivo:
-        return queryset.none()
+        return queryset
 
     matching_ids = [
         pk
         for pk, carrera_tema in queryset.values_list("pk", "carrera")
-        if _carreras_coinciden(carrera_tema, carrera)
-        or _tokenizar_carrera(carrera_tema) == tokens_objetivo
+        if (
+            _carreras_coinciden(carrera_tema, carrera)
+            or (
+                permitir_equivalencias
+                and _carreras_equivalentes(carrera_tema, carrera)
+            )
+            or _tokenizar_carrera(carrera_tema) == tokens_objetivo
+        )
     ]
 
     if not matching_ids:
@@ -1032,16 +1074,27 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         usuario = _obtener_usuario_para_temas(self.request)
 
         if usuario:
+            if usuario.rol == "alumno":
+                if usuario.carrera:
+                    filtrado = _filtrar_queryset_por_carrera(
+                        queryset,
+                        usuario.carrera,
+                        permitir_equivalencias=False,
+                    )
+                    if filtrado.exists():
+                        return filtrado
+                return queryset
+
             if usuario.carrera:
-                filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                filtrado = _filtrar_queryset_por_carrera(
+                    queryset,
+                    usuario.carrera,
+                    permitir_equivalencias=usuario.rol != "docente",
+                )
                 if usuario.rol == "docente":
-                    return filtrado
-                if usuario.rol == "alumno":
                     return filtrado
                 if filtrado.exists():
                     return filtrado
-            if usuario.rol == "alumno":
-                return queryset.none()
             return queryset
 
         carrera = self.request.query_params.get("carrera")
@@ -1076,11 +1129,11 @@ def tema_disponible_detalle(request, pk: int):
         usuario
         and usuario.rol == "alumno"
         and usuario.carrera
-        and not _carreras_coinciden(tema.carrera, usuario.carrera)
+        and not _carreras_compatibles(tema.carrera, usuario.carrera)
     ):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
+    if carrera_param and not _carreras_compatibles(tema.carrera, carrera_param):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if usuario and usuario.rol == "alumno":
@@ -1162,7 +1215,7 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+    if alumno.carrera and not _carreras_compatibles(tema.carrera, alumno.carrera):
         return Response(
             {
                 "detail": "Solo puedes reservar temas asociados a tu carrera.",
@@ -1216,7 +1269,13 @@ def reservar_tema(request, pk: int):
         inscripcion_id=inscripcion.pk,
     )
 
-    if cupos_antes > 0 and cupos_despues == 0:
+    cupos_completados_permitido = not (
+        tema.created_by
+        and tema.created_by.rol == "alumno"
+        and tema.docente_responsable_id is not None
+    )
+
+    if cupos_antes > 0 and cupos_despues == 0 and cupos_completados_permitido:
         notificar_cupos_completados(tema)
 
     serializer = TemaDisponibleSerializer(
@@ -1255,7 +1314,7 @@ def asignar_companeros(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+    if alumno.carrera and not _carreras_compatibles(tema.carrera, alumno.carrera):
         return Response(
             {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1332,7 +1391,7 @@ def asignar_companeros(request, pk: int):
         if usuario.rol != "alumno":
             errores[correo] = "Solo puedes agregar estudiantes a tu grupo."
             continue
-        if usuario.carrera and not _carreras_coinciden(tema.carrera, usuario.carrera):
+        if usuario.carrera and not _carreras_compatibles(tema.carrera, usuario.carrera):
             errores[correo] = "El estudiante no pertenece a la carrera del tema."
             continue
         companeros.append(usuario)
@@ -2388,28 +2447,18 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
             usuario = Usuario.objects.filter(correo__iexact=correo, rol="alumno").first()
             if not usuario:
                 continue
-            if carrera and usuario.carrera and not _carreras_coinciden(carrera, usuario.carrera):
+            if carrera and usuario.carrera and not _carreras_compatibles(carrera, usuario.carrera):
                 continue
             if any(existing.pk == usuario.pk for existing, _ in participantes):
                 continue
             participantes.append((usuario, False))
 
         for usuario, es_responsable in participantes[:cupos]:
-            inscripcion = InscripcionTema.objects.create(
+            InscripcionTema.objects.create(
                 tema=tema,
                 alumno=usuario,
                 es_responsable=es_responsable,
             )
-            notificar_reserva_tema(
-                tema,
-                usuario,
-                cupos_disponibles=tema.cupos_disponibles,
-                reactivada=False,
-                inscripcion_id=inscripcion.pk,
-            )
-
-    if tema.cupos_disponibles == 0:
-        notificar_cupos_completados(tema)
 
     return tema
 

@@ -17,6 +17,14 @@ SQL_COMMANDS = [
 ]
 
 
+def ensure_columns(apps, schema_editor):
+    if schema_editor.connection.vendor != "postgresql":
+        return
+
+    for sql in SQL_COMMANDS:
+        schema_editor.execute(sql)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -24,11 +32,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(sql, reverse_sql=migrations.RunSQL.noop)
-                for sql in SQL_COMMANDS
-            ],
-            state_operations=[],
-        )
+        migrations.RunPython(ensure_columns, migrations.RunPython.noop)
     ]

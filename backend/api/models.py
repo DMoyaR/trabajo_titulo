@@ -48,7 +48,7 @@ class Usuario(models.Model):
     nombre_completo = models.CharField(max_length=100)
     correo = models.EmailField(unique=True, max_length=100)
     carrera = models.CharField(max_length=50, choices=CARRERA_CHOICES, blank=True, null=True)
-    rut = models.CharField(max_length=15, unique=True)
+    rut = models.CharField(max_length=15, unique=True, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     docente_guia = models.ForeignKey(
         "self",
