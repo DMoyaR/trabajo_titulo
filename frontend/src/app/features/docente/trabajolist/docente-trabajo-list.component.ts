@@ -1,11 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 type Tab = 'titulo1' | 'titulo2';
 type EstadoGrupo = 'pendiente' | 'en_revision' | 'aprobado' | 'finalizado';
 type EstadoEntrega = 'pendiente' | 'evaluado';
+
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import { TemaDisponible, TemaService } from './tema.service';
 
 type Grupo = {
   id: string;
@@ -33,18 +36,13 @@ type Entrega = {
   templateUrl: './docente-trabajo-list.component.html',
   styleUrls: ['./docente-trabajo-list.component.css'],
 })
-export class DocenteTrabajoListComponent {
+export class DocenteTrabajoListComponent implements OnInit {
   tab: Tab = 'titulo1';
 
-  gruposTitulo1: Grupo[] = [
-    { id: 'g1', nombre: 'Grupo 1', integrantes: ['Peña', 'Muñoz'], estado: 'aprobado' },
-    { id: 'g2', nombre: 'Grupo 2', integrantes: ['Jiménez', 'Quezada'], estado: 'en_revision' },
-  ];
-
-  gruposTitulo2: Grupo[] = [
-    { id: 'g3', nombre: 'Grupo 3', integrantes: ['Pérez', 'González'], estado: 'pendiente' },
-    { id: 'g4', nombre: 'Grupo 4', integrantes: ['Morales', 'Rojas'], estado: 'finalizado' },
-  ];
+  gruposTitulo1: Grupo[] = [];
+  gruposTitulo2: Grupo[] = [];
+  cargandoGrupos = false;
+  errorGrupos: string | null = null;
 
   grupoSeleccionado: Grupo | null = null;
   entregas: Entrega[] = [];
@@ -57,6 +55,100 @@ export class DocenteTrabajoListComponent {
   entregaEnRevision: Entrega | null = null;
   notaInput: number | null = null;
   comentariosInput = '';
+
+  constructor(
+    private readonly temaService: TemaService,
+    private readonly currentUserService: CurrentUserService,
+  ) {}
+
+  ngOnInit(): void {
+    this.cargarGrupos();
+  }
+
+  private cargarGrupos(): void {
+    const perfil = this.currentUserService.getProfile();
+    const docenteId = perfil?.id ?? null;
+
+    if (!docenteId) {
+      this.gruposTitulo1 = [];
+      this.gruposTitulo2 = [];
+      this.errorGrupos = 'No se encontró información del docente.';
+      return;
+    }
+
+    this.cargandoGrupos = true;
+    this.errorGrupos = null;
+
+    this.temaService.getTemas({ usuarioId: docenteId }).subscribe({
+      next: temas => {
+        const gruposTitulo1: Grupo[] = [];
+        const gruposTitulo2: Grupo[] = [];
+
+        temas
+          .filter(tema => this.esTemaDelDocente(tema, docenteId))
+          .forEach(tema => {
+            const integrantes = (tema.inscripcionesActivas ?? [])
+              .map(inscripcion => inscripcion.nombre)
+              .filter((nombre): nombre is string => !!nombre && !!nombre.trim());
+
+            if (!integrantes.length) {
+              return;
+            }
+
+            const grupo: Grupo = {
+              id: `tema-${tema.id}`,
+              nombre: tema.titulo,
+              integrantes,
+              estado: this.estadoGrupoDesdeTema(tema),
+            };
+
+            const nivel = this.determinarNivelTema(tema);
+            if (nivel === 'titulo2') {
+              gruposTitulo2.push(grupo);
+            } else {
+              gruposTitulo1.push(grupo);
+            }
+          });
+
+        this.gruposTitulo1 = gruposTitulo1;
+        this.gruposTitulo2 = gruposTitulo2;
+        this.cargandoGrupos = false;
+      },
+      error: err => {
+        console.error('No fue posible cargar los grupos del docente', err);
+        this.errorGrupos = 'No fue posible cargar los grupos asignados.';
+        this.gruposTitulo1 = [];
+        this.gruposTitulo2 = [];
+        this.cargandoGrupos = false;
+      },
+    });
+  }
+
+  private esTemaDelDocente(tema: TemaDisponible, docenteId: number): boolean {
+    return tema.docente_responsable === docenteId || tema.created_by === docenteId;
+  }
+
+  private determinarNivelTema(tema: TemaDisponible): Tab {
+    const referencia = `${tema.rama ?? ''} ${tema.descripcion ?? ''}`.toLowerCase();
+    if (referencia.includes('título ii') || referencia.includes('titulo ii') || referencia.includes('tt2') || referencia.includes('título 2')) {
+      return 'titulo2';
+    }
+    return 'titulo1';
+  }
+
+  private estadoGrupoDesdeTema(tema: TemaDisponible): EstadoGrupo {
+    if (tema.cuposDisponibles <= 0) {
+      return 'aprobado';
+    }
+    if ((tema.inscripcionesActivas ?? []).length > 0) {
+      return 'en_revision';
+    }
+    return 'pendiente';
+  }
+
+  get gruposActuales(): Grupo[] {
+    return this.tab === 'titulo1' ? this.gruposTitulo1 : this.gruposTitulo2;
+  }
 
   estadoTexto(estado: EstadoGrupo): string {
     switch (estado) {
