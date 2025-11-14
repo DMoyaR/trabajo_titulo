@@ -99,6 +99,33 @@ export class DocenteTemasComponent implements OnInit {
   private propuestasCargadas = false;
   decisionEnCurso = false;
 
+  // Paginación
+  paginaActualTemas = 1;
+  temasPorPagina = 10;
+
+  get temasPaginados(): TemaDisponible[] {
+    const inicio = (this.paginaActualTemas - 1) * this.temasPorPagina;
+    const fin = inicio + this.temasPorPagina;
+    return this.temas.slice(inicio, fin);
+  }
+
+  get totalPaginasTemas(): number {
+    return Math.ceil(this.temas.length / this.temasPorPagina);
+  }
+
+  get rangoActualTemas(): string {
+    const inicio = (this.paginaActualTemas - 1) * this.temasPorPagina + 1;
+    const fin = Math.min(this.paginaActualTemas * this.temasPorPagina, this.temas.length);
+    return `${inicio}-${fin} de ${this.temas.length}`;
+  }
+
+  cambiarPaginaTemas(pagina: number) {
+    if (pagina >= 1 && pagina <= this.totalPaginasTemas) {
+      this.paginaActualTemas = pagina;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
   constructor(
     private readonly temaService: TemaService,
     private readonly propuestaService: PropuestaService,

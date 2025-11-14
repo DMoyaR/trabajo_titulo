@@ -91,14 +91,20 @@
         <h3>{{ destacada.encabezado }}</h3>
         <span class="badge" [ngClass]="destacada.estado">{{ destacada.estadoEtiqueta }}</span>
       </div>
-      <p class="upload-title">{{ destacada.nombre }}</p>
-      <p class="muted">{{ destacada.descripcion }}</p>
-      <div class="chips">
-        <span class="chip">{{ destacada.fecha }}</span>
-        <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
-      </div>
-      <div class="upload-actions">
-        <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas</button>
+      
+      <div class="upload-content">
+        <div class="upload-info">
+          <p class="upload-title">{{ destacada.nombre }}</p>
+          <p class="muted">{{ destacada.descripcion }}</p>
+          <div class="upload-actions">
+            <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas</button>
+          </div>
+        </div>
+        
+        <div class="chips right">
+          <span class="chip">{{ destacada.fecha }}</span>
+          <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
+        </div>
       </div>
     </div>
 
@@ -126,9 +132,9 @@
               <span *ngIf="item.estado === 'aprobado'" class="status-icon" aria-label="Aprobado">✓</span>
             </div>
             <div class="grupo-alumnos">{{ item.descripcion }}</div>
-            <div class="chips">
-              <span class="chip">{{ item.fecha }}</span>
-              <span class="chip ghost" *ngIf="item.proximoPaso">Próximo paso: {{ item.proximoPaso }}</span>
+            <div class="chips chips-fecha-derecha">
+              <span class="chip-fecha">{{ item.fecha }}</span>
+              <span class="chip-proximo" *ngIf="item.proximoPaso">Próximo paso: {{ item.proximoPaso }}</span>
             </div>
           </div>
         </li>

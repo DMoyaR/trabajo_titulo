@@ -59,7 +59,14 @@ export class AlumnoTemasComponent {
   readonly gestionCuposMensaje = signal<string | null>(null);
   readonly guardandoCompaneros = signal(false);
 
+  readonly temaParaDetalles = signal<TemaDisponible | null>(null);
+
   readonly showPostulacion = signal(false);
+
+  // Filtro y paginación
+  readonly filtroProfesor = signal<string>('');
+  readonly paginaActual = signal(1);
+  readonly temasPorPagina = 10;
 
   readonly ramas: RamaCarrera[] = [
     'Desarrollo de Software',
@@ -95,6 +102,43 @@ export class AlumnoTemasComponent {
       return lista;
     }
     return lista.filter((p) => !p.ramas?.length || p.ramas.includes(rama));
+  });
+
+  readonly temasDisponiblesFiltrados = computed(() => {
+    const todosTemas = this.temas();
+    const filtro = this.filtroProfesor().toLowerCase().trim();
+    
+    if (!filtro) {
+      return todosTemas;
+    }
+    
+    return todosTemas.filter(tema => {
+      const nombreDocente = (tema.docenteACargo?.nombre || tema.creadoPor?.nombre || '').toLowerCase();
+      return nombreDocente.includes(filtro);
+    });
+  });
+
+  readonly temasPaginados = computed(() => {
+    const temasFiltrados = this.temasDisponiblesFiltrados();
+    const inicio = (this.paginaActual() - 1) * this.temasPorPagina;
+    const fin = inicio + this.temasPorPagina;
+    return temasFiltrados.slice(inicio, fin);
+  });
+
+  readonly totalPaginas = computed(() => {
+    const total = this.temasDisponiblesFiltrados().length;
+    return Math.ceil(total / this.temasPorPagina);
+  });
+
+  readonly profesoresUnicos = computed(() => {
+    const profesoresSet = new Set<string>();
+    this.temas().forEach(tema => {
+      const nombreDocente = tema.docenteACargo?.nombre || tema.creadoPor?.nombre;
+      if (nombreDocente) {
+        profesoresSet.add(nombreDocente);
+      }
+    });
+    return Array.from(profesoresSet).sort();
   });
 
   readonly propuestasAceptadas = computed(() =>
@@ -186,6 +230,43 @@ export class AlumnoTemasComponent {
 
   get profesoresDuplicados() {
     return this.postulacionForm.errors?.['profesoresDuplicados'];
+  }
+
+  cambiarPagina(pagina: number) {
+    if (pagina >= 1 && pagina <= this.totalPaginas()) {
+      this.paginaActual.set(pagina);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  aplicarFiltroProfesor(nombreProfesor: string) {
+    this.filtroProfesor.set(nombreProfesor);
+    this.paginaActual.set(1);
+  }
+
+  limpiarFiltro() {
+    this.filtroProfesor.set('');
+    this.paginaActual.set(1);
+  }
+
+  get rangoActual(): string {
+    const inicio = (this.paginaActual() - 1) * this.temasPorPagina + 1;
+    const fin = Math.min(this.paginaActual() * this.temasPorPagina, this.temasDisponiblesFiltrados().length);
+    const total = this.temasDisponiblesFiltrados().length;
+    return `${inicio}-${fin} de ${total}`;
+  }
+
+  abrirDetallesTema(tema: TemaDisponible) {
+    this.temaParaDetalles.set(tema);
+  }
+
+  cerrarDetallesTema() {
+    this.temaParaDetalles.set(null);
+  }
+
+  inscribirDesdeDetalles(tema: TemaDisponible) {
+    this.cerrarDetallesTema();
+    this.abrirConfirmacionTema(tema);
   }
 
   chipClasePropuesta(estado: Propuesta['estado']): string {
