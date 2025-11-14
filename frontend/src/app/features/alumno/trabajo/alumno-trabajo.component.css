@@ -9,7 +9,7 @@
 
 .ttl {
   color: #1a3e6a;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -34,18 +34,18 @@
   gap: 0;
   margin-bottom: 24px;
   border-bottom: 2px solid #dfe5ee;
-  align-items: center;
+  align-items: flex-end;
 }
 
 .tabs button,
-.tabs a {
+.tabs a.btn.link {
   border: none;
   background: transparent;
   border-bottom: 3px solid transparent;
   padding: 12px 24px;
   cursor: pointer;
   color: #666;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   transition: all 0.2s;
   text-decoration: none;
@@ -72,8 +72,6 @@
   text-decoration: none;
   border-bottom: 3px solid #00bcd4;
 }
-
-
 
 /* Botones */
 .btn {
@@ -242,6 +240,7 @@
 }
 
 .list li {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   background: #fff;
@@ -257,6 +256,7 @@
 }
 
 .grupo-info {
+  padding-right: 180px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -264,7 +264,7 @@
 
 .grupo-nombre {
   color: #1a3e6a;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -274,7 +274,7 @@
 
 .grupo-alumnos {
   color: #4b5563;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .tema-autor {
@@ -307,8 +307,8 @@
 /* Chips y badges */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: 999px;
   border: 1px solid #cfe2ff;
@@ -356,8 +356,8 @@
 
 .chip {
   display: inline-block;
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 5px 12px;
+  font-size: 13px;
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 999px;
@@ -385,6 +385,39 @@
   background: #fff7ed;
   border-color: #fb923c;
   color: #b45309;
+}
+
+/* ESTILOS NUEVOS PARA ALINEAR FECHA Y PRÓXIMO PASO A LA DERECHA */
+.chips-fecha-derecha {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  width: 100%;
+  gap: 4px;
+}
+
+.chip-fecha {
+  display: inline-block;
+  padding: 5px 12px;
+  font-size: 13px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #374151;
+}
+
+.chip-proximo {
+  display: inline-block;
+  padding: 5px 12px;
+  font-size: 13px;
+  background: #fff;
+  border: 1px dashed #e5e7eb;
+  border-radius: 999px;
+  color: #374151;
 }
 
 .alert {
@@ -533,7 +566,7 @@
 .upload-card h3 {
   margin: 0;
   color: #1a3e6a;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .upload-card.empty {
@@ -548,9 +581,20 @@
   margin-bottom: 8px;
 }
 
+.upload-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.upload-info {
+  flex: 1;
+}
+
 .upload-title {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #1a3e6a;
 }
@@ -559,10 +603,31 @@
   margin-top: 16px;
 }
 
+.upload-card .chips.right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  min-width: fit-content;
+}
+
+.btn.link {
+  background: transparent;
+  color: #1a56db;
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.btn.link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
 .muted {
   color: #6b7280;
   margin-top: 10px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Modal */
@@ -739,15 +804,67 @@ textarea {
   line-height: 1.4;
 }
 
+.restricciones {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.restricciones-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.restricciones-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.restriccion-icon {
+  font-size: 20px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.restriccion-texto h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: #1a3e6a;
+}
+
+.restriccion-texto p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;
   }
   
-  .tabs a.btn.link {
-    margin-left: 0;
-    width: 100%;
-    text-align: center;
+  .upload-content {
+    flex-direction: column;
+  }
+  
+  .upload-card .chips.right {
+    align-items: flex-start;
+  }
+  
+  /* También ajustar fecha a la izquierda en móvil */
+  .chips-fecha-derecha {
+    align-items: flex-start;
+    text-align: left;
   }
 }
 

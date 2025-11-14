@@ -1,34 +1,41 @@
-<section class="notifications">
-  <h2 class="ttl">Solicitudes de estudiantes</h2>
+<h2 class="ttl">Notificaciones</h2>
 
-  <p class="muted" *ngIf="cargando()">Cargando solicitudes...</p>
-  <div class="alert error" *ngIf="error()">{{ error() }}</div>
+<div class="panel">
+  <p class="muted" *ngIf="cargando()">Cargando notificaciones...</p>
+  <div class="error" *ngIf="!cargando() && error()">{{ error() }}</div>
 
-  <div class="acciones" *ngIf="!cargando() && !error() && solicitudes().length">
-    <span class="contador" *ngIf="totalPendientes()">{{ totalPendientes() }} pendiente{{ totalPendientes() === 1 ? '' : 's' }}</span>
-    <button class="pill sm" type="button" (click)="marcarTodas()">Marcar todas como revisadas</button>
-  </div>
-
-  <p class="muted" *ngIf="!cargando() && !error() && !solicitudes().length">
-    No hay solicitudes pendientes de tus estudiantes.
-  </p>
-
-  <ul class="list" *ngIf="!cargando() && !error() && solicitudes().length">
-    <li class="item" *ngFor="let notificacion of solicitudes()" [class.leida]="notificacion.leida">
-      <div class="item-header">
-        <strong>{{ notificacion.titulo }}</strong>
-        <span class="chip" *ngIf="!notificacion.leida">Pendiente</span>
-      </div>
-      <p>{{ notificacion.mensaje }}</p>
-      <small class="muted">{{ formatoFecha(notificacion.createdAt) }}</small>
-      <button
-        class="link"
-        type="button"
-        *ngIf="!notificacion.leida"
-        (click)="marcarComoLeida(notificacion)"
-      >
-        Marcar como revisada
+  <ng-container *ngIf="!cargando() && !error()">
+    <div class="acciones" *ngIf="solicitudes().length">
+      <span class="contador" [class.oculto]="!totalPendientes()">
+        No leídas: {{ totalPendientes() }}
+      </span>
+      <button type="button" class="pill" (click)="marcarTodas()" [disabled]="!totalPendientes()">
+        Marcar todas como leídas
       </button>
-    </li>
-  </ul>
-</section>
+    </div>
+
+    <p class="muted" *ngIf="!solicitudes().length">
+      No tienes notificaciones registradas.
+    </p>
+
+    <ul class="list" *ngIf="solicitudes().length">
+      <li class="item" *ngFor="let notificacion of solicitudes()" [class.leida]="notificacion.leida">
+        <span class="ic">🔔</span>
+        <div class="item-header">
+          <strong>{{ notificacion.titulo }}</strong>
+          <p>{{ notificacion.mensaje }}</p>
+          <small>{{ formatoFecha(notificacion.createdAt) }}</small>
+        </div>
+        <button
+          type="button"
+          class="link"
+          *ngIf="!notificacion.leida"
+          (click)="marcarComoLeida(notificacion)"
+        >
+          Marcar como leída
+        </button>
+        <span class="chip leida-badge" *ngIf="notificacion.leida">Leída</span>
+      </li>
+    </ul>
+  </ng-container>
+</div>

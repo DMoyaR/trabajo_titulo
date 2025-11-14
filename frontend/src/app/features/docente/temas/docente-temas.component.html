@@ -1,351 +1,393 @@
-<h2 class="ttl">Temas de Trabajo de Título</h2>
+<div class="card"> 
+  <h2 class="ttl">Temas de Trabajo de Título</h2>
 
-<div class="row-head">
-  <h3>Temas disponibles</h3>
-  <div class="actions">
-    <button type="button" class="btn outline" (click)="togglePropuestasModal(true)">📄 Ver propuestas</button>
-    <button type="button" class="btn primary" (click)="abrirModalTema()">+ Agregar tema</button>
+  <div class="row-head">
+    <h3>Temas subidos</h3>
+    <div class="actions">
+      <button type="button" class="btn outline" (click)="togglePropuestasModal(true)">📄 Ver propuestas</button>
+      <button type="button" class="btn primary" (click)="abrirModalTema()">+ Agregar tema</button>
+    </div>
   </div>
-</div>
 
-<p class="muted" *ngIf="temasCargando">Cargando temas publicados...</p>
-<div class="err" *ngIf="temasError">{{ temasError }}</div>
+  <p class="muted" *ngIf="temasCargando">Cargando temas publicados...</p>
+  <div class="err" *ngIf="temasError">{{ temasError }}</div>
 
-<ng-container *ngIf="!temasCargando && !temasError">
-  <ng-container *ngIf="temas.length; else sinTemas">
-    <ul class="temas-list">
-      <li *ngFor="let tema of temas" class="temas-item">
-        <div class="temas-item__header">
-          <div>
-            <h4 class="temas-item__title">{{ tema.titulo }}</h4>
-            <p class="temas-item__objetivo">{{ tema.objetivo }}</p>
-            <div class="temas-item__creator" *ngIf="tema.creadoPor as autor">
-              <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
-              <div>
-                <ng-container *ngIf="autor.rol === 'alumno'; else creadorDocente">
+  <ng-container *ngIf="!temasCargando && !temasError">
+    <ng-container *ngIf="temas.length; else sinTemas">
+      <ul class="temas-list">
+        <li *ngFor="let tema of temasPaginados" class="temas-item">
+          <div class="temas-item__header">
+            <div>
+              <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                <h4 class="temas-item__title">{{ tema.titulo }}</h4>
+                <span class="temas-item__objetivo">{{ tema.objetivo }}</span>
+              </div>
+              <div class="temas-item__creator" *ngIf="tema.creadoPor as autor">
+                <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
+                <div>
+                  <ng-container *ngIf="autor.rol === 'alumno'; else creadorDocente">
+                    <div class="temas-item__creator-label">
+                      Propuesta creada por:
+                      <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                    </div>
+                    <div class="temas-item__creator-meta">
+                      {{ autor.rol | titlecase }}
+                      <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                    </div>
+                    <div class="temas-item__creator-meta" *ngIf="tema.docenteACargo as docente">
+                      Docente a cargo:
+                      <span class="temas-item__creator-name">{{ docente.nombre }}</span>
+                    </div>
+                  </ng-container>
+                  <ng-template #creadorDocente>
+                    <div class="temas-item__creator-label">
+                      Profesor creador:
+                      <span class="temas-item__creator-name">{{ autor.nombre }}</span>
+                    </div>
+                    <div class="temas-item__creator-meta">
+                      {{ autor.rol | titlecase }}
+                      <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                    </div>
+                  </ng-template>
+                </div>
+              </div>
+              <div class="temas-item__creator" *ngIf="!tema.creadoPor && tema.docenteACargo as docente">
+                <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
+                <div>
                   <div class="temas-item__creator-label">
-                    Propuesta creada por:
-                    <span class="temas-item__creator-name">{{ autor.nombre }}</span>
-                  </div>
-                  <div class="temas-item__creator-meta">
-                    {{ autor.rol | titlecase }}
-                    <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
-                  </div>
-                  <div class="temas-item__creator-meta" *ngIf="tema.docenteACargo as docente">
                     Docente a cargo:
                     <span class="temas-item__creator-name">{{ docente.nombre }}</span>
                   </div>
-                </ng-container>
-                <ng-template #creadorDocente>
-                  <div class="temas-item__creator-label">
-                    Profesor creador:
-                    <span class="temas-item__creator-name">{{ autor.nombre }}</span>
-                  </div>
                   <div class="temas-item__creator-meta">
-                    {{ autor.rol | titlecase }}
-                    <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+                    {{ docente.rol | titlecase }}
+                    <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
                   </div>
-                </ng-template>
-              </div>
-            </div>
-            <div class="temas-item__creator" *ngIf="!tema.creadoPor && tema.docenteACargo as docente">
-              <span class="temas-item__creator-icon" aria-hidden="true">👤</span>
-              <div>
-                <div class="temas-item__creator-label">
-                  Docente a cargo:
-                  <span class="temas-item__creator-name">{{ docente.nombre }}</span>
-                </div>
-                <div class="temas-item__creator-meta">
-                  {{ docente.rol | titlecase }}
-                  <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
                 </div>
               </div>
             </div>
+            
+            <div class="temas-item__actions">
+              <button
+                class="btn light"
+                type="button"
+                (click)="verDetalleTema(tema)"
+                [disabled]="eliminarTemaEnCurso"
+              >
+                Ver detalle
+              </button>
+              <button
+                class="btn danger"
+                type="button"
+                (click)="eliminarTema(tema)"
+                [disabled]="eliminarTemaEnCurso"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+
+          <div class="temas-item__meta">
+            <span class="chip ghost">Cupos: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
+            <span class="chip ghost" *ngIf="tema.fecha">Fecha publicación: {{ tema.fecha | date:'shortDate' }}</span>
+            <span class="chip ghost">Reservas confirmadas: {{ tema.inscripcionesActivas.length }}</span>
+            <span class="badge">{{ tema.rama }}</span>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Paginación -->
+      <div class="paginacion-temas" *ngIf="totalPaginasTemas > 1">
+        <div class="paginacion-info">
+          Mostrando {{ rangoActualTemas }}
+        </div>
+        <div class="paginacion-controles">
+          <button 
+            type="button" 
+            class="btn light"
+            [disabled]="paginaActualTemas === 1"
+            (click)="cambiarPaginaTemas(paginaActualTemas - 1)"
+          >
+            ← Anterior
+          </button>
+          
+          <div class="paginacion-numeros">
+            <button
+              type="button"
+              *ngFor="let _ of [].constructor(totalPaginasTemas); let i = index"
+              class="btn-pagina"
+              [class.active]="paginaActualTemas === i + 1"
+              (click)="cambiarPaginaTemas(i + 1)"
+            >
+              {{ i + 1 }}
+            </button>
+          </div>
+
+          <button 
+            type="button" 
+            class="btn light"
+            [disabled]="paginaActualTemas === totalPaginasTemas"
+            (click)="cambiarPaginaTemas(paginaActualTemas + 1)"
+          >
+            Siguiente →
+          </button>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <ng-template #sinTemas>
+    <p class="muted">No hay temas disponibles por ahora.</p>
+  </ng-template>
+
+  <div class="backdrop" *ngIf="showDetalleTema" (click)="cerrarDetalleTema()"></div>
+  <div class="modal tema-detalle-modal" *ngIf="showDetalleTema" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h4 class="ttl" style="margin:0">Detalle del tema</h4>
+      <button type="button" class="icon" (click)="cerrarDetalleTema()">✕</button>
+    </div>
+
+    <div class="tema-detalle__body">
+      <div class="muted" *ngIf="temaDetalleCargando">Cargando información del tema…</div>
+      <div class="err" *ngIf="temaDetalleError">{{ temaDetalleError }}</div>
+
+      <ng-container *ngIf="!temaDetalleCargando && !temaDetalleError && temaDetalle as detalle">
+        <div class="chips meta">
+          <span class="chip ghost">Cupos disponibles: {{ detalle.cuposDisponibles }} / {{ detalle.cupos }}</span>
+          <span class="chip ghost">Carrera: {{ detalle.carrera }}</span>
+          <span class="chip ghost" *ngIf="detalle.rama">Rama: {{ detalle.rama }}</span>
+          <span class="chip ghost" *ngIf="detalle.creadoEn">Creado: {{ detalle.creadoEn | date:'shortDate' }}</span>
+        </div>
+
+        <div class="tema-detalle__descripcion">
+          <h4>{{ detalle.titulo }}</h4>
+          <p>{{ detalle.descripcion }}</p>
+        </div>
+
+        <div class="tema-detalle__autor" *ngIf="detalle.creadoPor as autor">
+          <span aria-hidden="true">👤</span>
+          <div>
+            <ng-container *ngIf="autor.rol === 'alumno'; else detalleDocente">
+              <p class="tema-detalle__autor-nombre">Propuesta creada por: {{ autor.nombre }}</p>
+              <p class="muted">
+                {{ autor.rol | titlecase }}
+                <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+              </p>
+              <p class="muted" *ngIf="detalle.docenteACargo as docente">
+                Docente a cargo: {{ docente.nombre }}
+              </p>
+            </ng-container>
+            <ng-template #detalleDocente>
+              <p class="tema-detalle__autor-nombre">{{ autor.nombre }}</p>
+              <p class="muted">
+                {{ autor.rol | titlecase }}
+                <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
+              </p>
+            </ng-template>
+          </div>
+        </div>
+        <div class="tema-detalle__autor" *ngIf="!detalle.creadoPor && detalle.docenteACargo as docente">
+          <span aria-hidden="true">👤</span>
+          <div>
+            <p class="tema-detalle__autor-nombre">Docente a cargo: {{ docente.nombre }}</p>
+            <p class="muted">
+              {{ docente.rol | titlecase }}
+              <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
+            </p>
           </div>
         </div>
 
-        <div class="temas-item__meta">
-          <span class="chip ghost">Cupos: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
-          <span class="chip ghost" *ngIf="tema.fecha">Fecha publicación: {{ tema.fecha | date:'shortDate' }}</span>
-          <span class="chip ghost">Reservas confirmadas: {{ tema.inscripcionesActivas.length }}</span>
-          <span class="badge">{{ tema.rama }}</span>
+        <section class="tema-detalle__seccion">
+          <h5>Requisitos del tema</h5>
+          <ng-container *ngIf="detalle.requisitos.length; else sinRequisitosDoc">
+            <ul>
+              <li *ngFor="let requisito of detalle.requisitos">{{ requisito }}</li>
+            </ul>
+          </ng-container>
+          <ng-template #sinRequisitosDoc>
+            <p class="muted">Este tema no especifica requisitos adicionales.</p>
+          </ng-template>
+        </section>
+
+        <section class="tema-detalle__seccion">
+          <h5>Alumnos con reserva confirmada</h5>
+          <ng-container *ngIf="detalle.inscripciones.length; else sinInscritos">
+            <ul class="tema-detalle__inscritos">
+              <li *ngFor="let alumno of detalle.inscripciones">
+                <div class="inscrito-nombre">{{ alumno.nombre }}</div>
+                <div class="inscrito-meta">
+                  <span>{{ alumno.carrera || 'Carrera no registrada' }}</span>
+                  <span *ngIf="alumno.rut"> · RUT: {{ alumno.rut }}</span>
+                </div>
+                <div class="inscrito-contacto">
+                  <span>Correo: {{ alumno.correo }}</span>
+                  <span *ngIf="alumno.telefono"> · Teléfono: {{ alumno.telefono }}</span>
+                </div>
+                <div class="inscrito-reserva muted">Reservado el {{ alumno.reservadoEn | date:'short' }}</div>
+              </li>
+            </ul>
+          </ng-container>
+          <ng-template #sinInscritos>
+            <p class="muted">Aún no hay alumnos inscritos en este tema.</p>
+          </ng-template>
+        </section>
+      </ng-container>
+    </div>
+
+    <div class="actions" style="padding:0 24px 12px;">
+      <button type="button" class="btn light" (click)="cerrarDetalleTema()">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="backdrop" *ngIf="showPropuestasModal" (click)="togglePropuestasModal(false)"></div>
+  <div class="modal" *ngIf="showPropuestasModal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h4 class="ttl" style="margin:0">Propuestas de Trabajo de Título</h4>
+      <button type="button" class="icon" (click)="togglePropuestasModal(false)">✕</button>
+    </div>
+
+    <div class="muted" *ngIf="propuestasCargando">Cargando propuestas...</div>
+    <div class="err" *ngIf="propuestasError">{{ propuestasError }}</div>
+    <p class="muted" *ngIf="!propuestasCargando && !propuestasError && !propuestas.length">No hay propuestas registradas por ahora.</p>
+
+    <div class="tabla" *ngIf="!propuestasCargando && propuestas.length">
+      <div class="head">
+        <span>Alumno</span><span>Tema</span><span>Rama</span><span>Fecha</span><span>Estado</span><span></span>
+      </div>
+      <div *ngFor="let p of propuestas">
+        <div class="fila">
+          <div>{{ p.alumno?.nombre || 'Sin registro' }}</div>
+          <div>{{ p.titulo }}</div>
+          <div>{{ p.rama }}</div>
+          <div>{{ p.createdAt | date:'shortDate' }}</div>
+          <div>
+            <span class="chip" [ngClass]="estadoChipClase(p.estado)">{{ estadoChipTexto(p.estado) }}</span>
+          </div>
+          <div><button class="btn sm" type="button" (click)="seleccionarPropuesta(p)">Revisar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detalle" *ngIf="propuestaSeleccionada as sel">
+      <h4>{{ sel.titulo }}</h4>
+      <p><b>Alumno:</b> {{ sel.alumno?.nombre || 'Sin registro' }}</p>
+      <p class="muted"><b>Rama:</b> {{ sel.rama }} — <b>Creada:</b> {{ sel.createdAt | date:'short' }}</p>
+      <p><b>Objetivo:</b> {{ sel.objetivo }}</p>
+      <p><b>Descripción:</b> {{ sel.descripcion }}</p>
+      <p *ngIf="sel.comentarioDecision" class="muted">Último comentario registrado: {{ sel.comentarioDecision }}</p>
+
+      <div class="form">
+        <div class="grid ajuste-cupos">
+          <div>
+            <label for="cuposAutorizados">Cupos autorizados <span class="req">*</span></label>
+            <input
+              type="number"
+              id="cuposAutorizados"
+              name="cuposAutorizados"
+              min="1"
+              [(ngModel)]="cuposAutorizados"
+              [disabled]="decisionEnCurso || sel.estado === 'aceptada' || sel.estado === 'rechazada'"
+            />
+            <p class="muted small">
+              Solicitados: {{ sel.cuposRequeridos }} · Último máximo: {{ sel.cuposMaximoAutorizado || '—' }}
+            </p>
+          </div>
+          <div class="estado-detalle">
+            <span class="chip" [ngClass]="estadoChipClase(sel.estado)">{{ estadoChipTexto(sel.estado) }}</span>
+            <p class="muted" *ngIf="sel.estado === 'pendiente_ajuste'">
+              El alumno debe ajustar su propuesta al nuevo máximo autorizado.
+            </p>
+            <p class="muted" *ngIf="sel.estado === 'pendiente_aprobacion'">
+              El alumno confirmó los cupos, puedes aprobar definitivamente cuando corresponda.
+            </p>
+          </div>
         </div>
 
-        <div class="temas-item__actions">
+        <label for="comentario">Comentario</label>
+
+        <textarea
+          id="comentario"
+          [(ngModel)]="comentarioDecision"
+          (ngModelChange)="onComentarioChange($event)"
+          placeholder="Fundamente su decisión..."
+        ></textarea>
+        <div class="err" *ngIf="comentarioError">{{ comentarioError }}</div>
+
+        <div class="actions">
           <button
             class="btn light"
             type="button"
-            (click)="verDetalleTema(tema)"
-            [disabled]="eliminarTemaEnCurso"
-          >
-            Ver detalle
-          </button>
+            (click)="solicitarAjuste()"
+            [disabled]="decisionEnCurso || !comentarioDecision.trim()"
+          >Solicitar ajuste de cupos</button>
+          <button
+            class="btn primary"
+            type="button"
+            (click)="aprobarDefinitivo()"
+            [disabled]="
+              decisionEnCurso ||
+              (sel.estado !== 'pendiente_aprobacion' && sel.estado !== 'pendiente')
+            "
+          >Aprobar definitivamente</button>
           <button
             class="btn danger"
             type="button"
-            (click)="eliminarTema(tema)"
-            [disabled]="eliminarTemaEnCurso"
-          >
-            Eliminar
-          </button>
+            (click)="rechazarPropuesta()"
+            [disabled]="decisionEnCurso"
+          >Rechazar</button>
         </div>
-      </li>
-    </ul>
-  </ng-container>
-</ng-container>
-
-<ng-template #sinTemas>
-  <p class="muted">No hay temas disponibles por ahora.</p>
-</ng-template>
-
-<div class="backdrop" *ngIf="showDetalleTema" (click)="cerrarDetalleTema()"></div>
-<div class="modal tema-detalle-modal" *ngIf="showDetalleTema" role="dialog" aria-modal="true">
-  <div class="modal-head">
-    <h4 class="ttl" style="margin:0">Detalle del tema</h4>
-    <button type="button" class="icon" (click)="cerrarDetalleTema()">✕</button>
-  </div>
-
-  <div class="tema-detalle__body">
-    <div class="muted" *ngIf="temaDetalleCargando">Cargando información del tema…</div>
-    <div class="err" *ngIf="temaDetalleError">{{ temaDetalleError }}</div>
-
-    <ng-container *ngIf="!temaDetalleCargando && !temaDetalleError && temaDetalle as detalle">
-      <div class="chips meta">
-        <span class="chip ghost">Cupos disponibles: {{ detalle.cuposDisponibles }} / {{ detalle.cupos }}</span>
-        <span class="chip ghost">Carrera: {{ detalle.carrera }}</span>
-        <span class="chip ghost" *ngIf="detalle.rama">Rama: {{ detalle.rama }}</span>
-        <span class="chip ghost" *ngIf="detalle.creadoEn">Creado: {{ detalle.creadoEn | date:'shortDate' }}</span>
-      </div>
-
-      <div class="tema-detalle__descripcion">
-        <h4>{{ detalle.titulo }}</h4>
-        <p>{{ detalle.descripcion }}</p>
-      </div>
-
-      <div class="tema-detalle__autor" *ngIf="detalle.creadoPor as autor">
-        <span aria-hidden="true">👤</span>
-        <div>
-          <ng-container *ngIf="autor.rol === 'alumno'; else detalleDocente">
-            <p class="tema-detalle__autor-nombre">Propuesta creada por: {{ autor.nombre }}</p>
-            <p class="muted">
-              {{ autor.rol | titlecase }}
-              <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
-            </p>
-            <p class="muted" *ngIf="detalle.docenteACargo as docente">
-              Docente a cargo: {{ docente.nombre }}
-            </p>
-          </ng-container>
-          <ng-template #detalleDocente>
-            <p class="tema-detalle__autor-nombre">{{ autor.nombre }}</p>
-            <p class="muted">
-              {{ autor.rol | titlecase }}
-              <ng-container *ngIf="autor.carrera"> · {{ autor.carrera }}</ng-container>
-            </p>
-          </ng-template>
-        </div>
-      </div>
-      <div class="tema-detalle__autor" *ngIf="!detalle.creadoPor && detalle.docenteACargo as docente">
-        <span aria-hidden="true">👤</span>
-        <div>
-          <p class="tema-detalle__autor-nombre">Docente a cargo: {{ docente.nombre }}</p>
-          <p class="muted">
-            {{ docente.rol | titlecase }}
-            <ng-container *ngIf="docente.carrera"> · {{ docente.carrera }}</ng-container>
-          </p>
-        </div>
-      </div>
-
-      <section class="tema-detalle__seccion">
-        <h5>Requisitos del tema</h5>
-        <ng-container *ngIf="detalle.requisitos.length; else sinRequisitosDoc">
-          <ul>
-            <li *ngFor="let requisito of detalle.requisitos">{{ requisito }}</li>
-          </ul>
-        </ng-container>
-        <ng-template #sinRequisitosDoc>
-          <p class="muted">Este tema no especifica requisitos adicionales.</p>
-        </ng-template>
-      </section>
-
-      <section class="tema-detalle__seccion">
-        <h5>Alumnos con reserva confirmada</h5>
-        <ng-container *ngIf="detalle.inscripciones.length; else sinInscritos">
-          <ul class="tema-detalle__inscritos">
-            <li *ngFor="let alumno of detalle.inscripciones">
-              <div class="inscrito-nombre">{{ alumno.nombre }}</div>
-              <div class="inscrito-meta">
-                <span>{{ alumno.carrera || 'Carrera no registrada' }}</span>
-                <span *ngIf="alumno.rut"> · RUT: {{ alumno.rut }}</span>
-              </div>
-              <div class="inscrito-contacto">
-                <span>Correo: {{ alumno.correo }}</span>
-                <span *ngIf="alumno.telefono"> · Teléfono: {{ alumno.telefono }}</span>
-              </div>
-              <div class="inscrito-reserva muted">Reservado el {{ alumno.reservadoEn | date:'short' }}</div>
-            </li>
-          </ul>
-        </ng-container>
-        <ng-template #sinInscritos>
-          <p class="muted">Aún no hay alumnos inscritos en este tema.</p>
-        </ng-template>
-      </section>
-    </ng-container>
-  </div>
-
-  <div class="actions" style="padding:0 24px 12px;">
-    <button type="button" class="btn light" (click)="cerrarDetalleTema()">Cerrar</button>
-  </div>
-</div>
-
-<div class="backdrop" *ngIf="showPropuestasModal" (click)="togglePropuestasModal(false)"></div>
-<div class="modal" *ngIf="showPropuestasModal" role="dialog" aria-modal="true">
-  <div class="modal-head">
-    <h4 class="ttl" style="margin:0">Propuestas de Trabajo de Título</h4>
-    <button type="button" class="icon" (click)="togglePropuestasModal(false)">✕</button>
-  </div>
-
-  <div class="muted" *ngIf="propuestasCargando">Cargando propuestas...</div>
-  <div class="err" *ngIf="propuestasError">{{ propuestasError }}</div>
-  <p class="muted" *ngIf="!propuestasCargando && !propuestasError && !propuestas.length">No hay propuestas registradas por ahora.</p>
-
-  <div class="tabla" *ngIf="!propuestasCargando && propuestas.length">
-    <div class="head">
-      <span>Alumno</span><span>Tema</span><span>Rama</span><span>Fecha</span><span>Estado</span><span></span>
-    </div>
-    <div *ngFor="let p of propuestas">
-      <div class="fila">
-        <div>{{ p.alumno?.nombre || 'Sin registro' }}</div>
-        <div>{{ p.titulo }}</div>
-        <div>{{ p.rama }}</div>
-        <div>{{ p.createdAt | date:'shortDate' }}</div>
-        <div>
-          <span class="chip" [ngClass]="estadoChipClase(p.estado)">{{ estadoChipTexto(p.estado) }}</span>
-        </div>
-        <div><button class="btn sm" type="button" (click)="seleccionarPropuesta(p)">Revisar</button></div>
+        <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>
       </div>
     </div>
   </div>
 
-  <div class="detalle" *ngIf="propuestaSeleccionada as sel">
-    <h4>{{ sel.titulo }}</h4>
-    <p><b>Alumno:</b> {{ sel.alumno?.nombre || 'Sin registro' }}</p>
-    <p class="muted"><b>Rama:</b> {{ sel.rama }} — <b>Creada:</b> {{ sel.createdAt | date:'short' }}</p>
-    <p><b>Objetivo:</b> {{ sel.objetivo }}</p>
-    <p><b>Descripción:</b> {{ sel.descripcion }}</p>
-    <p *ngIf="sel.comentarioDecision" class="muted">Último comentario registrado: {{ sel.comentarioDecision }}</p>
+  <div class="backdrop" *ngIf="showModalTema" (click)="cerrarModalTema()"></div>
+  <div class="modal narrow" *ngIf="showModalTema" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h4 class="ttl" style="margin:0">Nuevo tema</h4>
+      <button type="button" class="icon" (click)="cerrarModalTema()">✕</button>
+    </div>
 
-    <div class="form">
-      <div class="grid ajuste-cupos">
-        <div>
-          <label for="cuposAutorizados">Cupos autorizados <span class="req">*</span></label>
-          <input
-            type="number"
-            id="cuposAutorizados"
-            name="cuposAutorizados"
-            min="1"
-            [(ngModel)]="cuposAutorizados"
-            [disabled]="decisionEnCurso || sel.estado === 'aceptada' || sel.estado === 'rechazada'"
-          />
-          <p class="muted small">
-            Solicitados: {{ sel.cuposRequeridos }} · Último máximo: {{ sel.cuposMaximoAutorizado || '—' }}
-          </p>
-        </div>
-        <div class="estado-detalle">
-          <span class="chip" [ngClass]="estadoChipClase(sel.estado)">{{ estadoChipTexto(sel.estado) }}</span>
-          <p class="muted" *ngIf="sel.estado === 'pendiente_ajuste'">
-            El alumno debe ajustar su propuesta al nuevo máximo autorizado.
-          </p>
-          <p class="muted" *ngIf="sel.estado === 'pendiente_aprobacion'">
-            El alumno confirmó los cupos, puedes aprobar definitivamente cuando corresponda.
-          </p>
-        </div>
+    <form class="grid" (ngSubmit)="guardarTema()" novalidate>
+      <div class="field">
+        <label>Nombre del tema <span class="req">*</span></label>
+        <input type="text" [(ngModel)]="nuevoTema.titulo" name="titulo" required />
       </div>
 
-      <label for="comentario">Comentario</label>
-
-      <textarea
-        id="comentario"
-        [(ngModel)]="comentarioDecision"
-        (ngModelChange)="onComentarioChange($event)"
-        placeholder="Fundamente su decisión..."
-      ></textarea>
-      <div class="err" *ngIf="comentarioError">{{ comentarioError }}</div>
-
-      <div class="actions">
-        <button
-          class="btn light"
-          type="button"
-          (click)="solicitarAjuste()"
-          [disabled]="decisionEnCurso || !comentarioDecision.trim()"
-        >Solicitar ajuste de cupos</button>
-        <button
-          class="btn primary"
-          type="button"
-          (click)="aprobarDefinitivo()"
-          [disabled]="
-            decisionEnCurso ||
-            (sel.estado !== 'pendiente_aprobacion' && sel.estado !== 'pendiente')
-          "
-        >Aprobar definitivamente</button>
-        <button
-          class="btn danger"
-          type="button"
-          (click)="rechazarPropuesta()"
-          [disabled]="decisionEnCurso"
-        >Rechazar</button>
+      <div class="field">
+        <label>Objetivo <span class="req">*</span></label>
+        <input type="text" [(ngModel)]="nuevoTema.objetivo" name="objetivo" required />
       </div>
-      <p class="muted" *ngIf="decisionEnCurso">Guardando decisión...</p>
-    </div>
+
+      <div class="field full">
+        <label>Breve descripción <span class="req">*</span></label>
+        <textarea [(ngModel)]="nuevoTema.descripcion" name="descripcion" required></textarea>
+      </div>
+
+      <div class="field">
+        <label>Rama de la carrera <span class="req">*</span></label>
+        <select [(ngModel)]="nuevoTema.rama" name="rama" required>
+          <option value="">Selecciona una rama</option>
+          <option *ngFor="let r of ramas" [value]="r">{{ r }}</option>
+        </select>
+        <div class="err" *ngIf="!nuevoTema.rama">Obligatorio.</div>
+      </div>
+
+      <div class="field">
+        <label>Cupos</label>
+        <input type="number" [(ngModel)]="nuevoTema.cupos" name="cupos" min="1" />
+      </div>
+
+      <div class="field full">
+        <label>Requisitos (separados por coma)</label>
+        <input type="text" [(ngModel)]="nuevoTema.requisitos" name="requisitos" placeholder="Ej: Linux, Git, Metodologías ágiles" />
+      </div>
+
+      <div class="err" *ngIf="enviarTemaError">{{ enviarTemaError }}</div>
+
+      <div class="actions full">
+        <button type="button" class="btn light" (click)="cerrarModalTema()">Cancelar</button>
+        <button type="submit" class="btn primary" [disabled]="enviarTema">{{ enviarTema ? 'Guardando…' : 'Guardar tema' }}</button>
+      </div>
+    </form>
   </div>
-</div>
-
-<div class="backdrop" *ngIf="showModalTema" (click)="cerrarModalTema()"></div>
-<div class="modal narrow" *ngIf="showModalTema" role="dialog" aria-modal="true">
-  <div class="modal-head">
-    <h4 class="ttl" style="margin:0">Nuevo tema</h4>
-    <button type="button" class="icon" (click)="cerrarModalTema()">✕</button>
-  </div>
-
-  <form class="grid" (ngSubmit)="guardarTema()" novalidate>
-    <div class="field">
-      <label>Nombre del tema <span class="req">*</span></label>
-      <input type="text" [(ngModel)]="nuevoTema.titulo" name="titulo" required />
-    </div>
-
-    <div class="field">
-      <label>Objetivo <span class="req">*</span></label>
-      <input type="text" [(ngModel)]="nuevoTema.objetivo" name="objetivo" required />
-    </div>
-
-    <div class="field full">
-      <label>Breve descripción <span class="req">*</span></label>
-      <textarea [(ngModel)]="nuevoTema.descripcion" name="descripcion" required></textarea>
-    </div>
-
-    <div class="field">
-      <label>Rama de la carrera <span class="req">*</span></label>
-      <select [(ngModel)]="nuevoTema.rama" name="rama" required>
-        <option value="">Selecciona una rama</option>
-        <option *ngFor="let r of ramas" [value]="r">{{ r }}</option>
-      </select>
-      <div class="err" *ngIf="!nuevoTema.rama">Obligatorio.</div>
-    </div>
-
-    <div class="field">
-      <label>Cupos</label>
-      <input type="number" [(ngModel)]="nuevoTema.cupos" name="cupos" min="1" />
-    </div>
-
-    <div class="field full">
-      <label>Requisitos (separados por coma)</label>
-      <input type="text" [(ngModel)]="nuevoTema.requisitos" name="requisitos" placeholder="Ej: Linux, Git, Metodologías ágiles" />
-    </div>
-
-    <div class="err" *ngIf="enviarTemaError">{{ enviarTemaError }}</div>
-
-    <div class="actions full">
-      <button type="button" class="btn light" (click)="cerrarModalTema()">Cancelar</button>
-      <button type="submit" class="btn primary" [disabled]="enviarTema">{{ enviarTema ? 'Guardando…' : 'Guardar tema' }}</button>
-    </div>
-  </form>
 </div>

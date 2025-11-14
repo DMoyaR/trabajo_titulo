@@ -1,13 +1,34 @@
-.notifications {
-  display: grid;
-  gap: 18px;
-}
-
 .ttl {
   color: #1a3e6a;
   margin-bottom: 12px;
   font-size: 24px;
   font-weight: 600;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+.error {
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
 }
 
 .acciones {
@@ -17,9 +38,14 @@
   gap: 12px;
 }
 
-.acciones .contador {
+.contador {
+  font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #1a3e6a;
+}
+
+.contador.oculto {
+  visibility: hidden;
 }
 
 .list {
@@ -30,72 +56,127 @@
   gap: 12px;
 }
 
-.item {
-  background: #fff;
-  border: 1px solid var(--utem-border, #dfe5ee);
-  border-radius: 12px;
-  padding: 18px 20px;
-  box-shadow: 0 6px 24px var(--utem-shadow, rgba(15, 23, 42, 0.06));
-  display: grid;
-  gap: 10px;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+.list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  position: relative;
 }
 
-.item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+.list li.leida {
+  opacity: 0.65;
+  background: #f1f5f9;
+}
+
+.item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .item.leida {
-  opacity: 0.7;
+  opacity: 0.65;
+  background: #f1f5f9;
+}
+
+.ic {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .item-header {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .item-header strong {
-  color: #111827;
-  font-size: 1.05rem;
+  font-weight: 600;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.item-header p {
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+}
+
+.item-header small {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .chip {
-  background: #fee2e2;
-  color: #b91c1c;
-  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #cbd5f5;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
 }
 
-.item p {
-  margin: 0;
-  color: #1f2937;
-  line-height: 1.5;
+.chip.leida-badge {
+  background: transparent;
+  border-color: transparent;
+  color: #64748b;
+  cursor: default;
 }
 
-.item small {
-  font-size: 0.85rem;
+.chip:not(.leida-badge):hover {
+  background: #dbeafe;
 }
 
 .link {
-  align-self: flex-start;
-  background: none;
-  border: none;
-  color: #0ea5e9;
-  padding: 0;
-  font-weight: 600;
+  font-size: 12px;
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #eef2ff;
+  color: #1e3a8a;
   cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  border: none;
+  font-weight: 400;
 }
 
 .link:hover {
-  text-decoration: underline;
+  background: #dbeafe;
+}
+
+.pill {
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 14px;
+}
+
+.pill:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+.pill:not(:disabled):hover {
+  background: #174bb8;
 }
 
 @media (max-width: 600px) {
@@ -105,6 +186,10 @@
   }
 
   .item {
-    padding: 16px;
+    flex-direction: column;
+  }
+
+  .item-header {
+    width: 100%;
   }
 }
