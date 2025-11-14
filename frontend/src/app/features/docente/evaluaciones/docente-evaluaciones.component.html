@@ -39,32 +39,53 @@
       </select>
     </label>
   </div>
-  <button class="btn" type="submit">Agregar evaluación</button>
+  <button class="btn" type="submit" [disabled]="enviando()">
+    {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+  </button>
 </form>
 
-<ng-container *ngIf="grupos().length; else emptyState">
-  <div class="groups">
-    <section class="group-card" *ngFor="let grupo of grupos()">
-      <header>
-        <h3>{{ grupo.nombre }}</h3>
-        <span>{{ grupo.evaluaciones.length }} evaluaciones</span>
-      </header>
-      <ul>
-        <li *ngFor="let evaluacion of grupo.evaluaciones">
-          <h4>{{ evaluacion.titulo }}</h4>
-          <p class="meta">
-            <span *ngIf="evaluacion.fecha">Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span>
-            <span>Estado: {{ evaluacion.estado }}</span>
-          </p>
-        </li>
-      </ul>
-    </section>
-  </div>
+<p class="error" *ngIf="error()">{{ error() }}</p>
+
+<ng-container *ngIf="!cargando(); else loadingState">
+  <ng-container *ngIf="grupos().length; else emptyState">
+    <div class="groups">
+      <section class="group-card" *ngFor="let grupo of grupos()">
+        <header>
+          <h3>{{ grupo.nombre }}</h3>
+          <span>{{ grupo.evaluaciones.length }} evaluaciones</span>
+        </header>
+        <ul>
+          <li *ngFor="let evaluacion of grupo.evaluaciones">
+            <h4>{{ evaluacion.titulo }}</h4>
+            <p class="meta">
+              <span *ngIf="evaluacion.fecha"
+                >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
+              >
+              <span>Estado: {{ evaluacion.estado }}</span>
+            </p>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </ng-container>
 </ng-container>
 
 <ng-template #emptyState>
-  <div class="empty">
-    <h3>Aún no has registrado evaluaciones</h3>
-    <p>Comienza agregando el primer grupo desde el formulario de arriba.</p>
+  <ng-container *ngIf="!error(); else errorState">
+    <div class="empty">
+      <h3>Aún no has registrado evaluaciones</h3>
+      <p>Comienza agregando el primer grupo desde el formulario de arriba.</p>
+    </div>
+  </ng-container>
+</ng-template>
+
+<ng-template #errorState>
+  <div class="empty error-state">
+    <h3>No pudimos cargar tus evaluaciones</h3>
+    <p>Intenta recargar la página o agrega una nueva evaluación para comenzar.</p>
   </div>
+</ng-template>
+
+<ng-template #loadingState>
+  <div class="loading">Cargando evaluaciones…</div>
 </ng-template>

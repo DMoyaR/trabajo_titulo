@@ -9,6 +9,7 @@ from .models import (
     SolicitudReunion,
     Reunion,
     TrazabilidadReunion,
+    EvaluacionGrupoDocente,
 )
 
 
@@ -828,3 +829,57 @@ class NotificacionSerializer(serializers.ModelSerializer):
             "created_at",
             "usuario",
         ]
+
+
+class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
+    docente = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.filter(rol="docente"),
+        required=False,
+        allow_null=True,
+    )
+    fecha = serializers.DateField(required=False, allow_null=True)
+
+    class Meta:
+        model = EvaluacionGrupoDocente
+        fields = [
+            "id",
+            "docente",
+            "grupo_nombre",
+            "titulo",
+            "fecha",
+            "estado",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_docente(self, docente: Usuario | None) -> Usuario | None:
+        if docente and docente.rol != "docente":
+            raise serializers.ValidationError(
+                "Solo los docentes pueden registrar evaluaciones."
+            )
+        return docente
+
+    def validate_estado(self, estado: str) -> str:
+        opciones_validas = {choice[0] for choice in EvaluacionGrupoDocente.ESTADOS}
+        if estado not in opciones_validas:
+            raise serializers.ValidationError("Estado no válido para la evaluación.")
+        return estado
+
+    def validate_grupo_nombre(self, nombre: str) -> str:
+        nombre_limpio = (nombre or "").strip()
+        if not nombre_limpio:
+            raise serializers.ValidationError("Debes indicar el nombre del grupo.")
+        return nombre_limpio
+
+    def validate_titulo(self, titulo: str) -> str:
+        titulo_limpio = (titulo or "").strip()
+        if not titulo_limpio:
+            raise serializers.ValidationError("Debes indicar el título de la evaluación.")
+        return titulo_limpio
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        if data.get("fecha") in ("", None):
+            data["fecha"] = None
+        return super().to_internal_value(data)
