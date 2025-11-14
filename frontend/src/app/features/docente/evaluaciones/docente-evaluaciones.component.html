@@ -1,30 +1,70 @@
-<h2 class="ttl">Evaluaciones — Panel del Coordinador</h2>
+<h2 class="ttl">Evaluaciones por grupo</h2>
+<p class="description">
+  Registra de forma manual las evaluaciones que realizará cada grupo. Completa la información del
+  formulario y presiona <strong>Agregar evaluación</strong> para construir tu listado.
+</p>
 
-<div class="filters">
-  <select><option>Contrato: 2024</option></select>
-  <select><option>Semestre: 2°</option></select>
-  <select><option>Proceso: Práctica</option></select>
-</div>
+<form class="form" (submit)="agregarEvaluacion($event)">
+  <div class="form-grid">
+    <label class="field">
+      <span>Nombre del grupo</span>
+      <input
+        type="text"
+        placeholder="Ej: Grupo A - Sección 1"
+        [value]="grupoNombre()"
+        (input)="grupoNombre.set(($any($event.target)).value)"
+      />
+    </label>
+    <label class="field">
+      <span>Evaluación</span>
+      <input
+        type="text"
+        placeholder="Ej: Revisión de avance"
+        [value]="evaluacionTitulo()"
+        (input)="evaluacionTitulo.set(($any($event.target)).value)"
+      />
+    </label>
+    <label class="field">
+      <span>Fecha (opcional)</span>
+      <input
+        type="date"
+        [value]="evaluacionFecha()"
+        (input)="evaluacionFecha.set(($any($event.target)).value)"
+      />
+    </label>
+    <label class="field">
+      <span>Estado</span>
+      <select [value]="evaluacionEstado()" (change)="evaluacionEstado.set(($any($event.target)).value)">
+        <option *ngFor="let estado of estados" [value]="estado">{{ estado }}</option>
+      </select>
+    </label>
+  </div>
+  <button class="btn" type="submit">Agregar evaluación</button>
+</form>
 
-<table class="tbl">
-  <thead>
-    <tr>
-      <th>Estudiante</th>
-      <th>Sección</th>
-      <th>Proceso</th>
-      <th>Estado</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let r of rows()">
-      <td>{{ r.estudiante }}</td>
-      <td>{{ r.seccion }}</td>
-      <td>{{ r.proy }}</td>
-      <td>{{ r.estado }}</td>
-      <td><button class="btn sm">Valorar</button></td>
-    </tr>
-  </tbody>
-</table>
+<ng-container *ngIf="grupos().length; else emptyState">
+  <div class="groups">
+    <section class="group-card" *ngFor="let grupo of grupos()">
+      <header>
+        <h3>{{ grupo.nombre }}</h3>
+        <span>{{ grupo.evaluaciones.length }} evaluaciones</span>
+      </header>
+      <ul>
+        <li *ngFor="let evaluacion of grupo.evaluaciones">
+          <h4>{{ evaluacion.titulo }}</h4>
+          <p class="meta">
+            <span *ngIf="evaluacion.fecha">Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span>
+            <span>Estado: {{ evaluacion.estado }}</span>
+          </p>
+        </li>
+      </ul>
+    </section>
+  </div>
+</ng-container>
 
-<div class="actions"><button class="btn">Exportar</button></div>
+<ng-template #emptyState>
+  <div class="empty">
+    <h3>Aún no has registrado evaluaciones</h3>
+    <p>Comienza agregando el primer grupo desde el formulario de arriba.</p>
+  </div>
+</ng-template>
