@@ -367,6 +367,39 @@ class TrazabilidadReunion(models.Model):
         return f"Registro de {referencia} ({self.tipo})"
 
 
+class EvaluacionGrupoDocente(models.Model):
+    ESTADOS = [
+        ("Pendiente", "Pendiente"),
+        ("En progreso", "En progreso"),
+        ("Evaluada", "Evaluada"),
+    ]
+
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluaciones_grupo",
+        limit_choices_to={"rol": "docente"},
+    )
+    grupo_nombre = models.CharField(max_length=160)
+    titulo = models.CharField(max_length=200)
+    fecha = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "evaluaciones_grupo_docente"
+        ordering = ["grupo_nombre", "-fecha", "-created_at"]
+        indexes = [
+            models.Index(fields=["docente", "grupo_nombre", "estado"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
+
+
 class PropuestaTema(models.Model):
     ESTADOS = [
         ("pendiente", "Pendiente"),

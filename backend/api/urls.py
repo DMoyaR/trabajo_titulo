@@ -22,6 +22,7 @@ from .views import (
     marcar_notificacion_leida,
     gestionar_documentos_practica,
     eliminar_documento_practica,
+    DocenteEvaluacionListCreateView,
 )
 
 urlpatterns = [
@@ -123,5 +124,10 @@ urlpatterns = [
         "reuniones/<int:pk>/cerrar/",
         cerrar_reunion,
         name="cerrar-reunion",
+    ),
+    path(
+        "docentes/evaluaciones/",
+        DocenteEvaluacionListCreateView.as_view(),
+        name="docente-evaluaciones",
     ),
 ]

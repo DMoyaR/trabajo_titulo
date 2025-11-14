@@ -12,6 +12,7 @@ from .models import (
     SolicitudReunion,
     Reunion,
     TrazabilidadReunion,
+    EvaluacionGrupoDocente,
 )
 
 
@@ -103,6 +104,23 @@ class NotificacionAdmin(admin.ModelAdmin):
     list_display = ("titulo", "usuario", "tipo", "leida", "created_at")
     list_filter = ("tipo", "leida")
     search_fields = ("titulo", "mensaje", "usuario__nombre_completo", "usuario__correo")
+
+
+@admin.register(EvaluacionGrupoDocente)
+class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
+    list_display = (
+        "grupo_nombre",
+        "titulo",
+        "estado",
+        "docente",
+        "fecha",
+        "updated_at",
+    )
+    list_filter = ("estado", "docente")
+    search_fields = ("grupo_nombre", "titulo", "docente__nombre_completo")
+    autocomplete_fields = ("docente",)
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("grupo_nombre", "-fecha", "-updated_at")
 
 
 @admin.register(PracticaDocumento)

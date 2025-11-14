@@ -56,6 +56,11 @@
   background: #0f5cad;
 }
 
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .groups {
   display: grid;
   gap: 16px;
@@ -133,4 +138,34 @@
 .empty p {
   margin: 0;
   color: #4b5563;
+}
+
+.error {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #f5c2c7;
+  background: #fdecea;
+  color: #9b1c1c;
+  font-size: 14px;
+}
+
+.loading {
+  padding: 32px;
+  text-align: center;
+  color: #1a3e6a;
+  font-weight: 600;
+}
+
+.error-state {
+  border-color: #fcd34d;
+  background: #fff7ed;
+}
+
+.error-state h3 {
+  color: #b45309;
+}
+
+.error-state p {
+  color: #92400e;
 }

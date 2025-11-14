@@ -31,6 +31,7 @@ from .models import (
     TrazabilidadReunion,
     TemaDisponible,
     Usuario,
+    EvaluacionGrupoDocente,
 )
 from .notifications import (
     notificar_cupos_completados,
@@ -56,6 +57,7 @@ from .serializers import (
     ReunionCerrarSerializer,
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
+    EvaluacionGrupoDocenteSerializer,
 )
 
 
@@ -2224,6 +2226,49 @@ def cerrar_reunion(request, pk: int):
 
     output = ReunionSerializer(reunion)
     return Response(output.data)
+
+
+class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
+    serializer_class = EvaluacionGrupoDocenteSerializer
+
+    def get_queryset(self):
+        queryset = (
+            EvaluacionGrupoDocente.objects.all()
+            .select_related("docente")
+            .order_by("grupo_nombre", "-fecha", "-created_at")
+        )
+        docente_id = self.request.query_params.get("docente")
+        if docente_id in (None, "", "null"):
+            return queryset
+        try:
+            docente_id_int = int(docente_id)
+        except (TypeError, ValueError):
+            return queryset.none()
+        return queryset.filter(docente_id=docente_id_int)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        if data.get("fecha") in ("", None):
+            data["fecha"] = None
+
+        if not data.get("docente"):
+            docente_param = request.query_params.get("docente")
+            try:
+                docente_id = (
+                    int(docente_param)
+                    if docente_param not in (None, "", "null")
+                    else None
+                )
+            except (TypeError, ValueError):
+                docente_id = None
+            if docente_id:
+                data["docente"] = docente_id
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
