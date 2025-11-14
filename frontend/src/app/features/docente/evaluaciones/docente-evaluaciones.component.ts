@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 import {
   DocenteEvaluacionesService,
   EvaluacionGrupoDto,
+  GrupoActivoDto,
 } from './docente-evaluaciones.service';
 
 type GrupoEvaluaciones = {
@@ -36,14 +37,23 @@ export class DocenteEvaluacionesComponent implements OnInit {
   cargando = signal(true);
   enviando = signal(false);
   error = signal<string | null>(null);
+  gruposActivos = signal<GrupoActivoDto[]>([]);
+  cargandoGruposActivos = signal(false);
+  errorGruposActivos = signal<string | null>(null);
 
-  grupoNombre = signal('');
+  grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
-  evaluacionEstado = signal(this.estados[0]);
+
+  estadoCalculado = computed(() =>
+    this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
+  );
 
   async ngOnInit(): Promise<void> {
-    await this.cargarEvaluaciones();
+    const profile = this.currentUserService.getProfile();
+    this.docenteId = profile?.id ?? null;
+
+    await Promise.all([this.cargarGruposActivos(), this.cargarEvaluaciones()]);
   }
 
   async agregarEvaluacion(event: Event): Promise<void> {
@@ -53,19 +63,17 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
 
-    const nombre = this.grupoNombre().trim();
+    const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
-    const estado = this.evaluacionEstado();
 
-    if (!nombre || !titulo) {
+    if (!grupoId || !titulo) {
       return;
     }
 
     const payload = {
-      grupo_nombre: nombre,
+      tema: grupoId,
       titulo,
-      estado,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
     };
@@ -78,10 +86,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
         this.evaluacionesService.crear(payload)
       );
       this.actualizarGruposConEvaluacion(evaluacion);
-      this.grupoNombre.set('');
+      this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
-      this.evaluacionEstado.set(this.estados[0]);
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
       this.error.set(
@@ -95,9 +102,6 @@ export class DocenteEvaluacionesComponent implements OnInit {
   private async cargarEvaluaciones(): Promise<void> {
     this.cargando.set(true);
     this.error.set(null);
-
-    const profile = this.currentUserService.getProfile();
-    this.docenteId = profile?.id ?? null;
 
     try {
       const evaluaciones = await firstValueFrom(
@@ -115,19 +119,44 @@ export class DocenteEvaluacionesComponent implements OnInit {
     }
   }
 
+  private async cargarGruposActivos(): Promise<void> {
+    this.cargandoGruposActivos.set(true);
+    this.errorGruposActivos.set(null);
+
+    try {
+      const grupos = await firstValueFrom(
+        this.evaluacionesService.listarGruposActivos(this.docenteId)
+      );
+      this.gruposActivos.set(
+        [...grupos].sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        )
+      );
+    } catch (error) {
+      console.error('No se pudieron cargar los grupos activos del docente', error);
+      this.errorGruposActivos.set(
+        'No pudimos cargar los grupos activos. Intenta nuevamente más tarde.'
+      );
+      this.gruposActivos.set([]);
+    } finally {
+      this.cargandoGruposActivos.set(false);
+    }
+  }
+
   private agruparEvaluaciones(
     evaluaciones: EvaluacionGrupoDto[]
   ): GrupoEvaluaciones[] {
     const mapa = new Map<string, GrupoEvaluaciones['evaluaciones']>();
 
     for (const evaluacion of evaluaciones) {
-      const lista = mapa.get(evaluacion.grupo_nombre) ?? [];
+      const nombreGrupo = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
+      const lista = mapa.get(nombreGrupo) ?? [];
       lista.push({
         titulo: evaluacion.titulo,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
       });
-      mapa.set(evaluacion.grupo_nombre, lista);
+      mapa.set(nombreGrupo, lista);
     }
 
     return Array.from(mapa.entries())
@@ -147,7 +176,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
     };
 
     const indiceGrupo = gruposActuales.findIndex(
-      (grupo) => grupo.nombre.toLowerCase() === evaluacion.grupo_nombre.toLowerCase()
+      (grupo) =>
+        grupo.nombre.toLowerCase() ===
+        (evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre).toLowerCase()
     );
 
     if (indiceGrupo >= 0) {
@@ -166,12 +197,39 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const nuevosGrupos = [
       ...gruposActuales,
       {
-        nombre: evaluacion.grupo_nombre,
+        nombre: evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre,
         evaluaciones: [nuevaEvaluacion],
       },
     ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
 
     this.grupos.set(nuevosGrupos);
+  }
+
+  calcularEstadoPorFecha(fecha: string | null): string {
+    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return this.estados[0];
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const [year, month, day] = fecha.split('-').map(Number);
+    const fechaEvaluacion = new Date(year, (month ?? 1) - 1, day ?? 1);
+    fechaEvaluacion.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(fechaEvaluacion.getTime())) {
+      return this.estados[0];
+    }
+
+    if (fechaEvaluacion.getTime() === hoy.getTime()) {
+      return 'En progreso';
+    }
+
+    if (fechaEvaluacion.getTime() < hoy.getTime()) {
+      return 'Evaluada';
+    }
+
+    return 'Pendiente';
   }
 
   private ordenarEvaluaciones(
@@ -194,5 +252,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
     }
 
     return a.titulo.localeCompare(b.titulo, 'es', { sensitivity: 'base' });
+  }
+
+  onSeleccionGrupo(event: Event): void {
+    const value = String((event.target as HTMLSelectElement)?.value ?? '').trim();
+    this.grupoSeleccionadoId.set(value ? Number(value) : null);
   }
 }

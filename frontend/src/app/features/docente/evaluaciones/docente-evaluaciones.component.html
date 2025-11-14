@@ -7,13 +7,24 @@
 <form class="form" (submit)="agregarEvaluacion($event)">
   <div class="form-grid">
     <label class="field">
-      <span>Nombre del grupo</span>
-      <input
-        type="text"
-        placeholder="Ej: Grupo A - Sección 1"
-        [value]="grupoNombre()"
-        (input)="grupoNombre.set(($any($event.target)).value)"
-      />
+      <span>Grupo activo</span>
+      <select
+        [value]="grupoSeleccionadoId() ?? ''"
+        (change)="onSeleccionGrupo($event)"
+        [disabled]="cargandoGruposActivos() || !gruposActivos().length || enviando()"
+      >
+        <option value="" disabled hidden>
+          {{ cargandoGruposActivos() ? 'Cargando grupos…' : 'Selecciona un grupo activo' }}
+        </option>
+        <option *ngFor="let grupo of gruposActivos()" [value]="grupo.id">
+          {{ grupo.nombre }}{{ grupo.integrantes.length ? ' — ' + grupo.integrantes.join(' / ') : '' }}
+        </option>
+      </select>
+      <small class="field-hint" *ngIf="cargandoGruposActivos()">Cargando grupos activos…</small>
+      <small class="field-hint warning" *ngIf="!cargandoGruposActivos() && !gruposActivos().length && !errorGruposActivos()">
+        No tienes grupos activos disponibles en este momento.
+      </small>
+      <small class="field-hint error" *ngIf="errorGruposActivos()">{{ errorGruposActivos() }}</small>
     </label>
     <label class="field">
       <span>Evaluación</span>
@@ -32,14 +43,24 @@
         (input)="evaluacionFecha.set(($any($event.target)).value)"
       />
     </label>
-    <label class="field">
-      <span>Estado</span>
-      <select [value]="evaluacionEstado()" (change)="evaluacionEstado.set(($any($event.target)).value)">
-        <option *ngFor="let estado of estados" [value]="estado">{{ estado }}</option>
-      </select>
-    </label>
+    <div class="field status-field">
+      <span>Estado según fecha</span>
+      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
+        {{ estadoCalculado() }}
+      </div>
+    </div>
   </div>
-  <button class="btn" type="submit" [disabled]="enviando()">
+  <button
+    class="btn"
+    type="submit"
+    [disabled]="
+      enviando() ||
+      cargandoGruposActivos() ||
+      !gruposActivos().length ||
+      !grupoSeleccionadoId() ||
+      !evaluacionTitulo().trim()
+    "
+  >
     {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
   </button>
 </form>

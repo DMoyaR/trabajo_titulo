@@ -113,12 +113,18 @@ class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
         "titulo",
         "estado",
         "docente",
+        "tema",
         "fecha",
         "updated_at",
     )
-    list_filter = ("estado", "docente")
-    search_fields = ("grupo_nombre", "titulo", "docente__nombre_completo")
-    autocomplete_fields = ("docente",)
+    list_filter = ("estado", "docente", "tema")
+    search_fields = (
+        "grupo_nombre",
+        "titulo",
+        "docente__nombre_completo",
+        "tema__titulo",
+    )
+    autocomplete_fields = ("docente", "tema")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("grupo_nombre", "-fecha", "-updated_at")
 
