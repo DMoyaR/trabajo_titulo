@@ -425,6 +425,190 @@ def _registrar_trazabilidad_reunion(
     )
 
 
+def _formatear_fecha_humana(valor) -> str:
+    if not valor:
+        return ""
+    try:
+        return valor.strftime("%d/%m/%Y")
+    except AttributeError:
+        return str(valor)
+
+
+def _formatear_hora_humana(valor) -> str:
+    if not valor:
+        return ""
+    try:
+        return valor.strftime("%H:%M")
+    except AttributeError:
+        return str(valor)
+
+
+def _notificar_solicitud_reunion_creada(solicitud: SolicitudReunion) -> None:
+    docente = solicitud.docente
+    if not docente:
+        return
+
+    alumno = solicitud.alumno
+    if alumno:
+        alumno_nombre = alumno.nombre_completo
+        alumno_id = alumno.pk
+    else:
+        alumno_nombre = "Un alumno"
+        alumno_id = None
+
+    disponibilidad = (solicitud.disponibilidad_sugerida or "").strip()
+    mensaje = (
+        f"{alumno_nombre} solicitó una reunión. Motivo: {solicitud.motivo}."
+    )
+    if disponibilidad:
+        mensaje = f"{mensaje} Disponibilidad sugerida: {disponibilidad}."
+
+    Notificacion.objects.create(
+        usuario=docente,
+        titulo="Nueva solicitud de reunión",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_creada",
+            "solicitudId": solicitud.pk,
+            "alumnoId": alumno_id,
+            "docenteId": docente.pk,
+        },
+    )
+
+
+def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    modalidad = (
+        reunion.get_modalidad_display()
+        if hasattr(reunion, "get_modalidad_display")
+        else reunion.modalidad
+    )
+    fecha = _formatear_fecha_humana(reunion.fecha)
+    inicio = _formatear_hora_humana(reunion.hora_inicio)
+    termino = _formatear_hora_humana(reunion.hora_termino)
+
+    mensaje = (
+        f"Tu docente agendó una reunión para el {fecha} entre {inicio} y {termino} "
+        f"({modalidad.lower()})."
+    )
+    if reunion.motivo:
+        mensaje = f"{mensaje} Motivo: {reunion.motivo}."
+    if reunion.observaciones:
+        mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Reunión agendada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_aprobada",
+            "reunionId": reunion.pk,
+            "solicitudId": reunion.solicitud_id,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_solicitud_reunion_rechazada(
+    solicitud: SolicitudReunion, comentario: str | None
+) -> None:
+    alumno = solicitud.alumno
+    if not alumno:
+        return
+
+    mensaje = (
+        "Tu docente revisó tu solicitud de reunión y la rechazó."
+        f" Motivo: {solicitud.motivo}."
+    )
+    comentario = (comentario or "").strip()
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Solicitud de reunión rechazada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_rechazada",
+            "solicitudId": solicitud.pk,
+            "docenteId": solicitud.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    modalidad = (
+        reunion.get_modalidad_display()
+        if hasattr(reunion, "get_modalidad_display")
+        else reunion.modalidad
+    )
+    fecha = _formatear_fecha_humana(reunion.fecha)
+    inicio = _formatear_hora_humana(reunion.hora_inicio)
+    termino = _formatear_hora_humana(reunion.hora_termino)
+
+    mensaje = (
+        f"Tu docente agendó directamente una reunión para el {fecha} entre {inicio} y {termino} "
+        f"({modalidad.lower()})."
+    )
+    if reunion.motivo:
+        mensaje = f"{mensaje} Motivo: {reunion.motivo}."
+    if reunion.observaciones:
+        mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Nueva reunión agendada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "reunion_agendada",
+            "reunionId": reunion.pk,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_reunion_cerrada(reunion: Reunion, comentario: str | None) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    estado = reunion.get_estado_display() if hasattr(reunion, "get_estado_display") else reunion.estado
+    fecha = _formatear_fecha_humana(reunion.fecha)
+
+    mensaje = f"Tu reunión del {fecha} fue marcada como {estado.lower()}."
+    comentario = (comentario or "").strip()
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Estado de reunión actualizado",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "reunion_cerrada",
+            "reunionId": reunion.pk,
+            "estado": reunion.estado,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
 def _validar_disponibilidad_docente(
     *,
     docente: Usuario,
@@ -1607,6 +1791,8 @@ def gestionar_solicitudes_reunion(request):
         },
     )
 
+    _notificar_solicitud_reunion_creada(solicitud)
+
     output = SolicitudReunionSerializer(solicitud)
     headers = {"Location": f"/api/reuniones/solicitudes/{solicitud.pk}"}
     return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -1708,6 +1894,8 @@ def aprobar_solicitud_reunion(request, pk: int):
         },
     )
 
+    _notificar_solicitud_reunion_aprobada(reunion)
+
     output = ReunionSerializer(reunion)
     headers = {"Location": f"/api/reuniones/{reunion.pk}"}
     return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -1762,6 +1950,8 @@ def rechazar_solicitud_reunion(request, pk: int):
         comentario=comentario,
         datos={"motivoAlumno": solicitud.motivo},
     )
+
+    _notificar_solicitud_reunion_rechazada(solicitud, comentario)
 
     output = SolicitudReunionSerializer(solicitud)
     return Response(output.data)
@@ -1891,6 +2081,8 @@ def gestionar_reuniones(request):
         },
     )
 
+    _notificar_reunion_agendada_directamente(reunion)
+
     output = ReunionSerializer(reunion)
     headers = {"Location": f"/api/reuniones/{reunion.pk}"}
     return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -1944,6 +2136,8 @@ def cerrar_reunion(request, pk: int):
             "modalidad": reunion.modalidad,
         },
     )
+
+    _notificar_reunion_cerrada(reunion, comentario)
 
     output = ReunionSerializer(reunion)
     return Response(output.data)

@@ -423,6 +423,7 @@ class Notificacion(models.Model):
         ("propuesta", "Propuesta"),
         ("general", "General"),
         ("tema", "Tema"),
+        ("reunion", "Reunión"),
         ("inscripcion", "Inscripción"),
     ]
 
