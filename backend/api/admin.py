@@ -7,13 +7,14 @@ from .models import (
     Usuario,
     PropuestaTema,
     PropuestaTemaDocente,
-    TemaDisponible,
     Notificacion,
     PracticaDocumento,
     SolicitudReunion,
     Reunion,
     TrazabilidadReunion,
     EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
+    TemaDisponible,
 )
 
 
@@ -107,28 +108,6 @@ class NotificacionAdmin(admin.ModelAdmin):
     search_fields = ("titulo", "mensaje", "usuario__nombre_completo", "usuario__correo")
 
 
-@admin.register(TemaDisponible)
-class TemaDisponibleAdmin(admin.ModelAdmin):
-    list_display = (
-        "titulo",
-        "carrera",
-        "rama",
-        "docente_responsable",
-        "cupos",
-        "created_at",
-    )
-    list_filter = ("carrera", "rama")
-    search_fields = (
-        "titulo",
-        "carrera",
-        "rama",
-        "descripcion",
-        "docente_responsable__nombre_completo",
-    )
-    raw_id_fields = ("created_by", "docente_responsable", "propuesta")
-    readonly_fields = ("created_at",)
-
-
 @admin.register(EvaluacionGrupoDocente)
 class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
     list_display = (
@@ -150,6 +129,33 @@ class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
     autocomplete_fields = ("docente", "tema")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("grupo_nombre", "-fecha", "-updated_at")
+
+
+@admin.register(EvaluacionEntregaAlumno)
+class EvaluacionEntregaAlumnoAdmin(admin.ModelAdmin):
+    list_display = (
+        "evaluacion",
+        "alumno",
+        "titulo",
+        "estado_revision",
+        "nota",
+        "creado_en",
+    )
+    list_filter = ("estado_revision", "evaluacion__docente")
+    search_fields = (
+        "evaluacion__titulo",
+        "evaluacion__grupo_nombre",
+        "alumno__nombre_completo",
+        "titulo",
+    )
+    autocomplete_fields = ("evaluacion", "alumno")
+    readonly_fields = ("creado_en", "actualizado_en")
+
+
+@admin.register(TemaDisponible)
+class TemaDisponibleAdmin(admin.ModelAdmin):
+    search_fields = ("titulo", "carrera", "rama")
+    list_display = ("titulo", "carrera", "rama", "cupos")
 
 
 @admin.register(PracticaDocumento)

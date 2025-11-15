@@ -6,6 +6,7 @@ import { CurrentUserService } from '../../../shared/services/current-user.servic
 import {
   DocenteEvaluacionesService,
   EvaluacionGrupoDto,
+  EvaluacionEntregaDto,
   GrupoActivoDto,
 } from './docente-evaluaciones.service';
 
@@ -16,6 +17,21 @@ type GrupoEvaluaciones = {
     fecha: string | null;
     estado: string;
   }[];
+};
+
+type EntregaDocente = {
+  id: number;
+  evaluacionId: number;
+  evaluacionTitulo: string;
+  grupo: string;
+  alumnoNombre: string;
+  alumnoCorreo: string | null;
+  comentario: string | null;
+  fecha: Date;
+  archivoNombre: string;
+  archivoUrl: string | null;
+  estadoRevision: 'pendiente' | 'revisada';
+  nota: number | null;
 };
 
 @Component({
@@ -33,6 +49,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
   readonly estados = ['Pendiente', 'En progreso', 'Evaluada'];
 
+  evaluaciones = signal<EvaluacionGrupoDto[]>([]);
   grupos = signal<GrupoEvaluaciones[]>([]);
   cargando = signal(true);
   enviando = signal(false);
@@ -40,6 +57,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
   gruposActivos = signal<GrupoActivoDto[]>([]);
   cargandoGruposActivos = signal(false);
   errorGruposActivos = signal<string | null>(null);
+
+  entregasPendientes = signal<EntregaDocente[]>([]);
+  entregasRevisadas = signal<EntregaDocente[]>([]);
 
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
@@ -86,6 +106,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
         this.evaluacionesService.crear(payload)
       );
       this.actualizarGruposConEvaluacion(evaluacion);
+      this.evaluaciones.set([...this.evaluaciones(), evaluacion]);
+      this.actualizarEntregas(this.evaluaciones());
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
@@ -107,13 +129,18 @@ export class DocenteEvaluacionesComponent implements OnInit {
       const evaluaciones = await firstValueFrom(
         this.evaluacionesService.listar(this.docenteId)
       );
+      this.evaluaciones.set(evaluaciones);
       this.grupos.set(this.agruparEvaluaciones(evaluaciones));
+      this.actualizarEntregas(evaluaciones);
     } catch (error) {
       console.error('No se pudieron cargar las evaluaciones del docente', error);
       this.error.set(
         'No pudimos cargar las evaluaciones registradas. Intenta nuevamente más tarde.'
       );
+      this.evaluaciones.set([]);
       this.grupos.set([]);
+      this.entregasPendientes.set([]);
+      this.entregasRevisadas.set([]);
     } finally {
       this.cargando.set(false);
     }
@@ -203,6 +230,69 @@ export class DocenteEvaluacionesComponent implements OnInit {
     ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
 
     this.grupos.set(nuevosGrupos);
+  }
+
+  private actualizarEntregas(evaluaciones: EvaluacionGrupoDto[]): void {
+    const pendientes: EntregaDocente[] = [];
+    const revisadas: EntregaDocente[] = [];
+
+    for (const evaluacion of evaluaciones) {
+      const grupoNombre = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
+      for (const entrega of evaluacion.entregas ?? []) {
+        const mapeada = this.mapEntregaDocente(entrega, evaluacion, grupoNombre);
+        if (entrega.estado_revision === 'revisada') {
+          revisadas.push(mapeada);
+        } else {
+          pendientes.push(mapeada);
+        }
+      }
+    }
+
+    pendientes.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+    revisadas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+
+    this.entregasPendientes.set(pendientes);
+    this.entregasRevisadas.set(revisadas);
+  }
+
+  private mapEntregaDocente(
+    entrega: EvaluacionEntregaDto,
+    evaluacion: EvaluacionGrupoDto,
+    grupoNombre: string
+  ): EntregaDocente {
+    const fecha = this.parseFecha(entrega.creado_en);
+    return {
+      id: entrega.id,
+      evaluacionId: evaluacion.id,
+      evaluacionTitulo: evaluacion.titulo,
+      grupo: grupoNombre,
+      alumnoNombre: entrega.alumno?.nombre ?? 'Alumno sin registro',
+      alumnoCorreo: entrega.alumno?.correo ?? null,
+      comentario: entrega.comentario,
+      fecha: fecha ?? new Date(entrega.creado_en),
+      archivoNombre: entrega.archivo_nombre,
+      archivoUrl: entrega.archivo_url,
+      estadoRevision: entrega.estado_revision,
+      nota: entrega.nota,
+    };
+  }
+
+  descargarEntrega(entrega: EntregaDocente): void {
+    if (!entrega.archivoUrl) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.open(entrega.archivoUrl, '_blank');
+  }
+
+  private parseFecha(valor: string | null | undefined): Date | null {
+    if (!valor) {
+      return null;
+    }
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
   calcularEstadoPorFecha(fecha: string | null): string {

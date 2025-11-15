@@ -17,6 +17,7 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from .models import (
@@ -32,6 +33,7 @@ from .models import (
     TemaDisponible,
     Usuario,
     EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
 )
 from .notifications import (
     notificar_cupos_completados,
@@ -58,6 +60,7 @@ from .serializers import (
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
     EvaluacionGrupoDocenteSerializer,
+    EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
 )
 
@@ -2278,6 +2281,12 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
                     .select_related("alumno")
                     .order_by("created_at"),
                     to_attr="inscripciones_activas",
+                ),
+                Prefetch(
+                    "entregas",
+                    queryset=EvaluacionEntregaAlumno.objects.select_related("alumno")
+                    .order_by("-creado_en"),
+                    to_attr="entregas_prefetch",
                 )
             )
             .order_by("grupo_nombre", "-fecha", "-created_at")
@@ -2339,6 +2348,13 @@ class AlumnoEvaluacionListView(generics.ListAPIView):
                     .select_related("alumno")
                     .order_by("created_at"),
                     to_attr="inscripciones_activas",
+                ),
+                Prefetch(
+                    "entregas",
+                    queryset=EvaluacionEntregaAlumno.objects.filter(alumno_id=alumno_id)
+                    .select_related("alumno")
+                    .order_by("-creado_en"),
+                    to_attr="entregas_alumno",
                 )
             )
             .distinct()
@@ -2346,6 +2362,61 @@ class AlumnoEvaluacionListView(generics.ListAPIView):
         )
 
         return queryset
+
+
+class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
+    serializer_class = EvaluacionEntregaAlumnoSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_queryset(self):
+        evaluacion_id = self.kwargs.get("pk")
+        alumno_id = self._obtener_alumno_id()
+        if not alumno_id:
+            return EvaluacionEntregaAlumno.objects.none()
+
+        return (
+            EvaluacionEntregaAlumno.objects.filter(
+                evaluacion_id=evaluacion_id,
+                alumno_id=alumno_id,
+            )
+            .select_related("alumno", "evaluacion", "evaluacion__tema")
+            .order_by("-creado_en")
+        )
+
+    def perform_create(self, serializer):
+        evaluacion = get_object_or_404(
+            EvaluacionGrupoDocente.objects.select_related("tema"),
+            pk=self.kwargs.get("pk"),
+        )
+        alumno_id = self._obtener_alumno_id(usar_post=True)
+        if not alumno_id:
+            raise ValidationError({"alumno": ["Debes indicar el alumno que realiza la entrega."]})
+
+        if not evaluacion.tema or not evaluacion.tema.inscripciones.filter(
+            alumno_id=alumno_id, activo=True
+        ).exists():
+            raise ValidationError(
+                {
+                    "evaluacion": [
+                        "La evaluación seleccionada no pertenece a tu grupo activo."
+                    ]
+                }
+            )
+
+        serializer.save(evaluacion=evaluacion, alumno_id=alumno_id)
+
+    def _obtener_alumno_id(self, usar_post: bool = False) -> int | None:
+        if usar_post:
+            fuente = self.request.data
+        else:
+            fuente = self.request.query_params
+
+        alumno_param = fuente.get("alumno") if fuente else None
+        try:
+            alumno_id = int(alumno_param)
+        except (TypeError, ValueError):
+            return None
+        return alumno_id
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
