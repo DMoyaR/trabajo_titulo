@@ -2316,6 +2316,38 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
+class AlumnoEvaluacionListView(generics.ListAPIView):
+    serializer_class = EvaluacionGrupoDocenteSerializer
+
+    def get_queryset(self):
+        alumno_param = self.request.query_params.get("alumno")
+        try:
+            alumno_id = int(alumno_param)
+        except (TypeError, ValueError):
+            return EvaluacionGrupoDocente.objects.none()
+
+        queryset = (
+            EvaluacionGrupoDocente.objects.filter(
+                tema__inscripciones__alumno_id=alumno_id,
+                tema__inscripciones__activo=True,
+            )
+            .select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
+            .distinct()
+            .order_by("grupo_nombre", "-fecha", "-created_at")
+        )
+
+        return queryset
+
+
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
     """Verifica si un docente aparece en el campo `preferencias_docentes`.
 

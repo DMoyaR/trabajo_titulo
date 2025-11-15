@@ -4,7 +4,10 @@
 <section class="card">
   <h3>Evaluaciones</h3>
 
-  <div class="split">
+  <div class="error" *ngIf="loadError() as msg">{{ msg }}</div>
+  <p class="muted" *ngIf="cargando()">Cargando evaluaciones…</p>
+
+  <div class="split" *ngIf="!cargando()">
     <!-- Pendientes -->
     <div>
       <h4 class="sec">Pendientes</h4>

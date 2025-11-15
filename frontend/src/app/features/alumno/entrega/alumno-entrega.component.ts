@@ -1,7 +1,13 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgIf, NgFor, NgClass } from '@angular/common';
+
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import {
+  AlumnoEntregasService,
+  EvaluacionGrupoDto,
+} from './alumno-entrega.service';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
 
@@ -18,7 +24,7 @@ interface Evaluacion {
   id: number;
   titulo: string;
   descripcion?: string;
-  fechaLimite: string | Date;
+  fechaLimite: string | Date | null;
   estado: EstadoEval;
   tipo: 'informe' | 'presentación' | 'anexo' | string;
   ultimaEntrega?: Entrega | null;
@@ -31,53 +37,16 @@ interface Evaluacion {
   styleUrls: ['./alumno-entrega.component.css'],
   imports: [CommonModule, FormsModule, NgIf, NgFor, NgClass, DatePipe, TitleCasePipe],
 })
-export class AlumnoEntregaComponent {
+export class AlumnoEntregaComponent implements OnInit {
   // UI text
   titulo = 'Entregas';
 
-  // Simulación de datos (puedes reemplazar por los que vengan del backend)
-  private _evaluaciones = signal<Evaluacion[]>([
-    {
-      id: 1,
-      titulo: 'Informe de Avance #2',
-      descripcion: 'Sube el informe con conclusiones preliminares.',
-      fechaLimite: new Date(),
-      estado: 'pendiente',
-      tipo: 'informe',
-      ultimaEntrega: null,
-    },
-    {
-      id: 2,
-      titulo: 'Presentación intermedia',
-      descripcion: 'Diapositivas de 10-12 láminas.',
-      fechaLimite: new Date(),
-      estado: 'calificada',
-      tipo: 'presentación',
-      ultimaEntrega: {
-        titulo: 'Deck v1',
-        comentario: 'Buen contenido, mejorar visuales.',
-        archivoNombre: 'presentacion_intermedia_v1.pptx',
-        archivoTipo: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        fecha: new Date(),
-        nota: 6.0,
-      },
-    },
-    {
-      id: 3,
-      titulo: 'Anexo de datos',
-      fechaLimite: new Date(),
-      estado: 'entregada',
-      tipo: 'anexo',
-      ultimaEntrega: {
-        titulo: 'dataset_UG.zip',
-        comentario: null,
-        archivoNombre: 'dataset_UG.zip',
-        archivoTipo: 'application/zip',
-        fecha: new Date(),
-        nota: null,
-      },
-    },
-  ]);
+  private readonly currentUserService = inject(CurrentUserService);
+  private readonly entregasService = inject(AlumnoEntregasService);
+
+  private _evaluaciones = signal<Evaluacion[]>([]);
+  private _cargando = signal(false);
+  private _loadError = signal<string | null>(null);
 
   // Selección
   private _seleccion = signal<Evaluacion | null>(null);
@@ -109,6 +78,9 @@ export class AlumnoEntregaComponent {
 
   seleccionada = () => this._seleccion();
 
+  cargando = () => this._cargando();
+  loadError = () => this._loadError();
+
   canUpload = computed(() => {
     const ev = this._seleccion();
     return !!ev && ev.estado === 'pendiente';
@@ -119,12 +91,107 @@ export class AlumnoEntregaComponent {
   progress = () => this._progress();
   errorMsg = () => this._errorMsg();
 
+  ngOnInit(): void {
+    const perfil = this.currentUserService.getProfile();
+    if (!perfil?.id) {
+      this._loadError.set('No fue posible identificar al alumno actual.');
+      return;
+    }
+
+    this._cargando.set(true);
+    this._loadError.set(null);
+
+    this.entregasService.listarEvaluaciones(perfil.id).subscribe({
+      next: evaluaciones => {
+        const mapeadas = evaluaciones.map(ev => this.mapEvaluacion(ev));
+        this._evaluaciones.set(mapeadas);
+        this._cargando.set(false);
+        this.seleccionarInicial();
+      },
+      error: (error) => {
+        console.error('No se pudieron cargar las evaluaciones del alumno', error);
+        this._cargando.set(false);
+        const detalle = error?.error?.detail;
+        if (typeof detalle === 'string') {
+          this._loadError.set(detalle);
+        } else {
+          this._loadError.set('No pudimos cargar tus evaluaciones. Intenta nuevamente más tarde.');
+        }
+      },
+    });
+  }
+
+  private mapEvaluacion(dto: EvaluacionGrupoDto): Evaluacion {
+    return {
+      id: dto.id,
+      titulo: dto.titulo,
+      descripcion: undefined,
+      fechaLimite: this.parseFecha(dto.fecha),
+      estado: this.mapEstado(dto.estado),
+      tipo: this.inferirTipo(dto.titulo),
+      ultimaEntrega: null,
+    };
+  }
+
+  private mapEstado(estado: string | null | undefined): EstadoEval {
+    const normalizado = (estado ?? '').trim().toLowerCase();
+    if (normalizado === 'evaluada' || normalizado === 'calificada') {
+      return 'calificada';
+    }
+    if (normalizado === 'entregada') {
+      return 'entregada';
+    }
+    if (normalizado === 'en progreso') {
+      return 'pendiente';
+    }
+    return 'pendiente';
+  }
+
+  private inferirTipo(titulo: string | null | undefined): Evaluacion['tipo'] {
+    const texto = (titulo ?? '').toLowerCase();
+    if (texto.includes('present')) {
+      return 'presentación';
+    }
+    if (texto.includes('anexo') || texto.includes('datos')) {
+      return 'anexo';
+    }
+    if (texto.includes('informe') || texto.includes('report')) {
+      return 'informe';
+    }
+    return 'general';
+  }
+
+  private parseFecha(valor: string | null | undefined): Date | null {
+    if (!valor) {
+      return null;
+    }
+
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  private seleccionarInicial(): void {
+    const evaluaciones = this._evaluaciones();
+    if (!evaluaciones.length) {
+      this._seleccion.set(null);
+      return;
+    }
+
+    const actual = this._seleccion();
+    if (actual && evaluaciones.some(ev => ev.id === actual.id)) {
+      return;
+    }
+
+    const pendiente = evaluaciones.find(ev => ev.estado === 'pendiente');
+    this._seleccion.set(pendiente ?? evaluaciones[0]);
+  }
+
   archivoInfo() {
     const f = this._archivo();
     if (!f) return null;
     const sizeMB = Math.round((f.size / (1024 * 1024)) * 10) / 10;
     return { name: f.name, type: f.type || 'desconocido', sizeMB };
-    }
+  }
 
   // Acciones UI
   seleccionar(e: Evaluacion) {
