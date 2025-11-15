@@ -24,6 +24,7 @@ from .views import (
     eliminar_documento_practica,
     DocenteEvaluacionListCreateView,
     DocenteGruposActivosListView,
+    AlumnoEvaluacionListView,
 )
 
 urlpatterns = [
@@ -135,5 +136,10 @@ urlpatterns = [
         "docentes/grupos/activos/",
         DocenteGruposActivosListView.as_view(),
         name="docente-grupos-activos",
+    ),
+    path(
+        "alumnos/evaluaciones/",
+        AlumnoEvaluacionListView.as_view(),
+        name="alumno-evaluaciones",
     ),
 ]
