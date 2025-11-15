@@ -7,6 +7,7 @@ from .models import (
     Usuario,
     PropuestaTema,
     PropuestaTemaDocente,
+    TemaDisponible,
     Notificacion,
     PracticaDocumento,
     SolicitudReunion,
@@ -104,6 +105,28 @@ class NotificacionAdmin(admin.ModelAdmin):
     list_display = ("titulo", "usuario", "tipo", "leida", "created_at")
     list_filter = ("tipo", "leida")
     search_fields = ("titulo", "mensaje", "usuario__nombre_completo", "usuario__correo")
+
+
+@admin.register(TemaDisponible)
+class TemaDisponibleAdmin(admin.ModelAdmin):
+    list_display = (
+        "titulo",
+        "carrera",
+        "rama",
+        "docente_responsable",
+        "cupos",
+        "created_at",
+    )
+    list_filter = ("carrera", "rama")
+    search_fields = (
+        "titulo",
+        "carrera",
+        "rama",
+        "descripcion",
+        "docente_responsable__nombre_completo",
+    )
+    raw_id_fields = ("created_by", "docente_responsable", "propuesta")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(EvaluacionGrupoDocente)
