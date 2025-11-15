@@ -31,21 +31,29 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-ALLOWED_HOSTS = ["*"]
-
 # Quick-start development settings - unsuitable for production
-load_dotenv()
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY") or "insecure-test-key"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = os.getenv("DEBUG", "False").lower() in {"1", "true", "yes"}
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+_hosts_env = os.getenv("ALLOWED_HOSTS")
+if _hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in _hosts_env.split(",") if host.strip()]
+    if "*" in ALLOWED_HOSTS:
+        ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [
+        "localhost",
+        "127.0.0.1",
+        "[::1]",
+        "0.0.0.0",
+        "testserver",
+        "docentw",
+        "docentw.local",
+    ]
 
 
 # Application definition
