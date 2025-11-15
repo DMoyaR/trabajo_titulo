@@ -1,4 +1,6 @@
 from rest_framework import serializers
+import mimetypes
+
 from .models import (
     Usuario,
     TemaDisponible,
@@ -10,6 +12,7 @@ from .models import (
     Reunion,
     TrazabilidadReunion,
     EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
 )
 
 
@@ -831,6 +834,72 @@ class NotificacionSerializer(serializers.ModelSerializer):
         ]
 
 
+class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
+    alumno = serializers.SerializerMethodField()
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
+    archivo_tipo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EvaluacionEntregaAlumno
+        fields = [
+            "id",
+            "evaluacion",
+            "alumno",
+            "titulo",
+            "comentario",
+            "archivo",
+            "archivo_url",
+            "archivo_nombre",
+            "archivo_tipo",
+            "nota",
+            "estado_revision",
+            "creado_en",
+            "actualizado_en",
+        ]
+        read_only_fields = [
+            "id",
+            "evaluacion",
+            "alumno",
+            "archivo_url",
+            "archivo_nombre",
+            "archivo_tipo",
+            "nota",
+            "estado_revision",
+            "creado_en",
+            "actualizado_en",
+        ]
+        extra_kwargs = {
+            "archivo": {"write_only": True},
+            "comentario": {"required": False, "allow_null": True, "allow_blank": True},
+        }
+
+    def get_alumno(self, obj: EvaluacionEntregaAlumno):
+        alumno = obj.alumno
+        if not alumno:
+            return None
+        return {
+            "id": alumno.id,
+            "nombre": alumno.nombre_completo,
+            "correo": alumno.correo,
+        }
+
+    def get_archivo_url(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        if not obj.archivo:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.archivo.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_archivo_tipo(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        if not obj.archivo:
+            return None
+        tipo, _ = mimetypes.guess_type(obj.archivo.name)
+        return tipo or "application/octet-stream"
+
+
 class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     docente = serializers.PrimaryKeyRelatedField(
         queryset=Usuario.objects.filter(rol="docente"),
@@ -844,6 +913,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     )
     fecha = serializers.DateField(required=False, allow_null=True)
     grupo = serializers.SerializerMethodField()
+    entregas = serializers.SerializerMethodField()
+    ultima_entrega = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
@@ -858,8 +929,18 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "grupo",
+            "entregas",
+            "ultima_entrega",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "estado", "grupo_nombre"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "estado",
+            "grupo_nombre",
+            "entregas",
+            "ultima_entrega",
+        ]
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
         if docente and docente.rol != "docente":
@@ -938,6 +1019,37 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "nombre": tema.titulo,
             "integrantes": integrantes,
         }
+
+    def get_entregas(self, obj):
+        entregas = self._obtener_entregas_prefetch(obj)
+        if not entregas:
+            return []
+        serializer = EvaluacionEntregaAlumnoSerializer(
+            entregas,
+            many=True,
+            context=self.context,
+        )
+        return serializer.data
+
+    def get_ultima_entrega(self, obj):
+        entregas = self._obtener_entregas_prefetch(obj)
+        if not entregas:
+            return None
+        serializer = EvaluacionEntregaAlumnoSerializer(
+            entregas[0],
+            context=self.context,
+        )
+        return serializer.data
+
+    def _obtener_entregas_prefetch(self, obj):
+        entregas = getattr(obj, "entregas_prefetch", None)
+        if entregas is None:
+            entregas = getattr(obj, "entregas_alumno", None)
+        if entregas is None:
+            entregas = list(
+                obj.entregas.select_related("alumno").order_by("-creado_en")
+            )
+        return entregas
 
     def _tema_pertenece_a_docente(self, tema: TemaDisponible, docente: Usuario) -> bool:
         return (

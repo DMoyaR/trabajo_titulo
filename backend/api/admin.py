@@ -13,6 +13,8 @@ from .models import (
     Reunion,
     TrazabilidadReunion,
     EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
+    TemaDisponible,
 )
 
 
@@ -127,6 +129,33 @@ class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
     autocomplete_fields = ("docente", "tema")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("grupo_nombre", "-fecha", "-updated_at")
+
+
+@admin.register(EvaluacionEntregaAlumno)
+class EvaluacionEntregaAlumnoAdmin(admin.ModelAdmin):
+    list_display = (
+        "evaluacion",
+        "alumno",
+        "titulo",
+        "estado_revision",
+        "nota",
+        "creado_en",
+    )
+    list_filter = ("estado_revision", "evaluacion__docente")
+    search_fields = (
+        "evaluacion__titulo",
+        "evaluacion__grupo_nombre",
+        "alumno__nombre_completo",
+        "titulo",
+    )
+    autocomplete_fields = ("evaluacion", "alumno")
+    readonly_fields = ("creado_en", "actualizado_en")
+
+
+@admin.register(TemaDisponible)
+class TemaDisponibleAdmin(admin.ModelAdmin):
+    search_fields = ("titulo", "carrera", "rama")
+    list_display = ("titulo", "carrera", "rama", "cupos")
 
 
 @admin.register(PracticaDocumento)

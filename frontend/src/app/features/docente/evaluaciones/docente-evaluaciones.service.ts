@@ -2,6 +2,24 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export interface EvaluacionEntregaDto {
+  id: number;
+  titulo: string;
+  comentario: string | null;
+  archivo_url: string | null;
+  archivo_nombre: string;
+  archivo_tipo: string | null;
+  nota: number | null;
+  estado_revision: 'pendiente' | 'revisada';
+  creado_en: string;
+  actualizado_en: string;
+  alumno: {
+    id: number;
+    nombre: string;
+    correo: string;
+  } | null;
+}
+
 export interface EvaluacionGrupoDto {
   id: number;
   docente: number | null;
@@ -17,6 +35,8 @@ export interface EvaluacionGrupoDto {
     nombre: string;
     integrantes: string[];
   } | null;
+  entregas: EvaluacionEntregaDto[];
+  ultima_entrega: EvaluacionEntregaDto | null;
 }
 
 export type CrearEvaluacionPayload = {

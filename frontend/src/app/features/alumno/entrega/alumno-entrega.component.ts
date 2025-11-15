@@ -7,7 +7,9 @@ import { CurrentUserService } from '../../../shared/services/current-user.servic
 import {
   AlumnoEntregasService,
   EvaluacionGrupoDto,
+  EvaluacionEntregaDto,
 } from './alumno-entrega.service';
+import { finalize } from 'rxjs/operators';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
 
@@ -16,6 +18,7 @@ interface Entrega {
   comentario?: string | null;
   archivoNombre: string;
   archivoTipo: string;
+  archivoUrl?: string | null;
   fecha: string | Date;
   nota?: number | null;
 }
@@ -47,6 +50,8 @@ export class AlumnoEntregaComponent implements OnInit {
   private _evaluaciones = signal<Evaluacion[]>([]);
   private _cargando = signal(false);
   private _loadError = signal<string | null>(null);
+
+  private alumnoId: number | null = null;
 
   // Selección
   private _seleccion = signal<Evaluacion | null>(null);
@@ -98,6 +103,8 @@ export class AlumnoEntregaComponent implements OnInit {
       return;
     }
 
+    this.alumnoId = perfil.id;
+
     this._cargando.set(true);
     this._loadError.set(null);
 
@@ -122,19 +129,27 @@ export class AlumnoEntregaComponent implements OnInit {
   }
 
   private mapEvaluacion(dto: EvaluacionGrupoDto): Evaluacion {
+    const ultima = dto.ultima_entrega ?? dto.entregas?.[0] ?? null;
     return {
       id: dto.id,
       titulo: dto.titulo,
       descripcion: undefined,
       fechaLimite: this.parseFecha(dto.fecha),
-      estado: this.mapEstado(dto.estado),
+      estado: this.mapEstado(dto, ultima),
       tipo: this.inferirTipo(dto.titulo),
-      ultimaEntrega: null,
+      ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
     };
   }
 
-  private mapEstado(estado: string | null | undefined): EstadoEval {
-    const normalizado = (estado ?? '').trim().toLowerCase();
+  private mapEstado(dto: EvaluacionGrupoDto, ultima: EvaluacionEntregaDto | null): EstadoEval {
+    if (ultima) {
+      if (ultima.estado_revision === 'revisada') {
+        return 'calificada';
+      }
+      return 'entregada';
+    }
+
+    const normalizado = (dto.estado ?? '').trim().toLowerCase();
     if (normalizado === 'evaluada' || normalizado === 'calificada') {
       return 'calificada';
     }
@@ -145,6 +160,18 @@ export class AlumnoEntregaComponent implements OnInit {
       return 'pendiente';
     }
     return 'pendiente';
+  }
+
+  private mapEntregaDto(dto: EvaluacionEntregaDto): Entrega {
+    return {
+      titulo: dto.titulo,
+      comentario: dto.comentario,
+      archivoNombre: dto.archivo_nombre,
+      archivoTipo: dto.archivo_tipo ?? 'application/octet-stream',
+      archivoUrl: dto.archivo_url,
+      fecha: this.parseFecha(dto.creado_en) ?? dto.creado_en,
+      nota: dto.nota,
+    };
   }
 
   private inferirTipo(titulo: string | null | undefined): Evaluacion['tipo'] {
@@ -270,7 +297,7 @@ export class AlumnoEntregaComponent implements OnInit {
     this._archivo.set(f);
   }
 
-  async submitUpload() {
+  submitUpload() {
     this._errorMsg.set(null);
 
     if (!this.upload.titulo?.trim()) {
@@ -286,38 +313,60 @@ export class AlumnoEntregaComponent implements OnInit {
       return;
     }
 
-    // Simulación de upload
-    this._sending.set(true);
-    this._progress.set(0);
-
-    // Simular progreso
-    const total = 100;
-    for (let p = 0; p <= total; p += 10) {
-      await new Promise(r => setTimeout(r, 120));
-      this._progress.set(p);
-    }
-
-    // Actualizar la evaluación seleccionada como entregada
+    const alumnoId = this.alumnoId;
     const ev = this._seleccion();
-    if (ev) {
-      const f = this._archivo()!;
-      const nuevaEntrega: Entrega = {
-        titulo: this.upload.titulo,
-        comentario: this.upload.comentario || null,
-        archivoNombre: f.name,
-        archivoTipo: f.type || 'application/octet-stream',
-        fecha: new Date(),
-        nota: null,
-      };
-      const actualizada: Evaluacion = { ...ev, estado: 'entregada', ultimaEntrega: nuevaEntrega };
-
-      // Reemplazar en la lista
-      const lista = this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x));
-      this._evaluaciones.set(lista);
-      this._seleccion.set(actualizada);
+    if (!alumnoId || !ev) {
+      this._errorMsg.set('No se pudo identificar la evaluación seleccionada.');
+      return;
     }
 
-    this._sending.set(false);
-    this.showUpload.set(false);
+    this._sending.set(true);
+    this._progress.set(10);
+
+    this.entregasService
+      .enviarEntrega(ev.id, alumnoId, {
+        titulo: this.upload.titulo.trim(),
+        comentario: this.upload.comentario?.trim() || null,
+        archivo: this._archivo()!,
+      })
+      .pipe(
+        finalize(() => {
+          this._sending.set(false);
+          this._progress.set(0);
+        })
+      )
+      .subscribe({
+        next: dto => {
+          const entrega = this.mapEntregaDto(dto);
+          const estado: EstadoEval = dto.estado_revision === 'revisada' ? 'calificada' : 'entregada';
+          const actualizada: Evaluacion = { ...ev, estado, ultimaEntrega: entrega };
+          this._evaluaciones.set(
+            this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x))
+          );
+          this._seleccion.set(actualizada);
+          this._progress.set(100);
+          this.showUpload.set(false);
+          this._archivo.set(null);
+          this.upload.titulo = '';
+          this.upload.comentario = '';
+        },
+        error: error => {
+          console.error('No se pudo registrar la entrega de la evaluación', error);
+          const detalle = error?.error;
+          if (detalle?.titulo?.[0]) {
+            this._errorMsg.set(detalle.titulo[0]);
+            return;
+          }
+          if (detalle?.archivo?.[0]) {
+            this._errorMsg.set(detalle.archivo[0]);
+            return;
+          }
+          if (detalle?.evaluacion?.[0]) {
+            this._errorMsg.set(detalle.evaluacion[0]);
+            return;
+          }
+          this._errorMsg.set('No pudimos subir tu entrega. Intenta nuevamente.');
+        },
+      });
   }
 }

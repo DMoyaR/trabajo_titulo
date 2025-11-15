@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password as auth_check_password
+from uuid import uuid4
+import os
 
 class Usuario(models.Model):
     ROL_CHOICES = [
@@ -428,6 +430,62 @@ class EvaluacionGrupoDocente(models.Model):
         self.sincronizar_estado()
         super().save(*args, **kwargs)
 
+
+def evaluacion_entrega_upload_to(instance, filename: str) -> str:
+    base, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    fecha = timezone.now()
+    alumno_id = instance.alumno_id or "anonimo"
+    nombre_base = base[:40].replace(" ", "_") or "entrega"
+    return (
+        f"evaluaciones/entregas/{fecha:%Y/%m/%d}/"
+        f"{alumno_id}_{uuid4().hex}_{nombre_base}{ext}"
+    )
+
+
+class EvaluacionEntregaAlumno(models.Model):
+    ESTADOS_REVISION = [
+        ("pendiente", "Pendiente"),
+        ("revisada", "Revisada"),
+    ]
+
+    evaluacion = models.ForeignKey(
+        EvaluacionGrupoDocente,
+        on_delete=models.CASCADE,
+        related_name="entregas",
+    )
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="entregas_evaluaciones",
+        limit_choices_to={"rol": "alumno"},
+    )
+    titulo = models.CharField(max_length=180)
+    comentario = models.TextField(blank=True, null=True)
+    archivo = models.FileField(upload_to=evaluacion_entrega_upload_to)
+    nota = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    estado_revision = models.CharField(
+        max_length=20, choices=ESTADOS_REVISION, default="pendiente"
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "evaluaciones_entregas_alumno"
+        ordering = ["-creado_en"]
+        indexes = [
+            models.Index(fields=["evaluacion", "alumno", "estado_revision"]),
+        ]
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno"
+        return f"{alumno} → {self.evaluacion.titulo} ({self.estado_revision})"
+
+    @property
+    def archivo_nombre(self) -> str:
+        return os.path.basename(self.archivo.name) if self.archivo else ""
 
 class PropuestaTema(models.Model):
     ESTADOS = [

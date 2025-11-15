@@ -25,6 +25,7 @@ from .views import (
     DocenteEvaluacionListCreateView,
     DocenteGruposActivosListView,
     AlumnoEvaluacionListView,
+    AlumnoEvaluacionEntregaListCreateView,
 )
 
 urlpatterns = [
@@ -141,5 +142,10 @@ urlpatterns = [
         "alumnos/evaluaciones/",
         AlumnoEvaluacionListView.as_view(),
         name="alumno-evaluaciones",
+    ),
+    path(
+        "alumnos/evaluaciones/<int:pk>/entregas/",
+        AlumnoEvaluacionEntregaListCreateView.as_view(),
+        name="alumno-evaluacion-entregas",
     ),
 ]

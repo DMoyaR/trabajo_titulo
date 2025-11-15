@@ -101,7 +101,19 @@
       <div class="row">
         <div><b>Archivo:</b></div>
         <div>
-          📄 {{ ev.ultimaEntrega.archivoNombre }}
+          📄
+          <ng-container *ngIf="ev.ultimaEntrega.archivoUrl; else archivoSinLink">
+            <a
+              [href]="ev.ultimaEntrega.archivoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ ev.ultimaEntrega.archivoNombre }}
+            </a>
+          </ng-container>
+          <ng-template #archivoSinLink>
+            {{ ev.ultimaEntrega.archivoNombre }}
+          </ng-template>
           <small class="muted">({{ ev.ultimaEntrega.archivoTipo }})</small>
         </div>
       </div>
