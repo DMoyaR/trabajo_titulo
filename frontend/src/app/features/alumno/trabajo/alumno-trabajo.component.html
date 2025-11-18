@@ -1,61 +1,6 @@
 <div class="card">
   <h2 class="ttl">Trabajo de Título</h2>
 
-  <div class="tema-asignado" aria-live="polite">
-    <p class="muted" *ngIf="temaAsignadoCargando()">Cargando información de tu grupo…</p>
-    <div class="alert error" *ngIf="temaAsignadoError()">{{ temaAsignadoError() }}</div>
-
-    <ng-container *ngIf="!temaAsignadoCargando()">
-      <section class="tema-asignado-card" *ngIf="temaAsignado() as tema; else sinTemaAsignado">
-        <div class="tema-asignado-head">
-          <div>
-            <h3 class="section-title" style="margin-top: 0">Grupo de Trabajo de Título</h3>
-            <p class="muted tema-asignado-carrera" *ngIf="tema.carrera">{{ tema.carrera }}</p>
-          </div>
-          <div class="chips meta">
-            <span class="chip ghost">Cupos ocupados: {{ tema.inscripcionesActivas.length }} / {{ tema.cupos }}</span>
-            <span class="chip">Disponibles: {{ tema.cuposDisponibles }}</span>
-          </div>
-        </div>
-
-        <h4 class="tema-asignado-titulo">{{ tema.titulo }}</h4>
-        <p class="tema-asignado-descripcion">{{ tema.descripcion }}</p>
-
-        <div class="tema-asignado-profesor">
-          <span class="tema-asignado-profesor-label">Profesor guía:</span>
-          <ng-container *ngIf="profesorAsignado() as profesor; else profesorPorAsignar">
-            <span class="tema-asignado-profesor-nombre">{{ profesor.nombre }}</span>
-            <span class="tema-asignado-profesor-extra" *ngIf="profesor.carrera"> · {{ profesor.carrera }}</span>
-          </ng-container>
-        </div>
-
-        <ng-template #profesorPorAsignar>
-          <span class="tema-asignado-profesor-nombre">Por asignar</span>
-        </ng-template>
-
-        <div class="tema-asignado-integrantes">
-          <h5>Integrantes del grupo</h5>
-          <ng-container *ngIf="temaAsignadoIntegrantes().length; else sinIntegrantes">
-            <ul>
-              <li *ngFor="let integrante of temaAsignadoIntegrantes()">
-                <strong>{{ integrante.nombre }}</strong>
-                <span *ngIf="integrante.correo"> · {{ integrante.correo }}</span>
-              </li>
-            </ul>
-          </ng-container>
-          <ng-template #sinIntegrantes>
-            <p class="muted" style="margin: 0">Aún no hay compañeros registrados.</p>
-          </ng-template>
-        </div>
-
-        <div class="tema-asignado-actions">
-          <a class="btn light sm" routerLink="/alumno/temas" *ngIf="puedeGestionarCupos()">Gestionar cupos del grupo</a>
-          <a class="btn link" routerLink="/alumno/temas">Ver detalle del tema</a>
-        </div>
-      </section>
-    </ng-container>
-  </div>
-
   <ng-template #sinTemaAsignado>
     <div class="alert info">
       Aún no tienes un tema asignado en Trabajo de Título I. Revisa los <a routerLink="/alumno/temas">temas disponibles</a>
@@ -91,14 +36,20 @@
         <h3>{{ destacada.encabezado }}</h3>
         <span class="badge" [ngClass]="destacada.estado">{{ destacada.estadoEtiqueta }}</span>
       </div>
-      <p class="upload-title">{{ destacada.nombre }}</p>
-      <p class="muted">{{ destacada.descripcion }}</p>
-      <div class="chips">
-        <span class="chip">{{ destacada.fecha }}</span>
-        <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
-      </div>
-      <div class="upload-actions">
-        <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas</button>
+      
+      <div class="upload-content">
+        <div class="upload-info">
+          <p class="upload-title">{{ destacada.nombre }}</p>
+          <p class="muted">{{ destacada.descripcion }}</p>
+          <div class="upload-actions">
+            <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas</button>
+          </div>
+        </div>
+        
+        <div class="chips right">
+          <span class="chip">{{ destacada.fecha }}</span>
+          <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
+        </div>
       </div>
     </div>
 
@@ -126,9 +77,9 @@
               <span *ngIf="item.estado === 'aprobado'" class="status-icon" aria-label="Aprobado">✓</span>
             </div>
             <div class="grupo-alumnos">{{ item.descripcion }}</div>
-            <div class="chips">
-              <span class="chip">{{ item.fecha }}</span>
-              <span class="chip ghost" *ngIf="item.proximoPaso">Próximo paso: {{ item.proximoPaso }}</span>
+            <div class="chips chips-fecha-derecha">
+              <span class="chip-fecha">{{ item.fecha }}</span>
+              <span class="chip-proximo" *ngIf="item.proximoPaso">Próximo paso: {{ item.proximoPaso }}</span>
             </div>
           </div>
         </li>

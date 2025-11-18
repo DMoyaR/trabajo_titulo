@@ -22,21 +22,57 @@
       </ng-template>
 
       <ng-template #sinTemas>
-        <p class="muted" style="margin-top: 1rem">Aún no hay temas disponibles.</p>
+        <p class="muted" style="margin-top: 1rem">
+          {{ filtroProfesor() ? 'No hay temas que coincidan con tu búsqueda.' : 'Aún no hay temas disponibles.' }}
+        </p>
       </ng-template>
 
       <ng-template #temasLista>
         <div class="alert success" *ngIf="reservaMensaje()">{{ reservaMensaje() }}</div>
         <div class="alert error" *ngIf="reservaError()">{{ reservaError() }}</div>
 
-        <ul class="list topics" *ngIf="temas().length; else sinTemas">
-          <li *ngFor="let tema of temas()">
+        <!-- Filtro por profesor -->
+        <div class="filtros-container" *ngIf="temas().length">
+          <div class="filtro-grupo">
+            <label for="filtroProfesor" class="filtro-label">Filtrar por docente:</label>
+            <div class="filtro-input-group">
+              <select 
+                id="filtroProfesor" 
+                class="filtro-select"
+                [value]="filtroProfesor()"
+                (change)="aplicarFiltroProfesor($any($event.target).value)"
+              >
+                <option value="">Todos los docentes</option>
+                <option *ngFor="let profesor of profesoresUnicos()" [value]="profesor">
+                  {{ profesor }}
+                </option>
+              </select>
+              <button 
+                type="button" 
+                class="btn light sm"
+                *ngIf="filtroProfesor()"
+                (click)="limpiarFiltro()"
+              >
+                Limpiar filtro
+              </button>
+            </div>
+          </div>
+          <div class="resultados-info" *ngIf="temasDisponiblesFiltrados().length > 0">
+            <span class="chip ghost">{{ temasDisponiblesFiltrados().length }} tema(s) encontrado(s)</span>
+          </div>
+        </div>
+
+        <ul class="list topics" *ngIf="temasPaginados().length; else sinTemas">
+          <li *ngFor="let tema of temasPaginados()">
             <div class="grupo-info">
+              <!-- Título + Carrera -->
               <div class="grupo-nombre">
                 {{ tema.titulo }}
                 <span class="badge">{{ tema.carrera }}</span>
+                <span class="chip success" *ngIf="tema.tieneCupoPropio">Tu cupo reservado</span>
               </div>
-              <div class="grupo-alumnos">{{ tema.descripcion }}</div>
+              
+              <!-- Autor del tema -->
               <div class="tema-autor" *ngIf="tema.creadoPor as autor">
                 <span class="tema-autor__icon" aria-hidden="true">👤</span>
                 <span *ngIf="autor.rol === 'alumno'; else autorDocente">
@@ -67,34 +103,75 @@
                   <ng-container *ngIf="docente.carrera"> — {{ docente.carrera }}</ng-container>
                 </span>
               </div>
-              <div class="chips meta">
-                <span class="chip ghost">Cupos disp.: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
-                <span class="chip success" *ngIf="tema.tieneCupoPropio">Tu cupo reservado</span>
-              </div>
-              <div class="chips requisitos" *ngIf="tema.requisitos?.length">
-                <span class="chip" *ngFor="let req of tema.requisitos">{{ req }}</span>
-              </div>
             </div>
-            <div class="tema-actions">
-              <button
-                type="button"
-                class="btn primary sm"
-                [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
-                (click)="abrirConfirmacionTema(tema)"
-              >
-                {{ etiquetaPedirTema(tema) }}
-              </button>
-              <button
-                type="button"
-                class="btn light sm"
-                *ngIf="puedeMostrarGestionCupos(tema)"
-                (click)="abrirGestionCupos(tema)"
-              >
-                Gestionar cupos
-              </button>
+            <div class="tema-actions-container">
+              <div class="tema-actions">
+                <button
+                  type="button"
+                  class="btn light sm"
+                  (click)="abrirDetallesTema(tema)"
+                >
+                  Ver detalles
+                </button>
+                <button
+                  type="button"
+                  class="btn primary sm"
+                  [disabled]="!puedePedirTema(tema) || reservandoTemaId() === tema.id"
+                  (click)="abrirConfirmacionTema(tema)"
+                >
+                  {{ etiquetaPedirTema(tema) }}
+                </button>
+                <button
+                  type="button"
+                  class="btn light sm"
+                  *ngIf="puedeMostrarGestionCupos(tema)"
+                  (click)="abrirGestionCupos(tema)"
+                >
+                  Gestionar cupos
+                </button>
+              </div>
+              <span class="chip ghost cupos-chip">Cupos disp.: {{ tema.cuposDisponibles }} / {{ tema.cupos }}</span>
             </div>
           </li>
         </ul>
+
+        <!-- Paginación -->
+        <div class="paginacion" *ngIf="totalPaginas() > 1">
+          <div class="paginacion-info">
+            Mostrando {{ rangoActual }}
+          </div>
+          <div class="paginacion-controles">
+            <button 
+              type="button" 
+              class="btn light sm"
+              [disabled]="paginaActual() === 1"
+              (click)="cambiarPagina(paginaActual() - 1)"
+            >
+              ← Anterior
+            </button>
+            
+            <div class="paginacion-numeros">
+              <button
+                type="button"
+                *ngFor="let pagina of [].constructor(totalPaginas()); let i = index"
+                class="btn-pagina"
+                [class.active]="paginaActual() === i + 1"
+                (click)="cambiarPagina(i + 1)"
+              >
+                {{ i + 1 }}
+              </button>
+            </div>
+
+            <button 
+              type="button" 
+              class="btn light sm"
+              [disabled]="paginaActual() === totalPaginas()"
+              (click)="cambiarPagina(paginaActual() + 1)"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
       </ng-template>
     </ng-container>
 
@@ -112,10 +189,12 @@
               [ngClass]="clasePropuestaDestacadaEstado(propuestaPrincipal.estado)"
             >
               <div class="highlight-head">
-                <span class="chip" [ngClass]="chipClasePropuesta(propuestaPrincipal.estado)">
+                <div class="highlight-head-left">
+                  <span class="chip ghost">Actualizada {{ propuestaPrincipal.updatedAt | date:'dd MMM yyyy' }}</span>
+                </div>
+                <span class="chip badge-propuesta-derecha" [ngClass]="chipClasePropuesta(propuestaPrincipal.estado)">
                   {{ etiquetaPropuestaDestacada(propuestaPrincipal) }}
                 </span>
-                <span class="chip ghost">Actualizada {{ propuestaPrincipal.updatedAt | date:'dd MMM yyyy' }}</span>
               </div>
               <h4>{{ propuestaPrincipal.titulo }}</h4>
               <p class="muted">{{ propuestaPrincipal.descripcion }}</p>
@@ -197,6 +276,53 @@
   </ng-container>
 </div>
 
+<!-- MODAL DETALLES DEL TEMA -->
+<div class="backdrop" *ngIf="temaParaDetalles()" (click)="cerrarDetallesTema()"></div>
+<div class="modal detalles-modal" *ngIf="temaParaDetalles() as temaDetalles" role="dialog" aria-modal="true">
+  <div class="modal-head">
+    <h4 class="ttl-detalles">{{ temaDetalles.titulo }}</h4>
+    <button class="icon" type="button" (click)="cerrarDetallesTema()" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="modal-body tema-detalles">
+    <div class="seccion-contenido">
+      <h6 class="subtitulo-seccion">Descripción</h6>
+      <p class="texto-contenido">{{ temaDetalles.descripcion }}</p>
+    </div>
+
+    <div class="chips meta">
+      <span class="chip ghost">Cupos disponibles: {{ temaDetalles.cuposDisponibles }} / {{ temaDetalles.cupos }}</span>
+      <span class="chip">{{ temaDetalles.carrera }}</span>
+    </div>
+
+    <div class="tema-confirmacion__autor">
+      <span aria-hidden="true">👤</span>
+      <span>
+        Docente a cargo:
+        <strong>{{ temaDetalles.docenteACargo?.nombre || temaDetalles.creadoPor?.nombre || 'Por asignar' }}</strong>
+        <ng-container *ngIf="temaDetalles.docenteACargo?.rol || temaDetalles.creadoPor?.rol">
+          · {{ (temaDetalles.docenteACargo?.rol || temaDetalles.creadoPor?.rol) | titlecase }}
+        </ng-container>
+        <ng-container *ngIf="temaDetalles.docenteACargo?.carrera || temaDetalles.creadoPor?.carrera">
+          — {{ temaDetalles.docenteACargo?.carrera || temaDetalles.creadoPor?.carrera }}
+        </ng-container>
+      </span>
+    </div>
+    
+    <div class="tema-confirmacion__requisitos" *ngIf="temaDetalles.requisitos?.length; else sinRequisitosDetalle">
+      <h6>Requisitos del tema</h6>
+      <ul>
+        <li *ngFor="let requisito of temaDetalles.requisitos">{{ requisito }}</li>
+      </ul>
+    </div>
+    <ng-template #sinRequisitosDetalle>
+      <p class="muted" style="margin: 0">Este tema no especifica requisitos adicionales.</p>
+    </ng-template>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn primary" (click)="cerrarDetallesTema()">Cerrar</button>
+  </div>
+</div>
+
 <div class="backdrop" *ngIf="showAjustePropuesta()" (click)="cerrarAjustePropuesta()"></div>
 <div
   class="modal ajuste-modal"
@@ -267,12 +393,12 @@
 <div class="backdrop" *ngIf="temaSeleccionado()" (click)="cerrarConfirmacionTema()"></div>
 <div class="modal confirm-modal" *ngIf="temaSeleccionado() as temaEnConfirmacion" role="dialog" aria-modal="true">
   <div class="modal-head">
+    <span class="chip ghost">Cupos: {{ temaEnConfirmacion.cuposDisponibles }} / {{ temaEnConfirmacion.cupos }}</span>
     <h4 class="ttl" style="margin: 0">Confirmar reserva</h4>
     <button class="icon" (click)="cerrarConfirmacionTema()" aria-label="Cerrar">✕</button>
   </div>
   <div class="modal-body tema-confirmacion">
     <div class="chips meta">
-      <span class="chip ghost">Cupos disponibles: {{ temaEnConfirmacion.cuposDisponibles }} / {{ temaEnConfirmacion.cupos }}</span>
       <span class="chip ghost">Carrera: {{ temaEnConfirmacion.carrera }}</span>
     </div>
     <div>
@@ -286,12 +412,7 @@
         <strong>{{ temaEnConfirmacion.docenteACargo?.nombre || temaEnConfirmacion.creadoPor?.nombre || 'Por asignar' }}</strong>
       </span>
     </div>
-    <div class="tema-confirmacion__requisitos" *ngIf="temaEnConfirmacion.requisitos?.length; else sinRequisitos">
-      <h6>Requisitos del tema</h6>
-      <ul>
-        <li *ngFor="let requisito of temaEnConfirmacion.requisitos">{{ requisito }}</li>
-      </ul>
-    </div>
+    
     <ng-template #sinRequisitos>
       <p class="muted" style="margin: 0">Este tema no especifica requisitos adicionales.</p>
     </ng-template>

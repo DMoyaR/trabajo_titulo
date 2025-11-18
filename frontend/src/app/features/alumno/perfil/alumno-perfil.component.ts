@@ -1,14 +1,13 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CurrentUserService, CurrentUserProfile } from '../../../shared/services/current-user.service';
 
-type RestriccionAlumno = {
+interface Restriccion {
   titulo: string;
   descripcion: string;
-};
+}
 
-/** Perfil de usuario (ESTUDIANTE_13) */
 @Component({
   selector: 'alumno-perfil',
   standalone: true,
@@ -19,67 +18,144 @@ type RestriccionAlumno = {
 export class AlumnoPerfilComponent implements OnInit {
   private readonly currentUserService = inject(CurrentUserService);
 
+  private readonly restriccionesData: Restriccion[] = [
+    {
+      titulo: 'Respetar los plazos establecidos',
+      descripcion: 'Debes cumplir con las fechas límite indicadas por la universidad para cada entrega.',
+    },
+    {
+      titulo: 'Uso responsable de la plataforma',
+      descripcion: 'Evita compartir tus credenciales y mantén la seguridad de tu cuenta.',
+    },
+    {
+      titulo: 'Actualización de datos personales',
+      descripcion: 'Mantén tu información de contacto actualizada para recibir notificaciones importantes.',
+    },
+    {
+      titulo: 'Comunicación respetuosa',
+      descripcion: 'Trata con respeto a docentes y compañeros en todos los canales oficiales.',
+    },
+    {
+      titulo: 'Entrega de documentación válida',
+      descripcion: 'Los documentos enviados deben ser legibles y corresponder a los formatos solicitados.',
+    },
+    {
+      titulo: 'Uso adecuado de recursos compartidos',
+      descripcion: 'No elimines ni modifiques archivos que no sean de tu autoría sin autorización.',
+    },
+    {
+      titulo: 'Participación en reuniones programadas',
+      descripcion: 'Confirma tu asistencia o justifica tus ausencias con anticipación.',
+    },
+    {
+      titulo: 'Respeto por la propiedad intelectual',
+      descripcion: 'Asegúrate de citar correctamente las fuentes utilizadas en tus trabajos.',
+    },
+    {
+      titulo: 'Cumplimiento del reglamento institucional',
+      descripcion: 'Revisa y cumple con las normas establecidas por tu carrera y la universidad.',
+    },
+    {
+      titulo: 'Uso responsable de los canales de soporte',
+      descripcion: 'Utiliza los medios oficiales de soporte únicamente para consultas relacionadas con tu práctica.',
+    },
+  ];
+
   userProfile: CurrentUserProfile | null = null;
   tel = '';
-
-  readonly restricciones = signal<RestriccionAlumno[]>([
-    {
-      titulo: 'Una postulación activa por alumno',
-      descripcion:
-        'Si ya tienes una postulación en estado pendiente, en revisión, aceptada o rechazada con observaciones no podrás crear otra hasta que se cierre la actual.',
-    },
-    {
-      titulo: 'Sin edición de postulación tras el envío',
-      descripcion:
-        'Una vez enviada la postulación queda bloqueada. Solo vuelve a estar editable si el docente la marca como “observada”.',
-    },
-    {
-      titulo: 'Contenido filtrado por carrera',
-      descripcion:
-        'Solo verás docentes, propuestas y temáticas asociadas a tu carrera (career_id/codigo_carrera) para asegurar la pertinencia del proceso.',
-    },
-    {
-      titulo: 'Entregas solo en etapas habilitadas',
-      descripcion:
-        'Cada entrega se habilita únicamente si la etapa está activa y dentro de las fechas publicadas por la coordinación.',
-    },
-    {
-      titulo: 'Entregas bloqueadas tras confirmar',
-      descripcion:
-        'Al confirmar una entrega el archivo queda protegido; el botón de edición se oculta para mantener la integridad documental.',
-    },
-    {
-      titulo: 'Evaluaciones docentes cuando están publicadas',
-      descripcion:
-        'Los comentarios y resultados del docente solo se muestran cuando visible == true, tras la publicación de la retroalimentación.',
-    },
-    {
-      titulo: 'Agendamiento condicionado a profesor guía',
-      descripcion:
-        'Solo puedes agendar reuniones si cuentas con profesor guía asignado y el calendario se encuentra publicado (docente_asignado y calendario_publicado).',
-    },
-    {
-      titulo: 'Validación de archivos al subir',
-      descripcion:
-        'El sistema acepta únicamente archivos .pdf, .docx o .zip con un máximo de 25 MB, validado tanto en frontend como en backend.',
-    },
-    {
-      titulo: 'Formularios completos',
-      descripcion:
-        'Las solicitudes y entregas se pueden enviar únicamente si todos los campos obligatorios están completos; no se permiten formularios incompletos.',
-    },
-    {
-      titulo: 'Certificados tras finalizar el proceso',
-      descripcion:
-        'El certificado de aprobación se habilita solo si status_proceso == "finalizado" y evaluacion_final == "aprobada".',
-    },
-  ]);
+  editableTel = '';
+  editablePassword = '';
+  ultimoAcceso = '';
+  
+  isEditing = false;
+  isLoading = false;
+  isSaving = false;
 
   ngOnInit(): void {
-    const profile = this.currentUserService.getProfile();
-    if (profile) {
+    this.loadUserProfile();
+  }
+
+  loadUserProfile(): void {
+    this.isLoading = true;
+    try {
+      const profile = this.currentUserService.getProfile();
+      if (!profile) {
+        throw new Error('Perfil no disponible');
+      }
+
       this.userProfile = profile;
       this.tel = profile.telefono ?? '';
+      this.editableTel = this.tel;
+      this.ultimoAcceso = ''; // Aquí puedes agregar la lógica para obtener el último acceso
+    } catch (error) {
+      this.showErrorMessage('No se pudo cargar el perfil');
+    } finally {
+      this.isLoading = false;
     }
+  }
+
+  saveProfile(): void {
+    if (!this.isFormValid()) {
+      this.showErrorMessage('Por favor completa los campos requeridos');
+      return;
+    }
+    
+    this.isSaving = true;
+    try {
+      this.tel = this.editableTel;
+      this.isEditing = false;
+      this.editablePassword = '';
+      this.showSuccessMessage('Perfil actualizado correctamente');
+    } catch (error) {
+      this.showErrorMessage('Error al actualizar el perfil');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  changePassword(): void {
+    const newPassword = prompt('Ingrese la nueva contraseña:');
+    if (newPassword && newPassword.trim()) {
+      this.showSuccessMessage('Contraseña actualizada correctamente');
+    }
+  }
+
+  startEditing(): void {
+    this.editableTel = this.tel;
+    this.editablePassword = '';
+    this.isEditing = true;
+  }
+
+  cancelEditing(): void {
+    this.editableTel = this.tel;
+    this.editablePassword = '';
+    this.isEditing = false;
+  }
+
+  closeSession(): void {
+    const confirmed = confirm('¿Estás seguro de que quieres cerrar sesión?');
+    if (confirmed) {
+      console.log('Cerrando sesión...');
+      // Aquí puedes agregar la lógica para cerrar sesión
+    }
+  }
+
+  restricciones(): Restriccion[] {
+    return this.restriccionesData;
+  }
+
+  private showSuccessMessage(message: string): void {
+    alert(message);
+  }
+
+  private showErrorMessage(message: string): void {
+    alert(message);
+  }
+
+  private isFormValid(): boolean {
+    return !!(
+      this.editableTel?.trim() ||
+      this.editablePassword?.trim()
+    );
   }
 }

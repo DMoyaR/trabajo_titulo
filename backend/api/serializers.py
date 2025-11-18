@@ -1,4 +1,6 @@
 from rest_framework import serializers
+import mimetypes
+
 from .models import (
     Usuario,
     TemaDisponible,
@@ -6,6 +8,11 @@ from .models import (
     PracticaDocumento,
     PropuestaTema,
     Notificacion,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
+    EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
 )
 
 
@@ -361,6 +368,154 @@ class UsuarioResumenSerializer(serializers.ModelSerializer):
         fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
 
 
+class TrazabilidadReunionSerializer(serializers.ModelSerializer):
+    usuario = UsuarioResumenSerializer(read_only=True)
+
+    class Meta:
+        model = TrazabilidadReunion
+        fields = [
+            "id",
+            "tipo",
+            "estado_anterior",
+            "estado_nuevo",
+            "comentario",
+            "datos",
+            "creado_en",
+            "usuario",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        usuario = base.get("usuario")
+        return {
+            "id": base["id"],
+            "tipo": base["tipo"],
+            "estadoAnterior": base.get("estado_anterior"),
+            "estadoNuevo": base.get("estado_nuevo"),
+            "comentario": base.get("comentario"),
+            "datos": base.get("datos", {}),
+            "fecha": instance.creado_en.isoformat(),
+            "usuario": usuario,
+        }
+
+
+class SolicitudReunionSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+    trazabilidad = TrazabilidadReunionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SolicitudReunion
+        fields = [
+            "id",
+            "alumno",
+            "docente",
+            "motivo",
+            "disponibilidad_sugerida",
+            "estado",
+            "creado_en",
+            "actualizado_en",
+            "trazabilidad",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        return {
+            "id": base["id"],
+            "estado": base["estado"],
+            "motivo": base["motivo"],
+            "disponibilidadSugerida": base.get("disponibilidad_sugerida"),
+            "creadoEn": instance.creado_en.isoformat(),
+            "actualizadoEn": instance.actualizado_en.isoformat(),
+            "alumno": base.get("alumno"),
+            "docente": base.get("docente"),
+            "trazabilidad": base.get("trazabilidad", []),
+        }
+
+
+class SolicitudReunionCreateSerializer(serializers.Serializer):
+    alumno = serializers.IntegerField()
+    motivo = serializers.CharField()
+    disponibilidadSugerida = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+
+
+class AprobarSolicitudReunionSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    fecha = serializers.DateField()
+    horaInicio = serializers.TimeField()
+    horaTermino = serializers.TimeField()
+    modalidad = serializers.ChoiceField(choices=[choice[0] for choice in Reunion.MODALIDADES])
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class RechazarSolicitudReunionSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class ReunionSerializer(serializers.ModelSerializer):
+    alumno = UsuarioResumenSerializer(read_only=True)
+    docente = UsuarioResumenSerializer(read_only=True)
+    trazabilidad = TrazabilidadReunionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Reunion
+        fields = [
+            "id",
+            "alumno",
+            "docente",
+            "solicitud",
+            "fecha",
+            "hora_inicio",
+            "hora_termino",
+            "modalidad",
+            "motivo",
+            "observaciones",
+            "estado",
+            "creado_en",
+            "actualizado_en",
+            "trazabilidad",
+        ]
+
+    def to_representation(self, instance):
+        base = super().to_representation(instance)
+        return {
+            "id": base["id"],
+            "estado": base["estado"],
+            "motivo": base["motivo"],
+            "observaciones": base.get("observaciones"),
+            "fecha": instance.fecha.isoformat(),
+            "horaInicio": instance.hora_inicio.isoformat(),
+            "horaTermino": instance.hora_termino.isoformat(),
+            "modalidad": base["modalidad"],
+            "creadoEn": instance.creado_en.isoformat(),
+            "actualizadoEn": instance.actualizado_en.isoformat(),
+            "alumno": base.get("alumno"),
+            "docente": base.get("docente"),
+            "solicitudId": base.get("solicitud"),
+            "trazabilidad": base.get("trazabilidad", []),
+        }
+
+
+class ReunionCreateSerializer(serializers.Serializer):
+    alumno = serializers.IntegerField()
+    docente = serializers.IntegerField()
+    fecha = serializers.DateField()
+    horaInicio = serializers.TimeField()
+    horaTermino = serializers.TimeField()
+    modalidad = serializers.ChoiceField(choices=[choice[0] for choice in Reunion.MODALIDADES])
+    motivo = serializers.CharField()
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class ReunionCerrarSerializer(serializers.Serializer):
+    docente = serializers.IntegerField()
+    estado = serializers.ChoiceField(choices=["finalizada", "no_realizada"])
+    comentario = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
 class PropuestaTemaSerializer(serializers.ModelSerializer):
     alumno = UsuarioResumenSerializer(read_only=True)
     docente = UsuarioResumenSerializer(read_only=True)
@@ -677,3 +832,253 @@ class NotificacionSerializer(serializers.ModelSerializer):
             "created_at",
             "usuario",
         ]
+
+
+class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
+    alumno = serializers.SerializerMethodField()
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
+    archivo_tipo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EvaluacionEntregaAlumno
+        fields = [
+            "id",
+            "evaluacion",
+            "alumno",
+            "titulo",
+            "comentario",
+            "archivo",
+            "archivo_url",
+            "archivo_nombre",
+            "archivo_tipo",
+            "nota",
+            "estado_revision",
+            "creado_en",
+            "actualizado_en",
+        ]
+        read_only_fields = [
+            "id",
+            "evaluacion",
+            "alumno",
+            "archivo_url",
+            "archivo_nombre",
+            "archivo_tipo",
+            "nota",
+            "estado_revision",
+            "creado_en",
+            "actualizado_en",
+        ]
+        extra_kwargs = {
+            "archivo": {"write_only": True},
+            "comentario": {"required": False, "allow_null": True, "allow_blank": True},
+        }
+
+    def get_alumno(self, obj: EvaluacionEntregaAlumno):
+        alumno = obj.alumno
+        if not alumno:
+            return None
+        return {
+            "id": alumno.id,
+            "nombre": alumno.nombre_completo,
+            "correo": alumno.correo,
+        }
+
+    def get_archivo_url(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        if not obj.archivo:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.archivo.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_archivo_tipo(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        if not obj.archivo:
+            return None
+        tipo, _ = mimetypes.guess_type(obj.archivo.name)
+        return tipo or "application/octet-stream"
+
+
+class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
+    docente = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.filter(rol="docente"),
+        required=False,
+        allow_null=True,
+    )
+    tema = serializers.PrimaryKeyRelatedField(
+        queryset=TemaDisponible.objects.all(),
+        required=True,
+        allow_null=False,
+    )
+    fecha = serializers.DateField(required=False, allow_null=True)
+    grupo = serializers.SerializerMethodField()
+    entregas = serializers.SerializerMethodField()
+    ultima_entrega = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EvaluacionGrupoDocente
+        fields = [
+            "id",
+            "docente",
+            "tema",
+            "grupo_nombre",
+            "titulo",
+            "fecha",
+            "estado",
+            "created_at",
+            "updated_at",
+            "grupo",
+            "entregas",
+            "ultima_entrega",
+        ]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "estado",
+            "grupo_nombre",
+            "entregas",
+            "ultima_entrega",
+        ]
+
+    def validate_docente(self, docente: Usuario | None) -> Usuario | None:
+        if docente and docente.rol != "docente":
+            raise serializers.ValidationError(
+                "Solo los docentes pueden registrar evaluaciones."
+            )
+        return docente
+
+    def validate_estado(self, estado: str) -> str:
+        opciones_validas = {choice[0] for choice in EvaluacionGrupoDocente.ESTADOS}
+        if estado not in opciones_validas:
+            raise serializers.ValidationError("Estado no válido para la evaluación.")
+        return estado
+
+    def validate_grupo_nombre(self, nombre: str) -> str:
+        nombre_limpio = (nombre or "").strip()
+        if not nombre_limpio:
+            raise serializers.ValidationError("Debes indicar el nombre del grupo.")
+        return nombre_limpio
+
+    def validate_titulo(self, titulo: str) -> str:
+        titulo_limpio = (titulo or "").strip()
+        if not titulo_limpio:
+            raise serializers.ValidationError("Debes indicar el título de la evaluación.")
+        return titulo_limpio
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        if data.get("fecha") in ("", None):
+            data["fecha"] = None
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tema = attrs.get("tema")
+        docente = attrs.get("docente")
+
+        if not tema:
+            raise serializers.ValidationError(
+                {"tema": "Debes seleccionar un grupo activo."}
+            )
+
+        if docente and not self._tema_pertenece_a_docente(tema, docente):
+            raise serializers.ValidationError(
+                {"tema": "El grupo seleccionado no pertenece al docente."}
+            )
+
+        if not tema.inscripciones.filter(activo=True).exists():
+            raise serializers.ValidationError(
+                {"tema": "Solo puedes registrar evaluaciones para grupos activos."}
+            )
+
+        return attrs
+
+    def get_grupo(self, obj):
+        tema = obj.tema
+        if not tema:
+            return None
+
+        inscripciones = getattr(tema, "inscripciones_activas", None)
+        if inscripciones is None:
+            inscripciones = (
+                tema.inscripciones.filter(activo=True)
+                .select_related("alumno")
+                .order_by("created_at")
+            )
+
+        integrantes: list[str] = []
+        for inscripcion in inscripciones:
+            alumno = getattr(inscripcion, "alumno", None)
+            if alumno and alumno.nombre_completo:
+                integrantes.append(alumno.nombre_completo)
+
+        return {
+            "id": tema.id,
+            "nombre": tema.titulo,
+            "integrantes": integrantes,
+        }
+
+    def get_entregas(self, obj):
+        entregas = self._obtener_entregas_prefetch(obj)
+        if not entregas:
+            return []
+        serializer = EvaluacionEntregaAlumnoSerializer(
+            entregas,
+            many=True,
+            context=self.context,
+        )
+        return serializer.data
+
+    def get_ultima_entrega(self, obj):
+        entregas = self._obtener_entregas_prefetch(obj)
+        if not entregas:
+            return None
+        serializer = EvaluacionEntregaAlumnoSerializer(
+            entregas[0],
+            context=self.context,
+        )
+        return serializer.data
+
+    def _obtener_entregas_prefetch(self, obj):
+        entregas = getattr(obj, "entregas_prefetch", None)
+        if entregas is None:
+            entregas = getattr(obj, "entregas_alumno", None)
+        if entregas is None:
+            entregas = list(
+                obj.entregas.select_related("alumno").order_by("-creado_en")
+            )
+        return entregas
+
+    def _tema_pertenece_a_docente(self, tema: TemaDisponible, docente: Usuario) -> bool:
+        return (
+            tema.docente_responsable_id == docente.id
+            or tema.created_by_id == docente.id
+        )
+
+
+class DocenteGrupoActivoSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="titulo")
+    integrantes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TemaDisponible
+        fields = ["id", "nombre", "integrantes"]
+
+    def get_integrantes(self, obj: TemaDisponible) -> list[str]:
+        inscripciones = getattr(obj, "inscripciones_activas", None)
+        if inscripciones is None:
+            inscripciones = (
+                obj.inscripciones.filter(activo=True)
+                .select_related("alumno")
+                .order_by("created_at")
+            )
+
+        integrantes: list[str] = []
+        for inscripcion in inscripciones:
+            alumno = getattr(inscripcion, "alumno", None)
+            if alumno and alumno.nombre_completo:
+                integrantes.append(alumno.nombre_completo)
+
+        return integrantes

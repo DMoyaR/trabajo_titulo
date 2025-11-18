@@ -3,44 +3,68 @@
 <div class="grid">
   <div class="card">
     <h3>Información Personal</h3>
-    <div class="row"><b>Nombre</b><span>{{ userProfile?.nombre || 'Sin nombre' }}</span></div>
-    <div class="row"><b>Correo</b><span>{{ userProfile?.correo || 'Sin correo' }}</span></div>
-    <div class="row"><b>RUT</b><span>{{ userProfile?.rut || 'Sin registro' }}</span></div>
-    <div class="row"><b>Carrera</b><span>{{ userProfile?.carrera || 'Sin carrera asignada' }}</span></div>
-    <div class="row"><b>Teléfono</b><span>{{ tel || 'Sin teléfono registrado' }}</span></div>
+    <div class="row"><b>Nombre:</b><span>{{ userProfile?.nombre || 'Sin nombre' }}</span></div>
+    <div class="row"><b>Correo:</b><span>{{ userProfile?.correo || 'Sin correo' }}</span></div>
+    <div class="row"><b>RUT:</b><span>{{ userProfile?.rut || 'Sin registro' }}</span></div>
+    <div class="row"><b>Carrera:</b><span>{{ userProfile?.carrera || 'Sin carrera asignada' }}</span></div>
   </div>
 
   <div class="card">
-    <h3>Editar</h3>
+    <h3>Editar Información</h3>
     <div class="row">
-      <b>Teléfono</b>
-           <input class="inp" type="tel" placeholder="Agregar número de teléfono" [(ngModel)]="tel"/>
+      <b>Teléfono:</b>
+      <span *ngIf="!isEditing">{{ tel || 'Agregar número de teléfono' }}</span>
+      <input
+        *ngIf="isEditing"
+        class="inp"
+        type="tel"
+        [(ngModel)]="editableTel"
+        placeholder="Agregar número de teléfono"
+      />
     </div>
+
     <div class="row">
-      <b>Contraseña</b>
-      <a class="link" href="javascript:void(0)">Cambiar</a>
+      <b>Contraseña:</b>
+      <div *ngIf="!isEditing">
+        <span>****</span>
+        <a class="link" (click)="changePassword()">Cambiar</a>
+      </div>
+      <input
+        *ngIf="isEditing"
+        type="password"
+        class="inp"
+        [(ngModel)]="editablePassword"
+        placeholder="Nueva contraseña"
+      />
+    </div>
+
+    <div class="action-row" *ngIf="!isEditing">
+      <button class="btn-edit" (click)="startEditing()">Editar Información</button>
+    </div>
+    <div class="action-row" *ngIf="isEditing">
+      <button class="btn-save" (click)="saveProfile()">Guardar</button>
+      <button class="btn-cancel" (click)="cancelEditing()">Cancelar</button>
     </div>
   </div>
 </div>
 
 <div class="card">
   <h3>Historial de Sesiones</h3>
-  <ul class="list"><li>Último acceso: 23 de abril de 2024</li></ul>
+  <ul class="list">
+    <li>Último acceso: {{ ultimoAcceso || 'N/A' }}</li>
+  </ul>
+  <div class="session-actions">
+    <button class="btn-session" (click)="closeSession()">Cerrar sesión</button>
+    <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
+  </div>
 </div>
 
-<section class="restricciones" aria-labelledby="restricciones-alumno-titulo">
-  <h3 id="restricciones-alumno-titulo" class="section-title">Restricciones para estudiantes</h3>
-  <p class="restricciones-intro">
-    Estas reglas definen el comportamiento del sistema según tu progreso y los datos registrados. Se aplican de forma
-    automática para asegurar la trazabilidad del proceso de trabajo de título.
-  </p>
+<div class="card">
+  <h3>Restricciones y compromisos</h3>
   <ul class="restricciones-list">
-    <li *ngFor="let item of restricciones()">
-      <span class="restriccion-icon" aria-hidden="true">⚠️</span>
-      <div class="restriccion-texto">
-        <h4>{{ item.titulo }}</h4>
-        <p>{{ item.descripcion }}</p>
-      </div>
+    <li *ngFor="let restriccion of restricciones()">
+      <h4>{{ restriccion.titulo }}</h4>
+      <p>{{ restriccion.descripcion }}</p>
     </li>
   </ul>
-</section>
+</div>
