@@ -22,6 +22,7 @@ from .views import (
     marcar_notificacion_leida,
     gestionar_documentos_practica,
     eliminar_documento_practica,
+    gestionar_firma_coordinador_practica,
     DocenteEvaluacionListCreateView,
     DocenteGruposActivosListView,
     AlumnoEvaluacionListView,
@@ -92,6 +93,11 @@ urlpatterns = [
         "coordinacion/practicas/documentos/",
         gestionar_documentos_practica,
         name="gestionar-documentos-practica",
+    ),
+    path(
+    "coordinacion/practicas/firma/",
+    gestionar_firma_coordinador_practica,
+    name="gestionar-firma-coordinador-practica",
     ),
     path(
         "coordinacion/practicas/documentos/<int:pk>/",

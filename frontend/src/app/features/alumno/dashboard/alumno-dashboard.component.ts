@@ -13,6 +13,7 @@ import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docent
   styleUrls: ['./alumno-dashboard.component.css']
 })
 export class AlumnoDashboardComponent {
+  readonly nombreUsuario = signal('');
   readonly temaAsignado = signal<TemaDisponible | null>(null);
   readonly temaAsignadoCargando = signal(false);
   readonly temaAsignadoError = signal<string | null>(null);
@@ -57,6 +58,8 @@ export class AlumnoDashboardComponent {
     private readonly currentUserService: CurrentUserService,
     private readonly temaService: TemaService,
   ) {
+    const perfil = this.currentUserService.getProfile();
+    this.nombreUsuario.set(this.obtenerPrimerNombre(perfil?.nombre ?? ''));
     this.cargarTemaAsignado();
   }
 
@@ -86,5 +89,8 @@ export class AlumnoDashboardComponent {
           this.temaAsignadoCargando.set(false);
         },
       });
+  }
+    private obtenerPrimerNombre(nombreCompleto: string): string {
+    return nombreCompleto.trim().split(' ').filter(Boolean)[0] ?? '';
   }
 }

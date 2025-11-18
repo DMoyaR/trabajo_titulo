@@ -6,6 +6,7 @@ from .models import (
     TemaDisponible,
     SolicitudCartaPractica,
     PracticaDocumento,
+    PracticaFirmaCoordinador,
     PropuestaTema,
     Notificacion,
     SolicitudReunion,
@@ -358,6 +359,42 @@ class PracticaDocumentoSerializer(serializers.ModelSerializer):
             "nombre": usuario.nombre_completo,
             "correo": usuario.correo,
         }
+
+class PracticaFirmaCoordinadorSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    uploadedBy = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PracticaFirmaCoordinador
+        fields = [
+            "id",
+            "carrera",
+            "created_at",
+            "updated_at",
+            "url",
+            "uploadedBy",
+        ]
+        read_only_fields = ["id", "carrera", "created_at", "updated_at", "url", "uploadedBy"]
+
+    def get_url(self, obj: PracticaFirmaCoordinador) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_uploadedBy(self, obj: PracticaFirmaCoordinador) -> dict | None:
+        usuario = obj.uploaded_by
+        if not usuario:
+            return None
+        return {
+            "id": usuario.pk,
+            "nombre": usuario.nombre_completo,
+            "correo": usuario.correo,
+        }
+
+
 
 
 class UsuarioResumenSerializer(serializers.ModelSerializer):

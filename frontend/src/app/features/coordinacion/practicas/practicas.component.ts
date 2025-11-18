@@ -72,6 +72,22 @@ interface DocumentoCompartido {
   createdAt: string;
   url: string | null;
 }
+interface FirmaCoordinadorApi {
+  id: number;
+  carrera: string;
+  created_at: string;
+  updated_at: string;
+  url: string | null;
+  uploadedBy?: { id: number; nombre: string; correo: string } | null;
+}
+
+interface FirmaCoordinador {
+  id: number;
+  carrera: string;
+  createdAt: string;
+  updatedAt: string;
+  url: string | null;
+}
 
 interface CartaPreviewData {
   alumnoNombres: string;
@@ -79,6 +95,7 @@ interface CartaPreviewData {
   alumnoRut: string;
   carrera: string;
   duracionHoras: number;
+  fechaInicio: string;
   escuelaNombre: string;
   escuelaDireccion: string;
   escuelaTelefono: string;
@@ -122,14 +139,29 @@ export class PracticasComponent {
   private currentUserService = inject(CurrentUserService);
 
   private coordinadorId: number | null = null;
+  isCoordinador = false;
+  coordinadorCarrera: string | null = null;
+
 
   @ViewChild('archivoInput') archivoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('firmaInput') firmaInput?: ElementRef<HTMLInputElement>;
 
   documentosCompartidos = signal<DocumentoCompartido[]>([]);
   documentosLoading = signal(false);
   documentosError = signal<string | null>(null);
   documentoUploadError = signal<string | null>(null);
   gestionDocumentoLoading = signal(false);
+
+  
+  firmaCoordinador = signal<FirmaCoordinador | null>(null);
+  firmaLoading = signal(false);
+  firmaError = signal<string | null>(null);
+  firmaUploadError = signal<string | null>(null);
+  firmaGestionLoading = signal(false);
+  firmaArchivoNombre = signal<string | null>(null);
+  private firmaArchivoSeleccionado: File | null = null;
+  private logoHeaderDataUrl: string | null = null;
+  private logoHeaderPromise: Promise<string | null> | null = null;
 
   documentoForm = this.fb.group({
     nombre: ['', Validators.required],
@@ -326,7 +358,9 @@ export class PracticasComponent {
   // ====== Cargar datos ======
   ngOnInit() {
     const profile = this.currentUserService.getProfile();
-    this.coordinadorId = profile?.id ?? null;
+    this.isCoordinador = profile?.rol === 'coordinador';
+    this.coordinadorId = this.isCoordinador ? profile?.id ?? null : null;
+    this.coordinadorCarrera = this.isCoordinador ? profile?.carrera ?? null : null;
     this.cargarSolicitudes();
     if (this.coordinadorId !== null) {
       this.cargarDocumentosCompartidos();
@@ -470,6 +504,111 @@ export class PracticasComponent {
       });
   }
 
+// ====== Firma del coordinador ======
+  cargarFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      this.firmaCoordinador.set(null);
+      return;
+    }
+
+    this.firmaLoading.set(true);
+    this.firmaError.set(null);
+
+    this.http
+      .get<{ item: FirmaCoordinadorApi | null }>(
+        '/api/coordinacion/practicas/firma/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.firmaCoordinador.set(item ? this.mapFirmaApi(item) : null);
+          this.firmaLoading.set(false);
+        },
+        error: () => {
+          this.firmaError.set('No se pudo cargar la firma del coordinador.');
+          this.firmaLoading.set(false);
+        },
+      });
+  }
+
+  onFirmaSeleccionada(event: Event) {
+    this.firmaUploadError.set(null);
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) {
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    const tipo = (file.type || '').toLowerCase();
+    if (tipo && !tipo.startsWith('image/')) {
+      this.firmaUploadError.set('La firma debe ser una imagen (PNG o JPG).');
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    this.firmaArchivoSeleccionado = file;
+    this.firmaArchivoNombre.set(file.name);
+  }
+
+  subirFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    if (!this.firmaArchivoSeleccionado) {
+      this.firmaUploadError.set('Selecciona una imagen de firma.');
+      return;
+    }
+
+    this.firmaGestionLoading.set(true);
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.firmaArchivoSeleccionado);
+
+    this.http
+      .post<FirmaCoordinadorApi>('/api/coordinacion/practicas/firma/', formData)
+      .subscribe({
+        next: (res) => {
+          this.firmaCoordinador.set(this.mapFirmaApi(res));
+          this.toast.set('Firma guardada correctamente.');
+          this.limpiarArchivoFirma();
+          this.firmaGestionLoading.set(false);
+        },
+        error: () => {
+          this.firmaUploadError.set('No se pudo guardar la firma.');
+          this.firmaGestionLoading.set(false);
+        },
+      });
+  }
+
+  limpiarArchivoFirma() {
+    this.firmaArchivoSeleccionado = null;
+    this.firmaArchivoNombre.set(null);
+    this.firmaUploadError.set(null);
+    if (this.firmaInput?.nativeElement) {
+      this.firmaInput.nativeElement.value = '';
+    }
+  }
+
+  private mapFirmaApi(api: FirmaCoordinadorApi): FirmaCoordinador {
+    return {
+      id: api.id,
+      carrera: api.carrera,
+      createdAt: api.created_at,
+      updatedAt: api.updated_at,
+      url: api.url,
+    };
+  }
+
+
+
+
   cargarSolicitudes() {
     this.loading.set(true);
     const params: Record<string, string> = {
@@ -536,13 +675,13 @@ export class PracticasComponent {
   }
 
   // ====== Acciones ======
-    aprobar() {
+    async aprobar() {
     const c = this.current();
     if (!c) return;
 
     let archivo: File;
     try {
-      archivo = this.generarArchivoCartaPdf(c);
+      archivo = await this.generarArchivoCartaPdf(c);
     } catch (err) {
       console.error('No se pudo generar el PDF de la carta.', err);
       this.toast.set('No se pudo generar el archivo PDF de la carta.');
@@ -655,6 +794,7 @@ export class PracticasComponent {
       alumnoRut: carta?.alumno?.rut ? formatearRut(carta.alumno.rut) : '—',
       carrera: carta?.alumno?.carrera || '—',
       duracionHoras: carta?.practica?.duracionHoras || 320,
+      fechaInicio: this.formatFecha(carta?.practica?.fechaInicio) || '—',
       escuelaNombre: escuela?.nombre || 'Escuela',
       escuelaDireccion: escuela?.direccion || '—',
       escuelaTelefono: escuela?.telefono || '—',
@@ -755,7 +895,46 @@ private escribirBullet(
 }
 
 
-  private generarArchivoCartaPdf(solicitud: SolicitudCarta): File {
+  private async cargarLogoHeader(): Promise<string | null> {
+    if (this.logoHeaderDataUrl) {
+      return this.logoHeaderDataUrl;
+    }
+
+    if (this.logoHeaderPromise) {
+      return this.logoHeaderPromise;
+    }
+
+    this.logoHeaderPromise = fetch('/assets/Logo_Header.png')
+      .then(async (resp) => {
+        if (!resp.ok) {
+          throw new Error('No se pudo cargar el logo del encabezado');
+        }
+
+        const blob = await resp.blob();
+
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('No se pudo leer el logo del encabezado'));
+          reader.readAsDataURL(blob);
+        });
+      })
+      .then((dataUrl) => {
+        this.logoHeaderDataUrl = dataUrl;
+        return dataUrl;
+      })
+      .catch((err) => {
+        console.error('No se pudo preparar el logo de la carta de práctica.', err);
+        return null;
+      })
+      .finally(() => {
+        this.logoHeaderPromise = null;
+      });
+
+    return this.logoHeaderPromise;
+  }
+
+  private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const preview = this.construirCartaPreviewData(solicitud);
     const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
@@ -763,25 +942,40 @@ private escribirBullet(
     const fechaTexto = this.fechaHoy();
 
     const margenX = 20;
-    let cursorY = 25;
+    let cursorY = 5;
     const anchoTexto = 170;
     const saltoLinea = 6;
 
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('Universidad Tecnológica Metropolitana', 105, cursorY, { align: 'center' });
-    cursorY += 7;
+    const logoDataUrl = await this.cargarLogoHeader();
+    if (logoDataUrl) {
+      const logoWidth = 48;
+      const logoHeight = 56;
+      const logoX = (210 - logoWidth) / 2;
+      doc.addImage(logoDataUrl, 'PNG', logoX, cursorY, logoWidth, logoHeight);
+      cursorY += logoHeight + 6;
+    } else {
+      cursorY += 6;
+    }
 
     doc.setFontSize(11);
-    doc.setFont('Helvetica', 'normal');
-    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono}`;
-    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
-    doc.text(encabezadoLineas, 105, cursorY, { align: 'center' });
-    cursorY += encabezadoLineas.length * (saltoLinea - 1) + 6;
 
-    doc.text(fechaTexto, margenX, cursorY);
+
+
+    //FECHA A LA DERECHA
+    doc.setFont('Helvetica', 'normal');
+    // Ancho de la página (A4 en mm)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    // Usamos el mismo margen que a la izquierda
+    const rightMargin = margenX;
+    // Calculamos el ancho del texto de la fecha
+    const fechaAncho = doc.getTextWidth(fechaTexto);
+    // Posición X para que la fecha quede pegada al margen derecho
+    const fechaX = pageWidth - rightMargin - fechaAncho;
+    // Dibujamos la fecha alineada a la derecha
+    doc.text(fechaTexto, fechaX, cursorY);
     cursorY += saltoLinea + 2;
 
+    doc.setFont('Helvetica', 'bold');
     const destinatarioLineas = [
       'Señor',
       `${preview.destNombres} ${preview.destApellidos}`.trim(),
@@ -793,7 +987,7 @@ private escribirBullet(
       doc.text(linea, margenX, cursorY);
       cursorY += saltoLinea;
     });
-
+    doc.setFont('Helvetica', 'normal');
     cursorY += 1;
 
     cursorY += 2;
@@ -806,11 +1000,11 @@ private escribirBullet(
     cursorY += 3;
 
     const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
-    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
+    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas, con fecha de inicio el día ${preview.fechaInicio} y sus objetivos son:`;
     cursorY = this.escribirTextoJustificado(doc, parrafo2, margenX, cursorY, anchoTexto, saltoLinea);
 
 // espacio pequeño antes de la lista (opcional)
-cursorY += 1;
+cursorY += 6;
 
 objetivos.forEach((objetivo) => {
   cursorY = this.escribirBullet(
@@ -844,9 +1038,36 @@ cursorY += saltoLinea;
       cursorY += cargoLineas.length * saltoLinea;
     }
 
+
+    // ===== Pie de página =====
+    doc.setFont('Helvetica', 'normal');
+
     const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
     const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
-    doc.text(institucionLineas, margenX, cursorY);
+
+    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono} —  http://www.utem.cl`;
+    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
+
+    // Medidas de la página
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const centerX = margenX + anchoTexto / 2;
+    const footerMarginBottom = 15;        // distancia al borde inferior
+    const footerLineHeight = saltoLinea - 1; // un poco más compacto
+
+    // Calculamos desde abajo hacia arriba para que el pie quede "pegado" al fondo
+    const totalFooterLines = institucionLineas.length + encabezadoLineas.length;
+    let footerY =
+      pageHeight - footerMarginBottom - footerLineHeight * (totalFooterLines - 1);
+
+    // Primera línea: "Universidad Tecnológica Metropolitana"
+    doc.text(institucionLineas, centerX, footerY, { align: 'center' });
+    footerY += institucionLineas.length * footerLineHeight;
+
+    // Segunda línea: "Escuela de Informática — ... — Tel. ..."
+    doc.text(encabezadoLineas, centerX, footerY, { align: 'center' });
+
+
+
 
     const nombreArchivo = this.construirNombreArchivoCarta(preview);
     const arrayBuffer = doc.output('arraybuffer') as ArrayBuffer;
@@ -895,14 +1116,21 @@ cursorY += saltoLinea;
 
   // ====== Pestañas ======
   // arriba, junto al resto de signals:
-  mainTab = signal<'solicitudes' | 'documentos'>('solicitudes');
+  mainTab = signal<'solicitudes' | 'documentos' | 'firma'>('solicitudes');
 
   // función para cambiar de pestaña
-  setMainTab(tab: 'solicitudes' | 'documentos') {
+  setMainTab(tab: 'solicitudes' | 'documentos' | 'firma') {
+    if (tab === 'firma' && !this.isCoordinador) {
+      return;
+    }
+
     this.mainTab.set(tab);
     if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
       // si entras a Documentos y aún no cargan, los traemos
       this.cargarDocumentosCompartidos();
+    }
+    if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
+      this.cargarFirmaCoordinador();
     }
   }
 }

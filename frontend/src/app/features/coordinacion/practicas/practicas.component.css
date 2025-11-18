@@ -17,11 +17,19 @@
 .doc-info { display:flex; flex-direction:column; gap:4px; }
 .doc-buttons { display:flex; gap:8px; align-items:center; }
 .help.error { color:#b91c1c; font-size:.85rem; }
+.firma-card { margin-top: 16px; }
+.firma-grid { display: grid; grid-template-columns: 1fr minmax(240px, 360px); gap: 16px; align-items: flex-start; }
+.firma-form { display: flex; flex-direction: column; gap: 12px; }
+.firma-actions { display: flex; gap: 8px; align-items: center; }
+.firma-preview { border: 1px solid #e9eef6; border-radius: 10px; padding: 12px; background: #fdfdff; min-height: 160px; display: flex; flex-direction: column; gap: 8px; }
+.firma-preview img { max-width: 100%; height: auto; border: 1px solid #dbe3ee; border-radius: 8px; padding: 6px; background: #fff; }
+.preview-box { display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 900px) {
   .doc-grid { grid-template-columns: 1fr; }
   .doc-items li { flex-direction: column; }
   .doc-buttons { justify-content:flex-start; }
+  .firma-grid { grid-template-columns: 1fr; }
 }
 
 .filters { display:flex; gap:8px; align-items:center; }
@@ -35,7 +43,7 @@
 .btn { border:0; border-radius:8px; padding:6px 12px; font-weight:700; cursor:pointer; }
 .btn.primary { background:#1976d2; color:#fff; }
 .btn.danger { background:#dc2626; color:#fff; }
-.btn.sm { font-size:.9rem; }
+.btn.sm { font-size:.9rem; margin-left: 10px; margin-right: 10px; }
 
 .chip { border-radius:999px; padding:4px 10px; font-weight:700; font-size:.8rem; }
 .chip-warn { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
