@@ -72,6 +72,22 @@ interface DocumentoCompartido {
   createdAt: string;
   url: string | null;
 }
+interface FirmaCoordinadorApi {
+  id: number;
+  carrera: string;
+  created_at: string;
+  updated_at: string;
+  url: string | null;
+  uploadedBy?: { id: number; nombre: string; correo: string } | null;
+}
+
+interface FirmaCoordinador {
+  id: number;
+  carrera: string;
+  createdAt: string;
+  updatedAt: string;
+  url: string | null;
+}
 
 interface CartaPreviewData {
   alumnoNombres: string;
@@ -123,14 +139,27 @@ export class PracticasComponent {
   private currentUserService = inject(CurrentUserService);
 
   private coordinadorId: number | null = null;
+  isCoordinador = false;
+  coordinadorCarrera: string | null = null;
+
 
   @ViewChild('archivoInput') archivoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('firmaInput') firmaInput?: ElementRef<HTMLInputElement>;
 
   documentosCompartidos = signal<DocumentoCompartido[]>([]);
   documentosLoading = signal(false);
   documentosError = signal<string | null>(null);
   documentoUploadError = signal<string | null>(null);
   gestionDocumentoLoading = signal(false);
+
+  
+  firmaCoordinador = signal<FirmaCoordinador | null>(null);
+  firmaLoading = signal(false);
+  firmaError = signal<string | null>(null);
+  firmaUploadError = signal<string | null>(null);
+  firmaGestionLoading = signal(false);
+  firmaArchivoNombre = signal<string | null>(null);
+  private firmaArchivoSeleccionado: File | null = null;
   private logoHeaderDataUrl: string | null = null;
   private logoHeaderPromise: Promise<string | null> | null = null;
 
@@ -329,7 +358,9 @@ export class PracticasComponent {
   // ====== Cargar datos ======
   ngOnInit() {
     const profile = this.currentUserService.getProfile();
-    this.coordinadorId = profile?.id ?? null;
+    this.isCoordinador = profile?.rol === 'coordinador';
+    this.coordinadorId = this.isCoordinador ? profile?.id ?? null : null;
+    this.coordinadorCarrera = this.isCoordinador ? profile?.carrera ?? null : null;
     this.cargarSolicitudes();
     if (this.coordinadorId !== null) {
       this.cargarDocumentosCompartidos();
@@ -472,6 +503,111 @@ export class PracticasComponent {
         },
       });
   }
+
+// ====== Firma del coordinador ======
+  cargarFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      this.firmaCoordinador.set(null);
+      return;
+    }
+
+    this.firmaLoading.set(true);
+    this.firmaError.set(null);
+
+    this.http
+      .get<{ item: FirmaCoordinadorApi | null }>(
+        '/api/coordinacion/practicas/firma/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.firmaCoordinador.set(item ? this.mapFirmaApi(item) : null);
+          this.firmaLoading.set(false);
+        },
+        error: () => {
+          this.firmaError.set('No se pudo cargar la firma del coordinador.');
+          this.firmaLoading.set(false);
+        },
+      });
+  }
+
+  onFirmaSeleccionada(event: Event) {
+    this.firmaUploadError.set(null);
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) {
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    const tipo = (file.type || '').toLowerCase();
+    if (tipo && !tipo.startsWith('image/')) {
+      this.firmaUploadError.set('La firma debe ser una imagen (PNG o JPG).');
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    this.firmaArchivoSeleccionado = file;
+    this.firmaArchivoNombre.set(file.name);
+  }
+
+  subirFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    if (!this.firmaArchivoSeleccionado) {
+      this.firmaUploadError.set('Selecciona una imagen de firma.');
+      return;
+    }
+
+    this.firmaGestionLoading.set(true);
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.firmaArchivoSeleccionado);
+
+    this.http
+      .post<FirmaCoordinadorApi>('/api/coordinacion/practicas/firma/', formData)
+      .subscribe({
+        next: (res) => {
+          this.firmaCoordinador.set(this.mapFirmaApi(res));
+          this.toast.set('Firma guardada correctamente.');
+          this.limpiarArchivoFirma();
+          this.firmaGestionLoading.set(false);
+        },
+        error: () => {
+          this.firmaUploadError.set('No se pudo guardar la firma.');
+          this.firmaGestionLoading.set(false);
+        },
+      });
+  }
+
+  limpiarArchivoFirma() {
+    this.firmaArchivoSeleccionado = null;
+    this.firmaArchivoNombre.set(null);
+    this.firmaUploadError.set(null);
+    if (this.firmaInput?.nativeElement) {
+      this.firmaInput.nativeElement.value = '';
+    }
+  }
+
+  private mapFirmaApi(api: FirmaCoordinadorApi): FirmaCoordinador {
+    return {
+      id: api.id,
+      carrera: api.carrera,
+      createdAt: api.created_at,
+      updatedAt: api.updated_at,
+      url: api.url,
+    };
+  }
+
+
+
 
   cargarSolicitudes() {
     this.loading.set(true);
@@ -806,7 +942,7 @@ private escribirBullet(
     const fechaTexto = this.fechaHoy();
 
     const margenX = 20;
-    let cursorY = 15;
+    let cursorY = 5;
     const anchoTexto = 170;
     const saltoLinea = 6;
 
@@ -933,9 +1069,6 @@ cursorY += saltoLinea;
 
 
 
-
-
-
     const nombreArchivo = this.construirNombreArchivoCarta(preview);
     const arrayBuffer = doc.output('arraybuffer') as ArrayBuffer;
     const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
@@ -983,14 +1116,21 @@ cursorY += saltoLinea;
 
   // ====== Pestañas ======
   // arriba, junto al resto de signals:
-  mainTab = signal<'solicitudes' | 'documentos'>('solicitudes');
+  mainTab = signal<'solicitudes' | 'documentos' | 'firma'>('solicitudes');
 
   // función para cambiar de pestaña
-  setMainTab(tab: 'solicitudes' | 'documentos') {
+  setMainTab(tab: 'solicitudes' | 'documentos' | 'firma') {
+    if (tab === 'firma' && !this.isCoordinador) {
+      return;
+    }
+
     this.mainTab.set(tab);
     if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
       // si entras a Documentos y aún no cargan, los traemos
       this.cargarDocumentosCompartidos();
+    }
+    if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
+      this.cargarFirmaCoordinador();
     }
   }
 }

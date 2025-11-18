@@ -24,6 +24,7 @@ from .models import (
     InscripcionTema,
     Notificacion,
     PracticaDocumento,
+    PracticaFirmaCoordinador,
     PropuestaTema,
     PropuestaTemaDocente,
     SolicitudCartaPractica,
@@ -44,6 +45,7 @@ from .serializers import (
     LoginSerializer,
     NotificacionSerializer,
     PracticaDocumentoSerializer,
+    PracticaFirmaCoordinadorSerializer,
     PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDocenteDecisionSerializer,
@@ -2898,3 +2900,73 @@ def eliminar_documento_practica(request, pk: int):
         documento.archivo.delete(save=False)
     documento.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_firma_coordinador_practica(request):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        firma = (
+            PracticaFirmaCoordinador.objects.select_related("uploaded_by")
+            .filter(carrera__iexact=carrera)
+            .order_by("-updated_at")
+            .first()
+        )
+        if not firma:
+            return Response({"item": None})
+
+        serializer = PracticaFirmaCoordinadorSerializer(
+            firma, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    content_type = (archivo.content_type or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        return Response(
+            {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    firma, created = PracticaFirmaCoordinador.objects.get_or_create(
+        carrera=carrera,
+        defaults={"archivo": archivo, "uploaded_by": coordinador},
+    )
+
+    if not created:
+        if firma.archivo:
+            firma.archivo.delete(save=False)
+        firma.archivo = archivo
+        firma.uploaded_by = coordinador
+        firma.save(update_fields=["archivo", "uploaded_by", "updated_at"])
+
+    serializer = PracticaFirmaCoordinadorSerializer(
+        firma, context={"request": request}
+    )
+    status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    headers = {"Location": f"/api/coordinacion/practicas/firma/"}
+    return Response(serializer.data, status=status_code, headers=headers)

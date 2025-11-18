@@ -612,3 +612,30 @@ class PracticaDocumento(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nombre} ({self.carrera})"
+
+
+class PracticaFirmaCoordinador(models.Model):
+    """Firma del coordinador para las cartas de práctica por carrera."""
+
+    carrera = models.CharField(
+        max_length=120,
+        choices=Usuario.CARRERA_CHOICES,
+        unique=True,
+    )
+    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d")
+    uploaded_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="firmas_practica",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "practica_firmas_coordinador"
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return f"Firma {self.carrera}"
