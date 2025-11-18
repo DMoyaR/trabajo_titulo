@@ -142,7 +142,7 @@
 
       <div class="pager" *ngIf="total() > size()">
         <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
-        <span>Página {{ page() }}</span>
+        <span>    Página    {{ page() }}</span>
         <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
       </div>
     </div>

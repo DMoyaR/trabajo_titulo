@@ -35,7 +35,7 @@
 .btn { border:0; border-radius:8px; padding:6px 12px; font-weight:700; cursor:pointer; }
 .btn.primary { background:#1976d2; color:#fff; }
 .btn.danger { background:#dc2626; color:#fff; }
-.btn.sm { font-size:.9rem; }
+.btn.sm { font-size:.9rem; margin-left: 10px; margin-right: 10px; }
 
 .chip { border-radius:999px; padding:4px 10px; font-weight:700; font-size:.8rem; }
 .chip-warn { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }

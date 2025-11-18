@@ -811,7 +811,7 @@ private escribirBullet(
     const logoDataUrl = await this.cargarLogoHeader();
     if (logoDataUrl) {
       const logoWidth = 48;
-      const logoHeight = 18;
+      const logoHeight = 56;
       const logoX = (210 - logoWidth) / 2;
       doc.addImage(logoDataUrl, 'PNG', logoX, cursorY, logoWidth, logoHeight);
       cursorY += logoHeight + 6;
@@ -819,22 +819,25 @@ private escribirBullet(
       cursorY += 6;
     }
 
-
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('Universidad Tecnológica Metropolitana', 105, cursorY, { align: 'center' });
-    cursorY += 7;
-
     doc.setFontSize(11);
-    doc.setFont('Helvetica', 'normal');
-    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono}`;
-    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
-    doc.text(encabezadoLineas, 105, cursorY, { align: 'center' });
-    cursorY += encabezadoLineas.length * (saltoLinea - 1) + 6;
 
-    doc.text(fechaTexto, margenX, cursorY);
+
+
+    //FECHA A LA DERECHA
+    doc.setFont('Helvetica', 'normal');
+    // Ancho de la página (A4 en mm)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    // Usamos el mismo margen que a la izquierda
+    const rightMargin = margenX;
+    // Calculamos el ancho del texto de la fecha
+    const fechaAncho = doc.getTextWidth(fechaTexto);
+    // Posición X para que la fecha quede pegada al margen derecho
+    const fechaX = pageWidth - rightMargin - fechaAncho;
+    // Dibujamos la fecha alineada a la derecha
+    doc.text(fechaTexto, fechaX, cursorY);
     cursorY += saltoLinea + 2;
 
+    doc.setFont('Helvetica', 'bold');
     const destinatarioLineas = [
       'Señor',
       `${preview.destNombres} ${preview.destApellidos}`.trim(),
@@ -846,7 +849,7 @@ private escribirBullet(
       doc.text(linea, margenX, cursorY);
       cursorY += saltoLinea;
     });
-
+    doc.setFont('Helvetica', 'normal');
     cursorY += 1;
 
     cursorY += 2;
@@ -897,9 +900,39 @@ cursorY += saltoLinea;
       cursorY += cargoLineas.length * saltoLinea;
     }
 
+
+    // ===== Pie de página =====
+    doc.setFont('Helvetica', 'normal');
+
     const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
     const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
-    doc.text(institucionLineas, margenX, cursorY);
+
+    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono}`;
+    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
+
+    // Medidas de la página
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const centerX = margenX + anchoTexto / 2;
+    const footerMarginBottom = 15;        // distancia al borde inferior
+    const footerLineHeight = saltoLinea - 1; // un poco más compacto
+
+    // Calculamos desde abajo hacia arriba para que el pie quede "pegado" al fondo
+    const totalFooterLines = institucionLineas.length + encabezadoLineas.length;
+    let footerY =
+      pageHeight - footerMarginBottom - footerLineHeight * (totalFooterLines - 1);
+
+    // Primera línea: "Universidad Tecnológica Metropolitana"
+    doc.text(institucionLineas, centerX, footerY, { align: 'center' });
+    footerY += institucionLineas.length * footerLineHeight;
+
+    // Segunda línea: "Escuela de Informática — ... — Tel. ..."
+    doc.text(encabezadoLineas, centerX, footerY, { align: 'center' });
+
+
+
+
+
+
 
     const nombreArchivo = this.construirNombreArchivoCarta(preview);
     const arrayBuffer = doc.output('arraybuffer') as ArrayBuffer;
