@@ -79,6 +79,7 @@ interface CartaPreviewData {
   alumnoRut: string;
   carrera: string;
   duracionHoras: number;
+  fechaInicio: string;
   escuelaNombre: string;
   escuelaDireccion: string;
   escuelaTelefono: string;
@@ -657,6 +658,7 @@ export class PracticasComponent {
       alumnoRut: carta?.alumno?.rut ? formatearRut(carta.alumno.rut) : '—',
       carrera: carta?.alumno?.carrera || '—',
       duracionHoras: carta?.practica?.duracionHoras || 320,
+      fechaInicio: this.formatFecha(carta?.practica?.fechaInicio) || '—',
       escuelaNombre: escuela?.nombre || 'Escuela',
       escuelaDireccion: escuela?.direccion || '—',
       escuelaTelefono: escuela?.telefono || '—',
@@ -862,11 +864,11 @@ private escribirBullet(
     cursorY += 3;
 
     const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
-    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas y sus objetivos son:`;
+    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas, con fecha de inicio el día ${preview.fechaInicio} y sus objetivos son:`;
     cursorY = this.escribirTextoJustificado(doc, parrafo2, margenX, cursorY, anchoTexto, saltoLinea);
 
 // espacio pequeño antes de la lista (opcional)
-cursorY += 1;
+cursorY += 6;
 
 objetivos.forEach((objetivo) => {
   cursorY = this.escribirBullet(
@@ -907,7 +909,7 @@ cursorY += saltoLinea;
     const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
     const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
 
-    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono}`;
+    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono} —  http://www.utem.cl`;
     const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
 
     // Medidas de la página
