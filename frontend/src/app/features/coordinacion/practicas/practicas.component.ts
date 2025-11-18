@@ -130,6 +130,8 @@ export class PracticasComponent {
   documentosError = signal<string | null>(null);
   documentoUploadError = signal<string | null>(null);
   gestionDocumentoLoading = signal(false);
+  private logoHeaderDataUrl: string | null = null;
+  private logoHeaderPromise: Promise<string | null> | null = null;
 
   documentoForm = this.fb.group({
     nombre: ['', Validators.required],
@@ -536,13 +538,13 @@ export class PracticasComponent {
   }
 
   // ====== Acciones ======
-    aprobar() {
+    async aprobar() {
     const c = this.current();
     if (!c) return;
 
     let archivo: File;
     try {
-      archivo = this.generarArchivoCartaPdf(c);
+      archivo = await this.generarArchivoCartaPdf(c);
     } catch (err) {
       console.error('No se pudo generar el PDF de la carta.', err);
       this.toast.set('No se pudo generar el archivo PDF de la carta.');
@@ -755,7 +757,46 @@ private escribirBullet(
 }
 
 
-  private generarArchivoCartaPdf(solicitud: SolicitudCarta): File {
+  private async cargarLogoHeader(): Promise<string | null> {
+    if (this.logoHeaderDataUrl) {
+      return this.logoHeaderDataUrl;
+    }
+
+    if (this.logoHeaderPromise) {
+      return this.logoHeaderPromise;
+    }
+
+    this.logoHeaderPromise = fetch('/assets/Logo_Header.png')
+      .then(async (resp) => {
+        if (!resp.ok) {
+          throw new Error('No se pudo cargar el logo del encabezado');
+        }
+
+        const blob = await resp.blob();
+
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('No se pudo leer el logo del encabezado'));
+          reader.readAsDataURL(blob);
+        });
+      })
+      .then((dataUrl) => {
+        this.logoHeaderDataUrl = dataUrl;
+        return dataUrl;
+      })
+      .catch((err) => {
+        console.error('No se pudo preparar el logo de la carta de práctica.', err);
+        return null;
+      })
+      .finally(() => {
+        this.logoHeaderPromise = null;
+      });
+
+    return this.logoHeaderPromise;
+  }
+
+  private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const preview = this.construirCartaPreviewData(solicitud);
     const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
@@ -763,9 +804,21 @@ private escribirBullet(
     const fechaTexto = this.fechaHoy();
 
     const margenX = 20;
-    let cursorY = 25;
+    let cursorY = 15;
     const anchoTexto = 170;
     const saltoLinea = 6;
+
+    const logoDataUrl = await this.cargarLogoHeader();
+    if (logoDataUrl) {
+      const logoWidth = 48;
+      const logoHeight = 18;
+      const logoX = (210 - logoWidth) / 2;
+      doc.addImage(logoDataUrl, 'PNG', logoX, cursorY, logoWidth, logoHeight);
+      cursorY += logoHeight + 6;
+    } else {
+      cursorY += 6;
+    }
+
 
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(14);
