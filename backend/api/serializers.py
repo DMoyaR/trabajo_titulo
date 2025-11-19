@@ -952,6 +952,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    pauta_url = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
@@ -961,8 +962,12 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "tema",
             "grupo_nombre",
             "titulo",
+            "descripcion",
             "fecha",
             "estado",
+            "pauta",
+            "pauta_url",
+            "pauta_nombre",
             "created_at",
             "updated_at",
             "grupo",
@@ -977,7 +982,13 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "grupo_nombre",
             "entregas",
             "ultima_entrega",
+            "pauta_url",
+            "pauta_nombre",
         ]
+        extra_kwargs = {
+            "descripcion": {"required": False, "allow_blank": True, "allow_null": True},
+            "pauta": {"write_only": True, "required": False, "allow_null": True},
+        }
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
         if docente and docente.rol != "docente":
@@ -1077,6 +1088,15 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             context=self.context,
         )
         return serializer.data
+
+    def get_pauta_url(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.pauta:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.pauta.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
     def _obtener_entregas_prefetch(self, obj):
         entregas = getattr(obj, "entregas_prefetch", None)

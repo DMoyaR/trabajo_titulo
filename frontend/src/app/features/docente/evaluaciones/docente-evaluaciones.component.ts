@@ -1,5 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
@@ -16,6 +24,9 @@ type GrupoEvaluaciones = {
     titulo: string;
     fecha: string | null;
     estado: string;
+    descripcion: string | null;
+    pautaNombre: string | null;
+    pautaUrl: string | null;
   }[];
 };
 
@@ -42,6 +53,8 @@ type EntregaDocente = {
   styleUrls: ['./docente-evaluaciones.component.css'],
 })
 export class DocenteEvaluacionesComponent implements OnInit {
+  @ViewChild('pautaInput') pautaInput?: ElementRef<HTMLInputElement>;
+
   private readonly evaluacionesService = inject(DocenteEvaluacionesService);
   private readonly currentUserService = inject(CurrentUserService);
 
@@ -64,6 +77,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
+  evaluacionDescripcion = signal('');
+  evaluacionPauta = signal<File | null>(null);
 
   estadoCalculado = computed(() =>
     this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
@@ -86,6 +101,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
+    const descripcion = this.evaluacionDescripcion().trim();
+    const pautaArchivo = this.evaluacionPauta();
 
     if (!grupoId || !titulo) {
       return;
@@ -96,6 +113,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
+      descripcion: descripcion ? descripcion : null,
+      pauta: pautaArchivo,
     };
 
     this.enviando.set(true);
@@ -111,6 +130,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
+      this.evaluacionDescripcion.set('');
+      this.removerPauta();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
       this.error.set(
@@ -182,6 +203,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
         titulo: evaluacion.titulo,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
+        descripcion: evaluacion.descripcion ?? null,
+        pautaNombre: evaluacion.pauta_nombre ?? null,
+        pautaUrl: evaluacion.pauta_url ?? null,
       });
       mapa.set(nombreGrupo, lista);
     }
@@ -200,6 +224,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo: evaluacion.titulo,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
+      descripcion: evaluacion.descripcion ?? null,
+      pautaNombre: evaluacion.pauta_nombre ?? null,
+      pautaUrl: evaluacion.pauta_url ?? null,
     };
 
     const indiceGrupo = gruposActuales.findIndex(
@@ -347,5 +374,18 @@ export class DocenteEvaluacionesComponent implements OnInit {
   onSeleccionGrupo(event: Event): void {
     const value = String((event.target as HTMLSelectElement)?.value ?? '').trim();
     this.grupoSeleccionadoId.set(value ? Number(value) : null);
+  }
+
+  onPautaSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    this.evaluacionPauta.set(file);
+  }
+
+  removerPauta(): void {
+    this.evaluacionPauta.set(null);
+    if (this.pautaInput?.nativeElement) {
+      this.pautaInput.nativeElement.value = '';
+    }
   }
 }

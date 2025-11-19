@@ -26,8 +26,11 @@ export interface EvaluacionGrupoDto {
   tema: number | null;
   grupo_nombre: string;
   titulo: string;
+  descripcion: string | null;
   fecha: string | null;
   estado: string;
+  pauta_url: string | null;
+  pauta_nombre: string | null;
   created_at: string;
   updated_at: string;
   grupo: {
@@ -44,6 +47,8 @@ export type CrearEvaluacionPayload = {
   tema: number;
   titulo: string;
   fecha?: string | null;
+  descripcion?: string | null;
+  pauta?: File | null;
 };
 
 export interface GrupoActivoDto {
@@ -71,19 +76,25 @@ export class DocenteEvaluacionesService {
   }
 
   crear(payload: CrearEvaluacionPayload): Observable<EvaluacionGrupoDto> {
-    const body: Record<string, unknown> = {
-      tema: payload.tema,
-      titulo: payload.titulo,
-    };
+    const body = new FormData();
+
+    body.append('tema', String(payload.tema));
+    body.append('titulo', payload.titulo);
 
     if (payload.fecha) {
-      body['fecha'] = payload.fecha;
-    } else if (payload.fecha === null) {
-      body['fecha'] = null;
+      body.append('fecha', payload.fecha);
+    }
+
+    if (payload.descripcion != null) {
+      body.append('descripcion', payload.descripcion);
+    }
+
+    if (payload.pauta) {
+      body.append('pauta', payload.pauta, payload.pauta.name);
     }
 
     if (payload.docente != null) {
-      body['docente'] = payload.docente;
+      body.append('docente', String(payload.docente));
     }
 
     return this.http.post<EvaluacionGrupoDto>(this.baseUrl, body);

@@ -33,12 +33,53 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   border: 1px solid #c7d5eb;
   border-radius: 10px;
   padding: 10px 12px;
   font: inherit;
   background: #fff;
+}
+
+.field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.field.full-width {
+  grid-column: 1 / -1;
+}
+
+.file-field input[type='file'] {
+  padding: 8px;
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e5edff;
+  color: #1a3e6a;
+  font-size: 13px;
+}
+
+.chip-action {
+  border: none;
+  background: transparent;
+  color: #1a3e6a;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-action:hover {
+  color: #0f2f52;
 }
 
 .field-hint {
@@ -170,6 +211,26 @@
 .group-card h4 {
   margin: 0 0 6px;
   color: #1f2a37;
+}
+
+.descripcion-evaluacion {
+  margin: 8px 0 0;
+  color: #374151;
+  font-size: 14px;
+}
+
+.pauta-link {
+  margin: 6px 0 0;
+}
+
+.pauta-link a {
+  color: #1a3e6a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pauta-link a:hover {
+  text-decoration: underline;
 }
 
 .meta {

@@ -24,6 +24,17 @@ def evaluacion_entrega_upload_to(instance, filename: str) -> str:
 
     return f"evaluaciones/entregas/{evaluacion_id}/{alumno_id}/{slug}-{identificador}{extension}"
 
+
+def evaluacion_pauta_upload_to(instance, filename: str) -> str:
+    """Genera una ruta única para las pautas de evaluación."""
+
+    nombre = Path(filename).stem
+    extension = Path(filename).suffix.lower()
+    slug = slugify(nombre)[:50] or "pauta"
+    identificador = uuid.uuid4().hex[:12]
+
+    return f"evaluaciones/pautas/{slug}-{identificador}{extension}"
+
 class Usuario(models.Model):
     ROL_CHOICES = [
         ("alumno", "Alumno"),
@@ -53,19 +64,6 @@ class Usuario(models.Model):
     ] 
 
     # Agregar más carreras según sea necesario
-    """
-    
-
-
-        CARRERA_CHOICES = [
-        ("Computación", "Computación"),
-        ("Informática", "Informática"),
-        ("Industria", "Industria"),
-        ("Trabajo Social", "Trabajo Social"),
-        ("Mecánica", "Mecánica"),
-    ]
-
-    """
 
 
     nombre_completo = models.CharField(max_length=100)
@@ -414,8 +412,14 @@ class EvaluacionGrupoDocente(models.Model):
     )
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
+    pauta = models.FileField(
+        upload_to=evaluacion_pauta_upload_to,
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -449,6 +453,12 @@ class EvaluacionGrupoDocente(models.Model):
             self.grupo_nombre = self.tema.titulo
         self.sincronizar_estado()
         super().save(*args, **kwargs)
+
+    @property
+    def pauta_nombre(self) -> str | None:
+        if not self.pauta:
+            return None
+        return Path(self.pauta.name).name
 
 
 class EvaluacionEntregaAlumno(models.Model):

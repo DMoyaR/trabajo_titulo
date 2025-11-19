@@ -43,6 +43,38 @@
         (input)="evaluacionFecha.set(($any($event.target)).value)"
       />
     </label>
+    <label class="field full-width">
+      <span>Comentarios de la evaluación</span>
+      <textarea
+        rows="3"
+        placeholder="Describe el foco o alcance de esta evaluación"
+        [value]="evaluacionDescripcion()"
+        (input)="evaluacionDescripcion.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint"
+        >Comparte orientaciones para que los estudiantes sepan qué revisar.</small
+      >
+    </label>
+    <label class="field full-width file-field">
+      <span>Pauta de evaluación (opcional)</span>
+      <input
+        #pautaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.txt,.jpg,.jpeg,.png,.zip"
+        (change)="onPautaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint"
+        >Adjunta un documento de referencia para tu equipo. Formatos comunes son
+        PDF, Word o Excel.</small
+      >
+      <div class="file-chip" *ngIf="evaluacionPauta()">
+        <span>{{ evaluacionPauta()?.name }}</span>
+        <button class="chip-action" type="button" (click)="removerPauta()" aria-label="Eliminar archivo de pauta">
+          &times;
+        </button>
+      </div>
+    </label>
     <div class="field status-field">
       <span>Estado según fecha</span>
       <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
@@ -83,6 +115,18 @@
                 >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
               >
               <span>Estado: {{ evaluacion.estado }}</span>
+            </p>
+            <p class="descripcion-evaluacion" *ngIf="evaluacion.descripcion">
+              {{ evaluacion.descripcion }}
+            </p>
+            <p class="pauta-link" *ngIf="evaluacion.pautaUrl">
+              <a
+                [href]="evaluacion.pautaUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ evaluacion.pautaNombre || 'Ver pauta' }}
+              </a>
             </p>
           </li>
         </ul>
