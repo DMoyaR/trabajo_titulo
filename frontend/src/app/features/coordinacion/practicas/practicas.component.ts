@@ -31,6 +31,7 @@ interface SolicitudCarta {
   };
   practica: {
     jefeDirecto: string;
+    correoEncargado: string;
     cargoAlumno: string;
     fechaInicio: string;
     empresaRut: string;

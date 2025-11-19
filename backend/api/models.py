@@ -208,6 +208,11 @@ class SolicitudCartaPractica(models.Model):
     practica_empresa_rut = models.CharField(max_length=20)
     practica_sector = models.CharField(max_length=160)
     practica_duracion_horas = models.PositiveIntegerField()
+    practica_correo_encargado = models.EmailField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
 
     dest_nombres = models.CharField(max_length=120)
     dest_apellidos = models.CharField(max_length=120)

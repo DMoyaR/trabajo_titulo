@@ -1825,6 +1825,7 @@ def crear_solicitud_carta_practica(request):
         alumno_apellidos=alumno_data.get("apellidos", "").strip(),
         alumno_carrera=alumno_data.get("carrera", "").strip(),
         practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_correo_encargado=practica_data.get("correoEncargado", "").strip(),
         practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
         practica_fecha_inicio=practica_data.get("fechaInicio"),
         practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
