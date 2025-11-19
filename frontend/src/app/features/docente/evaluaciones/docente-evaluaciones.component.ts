@@ -16,6 +16,9 @@ type GrupoEvaluaciones = {
     titulo: string;
     fecha: string | null;
     estado: string;
+    descripcion: string | null;
+    pautaUrl: string | null;
+    pautaNombre: string;
   }[];
 };
 
@@ -64,6 +67,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
+  evaluacionDescripcion = signal('');
+  pautaArchivo = signal<File | null>(null);
 
   estadoCalculado = computed(() =>
     this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
@@ -86,6 +91,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
+    const descripcion = this.evaluacionDescripcion().trim();
 
     if (!grupoId || !titulo) {
       return;
@@ -96,6 +102,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
+      descripcion: descripcion ? descripcion : null,
+      pauta: this.pautaArchivo(),
     };
 
     this.enviando.set(true);
@@ -111,6 +119,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
+      this.evaluacionDescripcion.set('');
+      this.pautaArchivo.set(null);
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
       this.error.set(
@@ -182,6 +192,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
         titulo: evaluacion.titulo,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
+        descripcion: evaluacion.descripcion,
+        pautaUrl: evaluacion.pauta_url,
+        pautaNombre: evaluacion.pauta_nombre,
       });
       mapa.set(nombreGrupo, lista);
     }
@@ -200,6 +213,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo: evaluacion.titulo,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
+      descripcion: evaluacion.descripcion,
+      pautaUrl: evaluacion.pauta_url,
+      pautaNombre: evaluacion.pauta_nombre,
     };
 
     const indiceGrupo = gruposActuales.findIndex(
@@ -347,5 +363,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
   onSeleccionGrupo(event: Event): void {
     const value = String((event.target as HTMLSelectElement)?.value ?? '').trim();
     this.grupoSeleccionadoId.set(value ? Number(value) : null);
+  }
+
+  onSeleccionPauta(event: Event): void {
+    const file = (event.target as HTMLInputElement)?.files?.[0] ?? null;
+    this.pautaArchivo.set(file);
   }
 }

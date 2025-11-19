@@ -24,6 +24,19 @@ def evaluacion_entrega_upload_to(instance, filename: str) -> str:
 
     return f"evaluaciones/entregas/{evaluacion_id}/{alumno_id}/{slug}-{identificador}{extension}"
 
+
+def evaluacion_pauta_upload_to(instance, filename: str) -> str:
+    """Genera una ruta predecible para las pautas de evaluación."""
+
+    evaluacion_id = instance.pk or uuid.uuid4().hex[:8]
+
+    nombre = Path(filename).stem
+    extension = Path(filename).suffix.lower()
+    slug = slugify(nombre)[:50] or "pauta"
+    identificador = uuid.uuid4().hex[:8]
+
+    return f"evaluaciones/pautas/{evaluacion_id}/{slug}-{identificador}{extension}"
+
 class Usuario(models.Model):
     ROL_CHOICES = [
         ("alumno", "Alumno"),
@@ -419,6 +432,8 @@ class EvaluacionGrupoDocente(models.Model):
     )
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True, null=True)
+    pauta = models.FileField(upload_to=evaluacion_pauta_upload_to, blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)
