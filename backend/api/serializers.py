@@ -206,6 +206,7 @@ class AlumnoCartaSerializer(serializers.Serializer):
 
 class PracticaCartaSerializer(serializers.Serializer):
     jefeDirecto = serializers.CharField(max_length=120)
+    correoEncargado = serializers.EmailField(max_length=255)
     cargoAlumno = serializers.CharField(max_length=120)
     fechaInicio = serializers.DateField()
     empresaRut = serializers.CharField(max_length=20)
@@ -262,6 +263,7 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             "practica_empresa_rut",
             "practica_sector",
             "practica_duracion_horas",
+            "practica_correo_encargado",
             "dest_nombres",
             "dest_apellidos",
             "dest_cargo",
@@ -303,6 +305,7 @@ class SolicitudCartaPracticaSerializer(serializers.ModelSerializer):
             },
             "practica": {
                 "jefeDirecto": base["practica_jefe_directo"],
+                "correoEncargado": base.get("practica_correo_encargado") or "",
                 "cargoAlumno": base["practica_cargo_alumno"],
                 "fechaInicio": instance.practica_fecha_inicio.isoformat(),
                 "empresaRut": base["practica_empresa_rut"],

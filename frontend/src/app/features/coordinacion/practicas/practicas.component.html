@@ -244,6 +244,7 @@
         <div class="info-group">
           <h4>Datos de la práctica</h4>
           <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+          
           <p><b>Cargo del estudiante:</b> {{ c.practica.cargoAlumno }}</p>
           <p><b>Fecha de inicio:</b> {{ formatFecha(c.practica.fechaInicio) }}</p>
           <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
@@ -252,9 +253,10 @@
         </div>
 
         <div class="info-group">
-          <h4>Empresa / Destinatario</h4>
+          <h4>Empresa / Destinatario</h4>      
           <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
           <p><b>Contacto:</b> {{ c.destinatario.nombres }} {{ c.destinatario.apellidos }}</p>
+          <p><b>Correo del encargado:</b> {{ c.practica.correoEncargado }}</p>
           <p><b>Cargo del contacto:</b> {{ c.destinatario.cargo }}</p>
         </div>
 
@@ -266,9 +268,8 @@
         </div>
 
         <div class="actions">
-          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
-            <input type="url" placeholder="URL PDF firmado (opcional)" formControlName="urlFirmado">
-            <button class="btn primary" type="submit">Aprobar</button>
+          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">   
+            <button class="btn primary" type="submit">Aprobar y Firmar</button>
           </form>
 
           <form [formGroup]="rechazarForm" (ngSubmit)="rechazar()">

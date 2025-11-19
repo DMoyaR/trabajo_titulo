@@ -1,8 +1,12 @@
 import io
 import json
+import logging
 import re
 import textwrap
 import unicodedata
+import zlib
+import importlib
+from typing import Any
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -19,6 +23,11 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+try:  # pragma: no cover - dependencia opcional en tiempo de ejecución
+    Image = importlib.import_module("PIL.Image")
+except Exception:  # pragma: no cover
+    Image = None  # type: ignore
+    Image = None  # type: ignore
 
 from .models import (
     InscripcionTema,
@@ -65,6 +74,9 @@ from .serializers import (
     EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 REDIRECTS = {
@@ -729,6 +741,60 @@ def _obtener_firma(carrera: str | None) -> dict[str, str]:
     return FIRMA_FALLBACK
 
 
+def _obtener_imagen_firma(carrera: str | None) -> dict[str, Any] | None:
+    if not carrera or Image is None:
+        return None
+
+    firma = (
+        PracticaFirmaCoordinador.objects.filter(carrera__iexact=carrera)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not firma or not firma.archivo:
+        return None
+
+    try:
+        with firma.archivo.open("rb") as archivo:
+            imagen = Image.open(archivo)
+            imagen.load()
+    except Exception:  # pragma: no cover - errores inesperados de lectura
+        logger.exception("No se pudo cargar la firma del coordinador para %s", carrera)
+        return None
+
+    if imagen.mode in ("RGBA", "LA"):
+        fondo = Image.new("RGBA", imagen.size, (255, 255, 255, 255))
+        imagen = Image.alpha_composite(fondo, imagen.convert("RGBA"))
+    imagen = imagen.convert("RGB")
+
+    ancho, alto = imagen.size
+    if ancho <= 0 or alto <= 0:
+        return None
+
+    max_ancho = 200.0
+    if ancho > max_ancho:
+        escala = max_ancho / float(ancho)
+        nuevo_ancho = max(1, int(round(ancho * escala)))
+        nuevo_alto = max(1, int(round(alto * escala)))
+        resampling = getattr(Image, "Resampling", Image)
+        filtro = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", Image.NEAREST))
+        imagen = imagen.resize((nuevo_ancho, nuevo_alto), filtro)
+        ancho, alto = imagen.size
+
+    datos = zlib.compress(imagen.tobytes())
+
+    return {
+        "tipo": "imagen",
+        "width": ancho,
+        "height": alto,
+        "color_space": "/DeviceRGB",
+        "bits": 8,
+        "filter": "/FlateDecode",
+        "data": datos,
+        "display_width": float(ancho),
+        "display_height": float(alto),
+    }
+
+
 def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]:
     if carrera and carrera in OBJETIVOS_POR_CARRERA:
         return OBJETIVOS_POR_CARRERA[carrera]
@@ -849,26 +915,66 @@ def _pdf_escape_texto(texto: str) -> str:
     )
 
 
-def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
+def _renderizar_pdf_lineas(lineas: list[Any]) -> bytes:
     leading = 16
-    inicio_x = 72
-    inicio_y = 770
+    inicio_x = 72.0
+    inicio_y = 770.0
 
-    texto_ops: list[str] = [
-        "BT",
-        "/F1 12 Tf",
-        f"1 0 0 1 {inicio_x} {inicio_y} Tm",
-        f"{leading} TL",
-    ]
+    items: list[Any] = []
+    imagenes_pdf: list[dict[str, Any]] = []
+    contador_imagenes = 0
+    for elemento in lineas:
+        if isinstance(elemento, dict) and elemento.get("tipo") == "imagen":
+            contador_imagenes += 1
+            item = elemento.copy()
+            item["pdf_name"] = f"Im{contador_imagenes}"
+            imagenes_pdf.append(item)
+            items.append(item)
+        else:
+            items.append(elemento)
 
-    for linea in lineas:
-        if not linea:
-            texto_ops.append("T*")
-            continue
-        texto_ops.append(f"({_pdf_escape_texto(_normalizar_texto_pdf(linea))}) Tj")
-        texto_ops.append("T*")
+    cursor_y = float(inicio_y)
+    texto_ops: list[str] = []
+    texto_abierto = False
 
-    texto_ops.append("ET")
+    def abrir_texto() -> None:
+        nonlocal texto_abierto
+        if not texto_abierto:
+            texto_ops.append("BT")
+            texto_ops.append("/F1 12 Tf")
+            texto_abierto = True
+
+    for elemento in items:
+        if isinstance(elemento, str):
+            linea_normalizada = _normalizar_texto_pdf(elemento)
+            if linea_normalizada:
+                abrir_texto()
+                texto_ops.append(f"1 0 0 1 {inicio_x:.2f} {cursor_y:.2f} Tm")
+                texto_ops.append(
+                    f"({_pdf_escape_texto(linea_normalizada)}) Tj"
+                )
+            cursor_y -= leading
+        elif isinstance(elemento, dict) and elemento.get("tipo") == "imagen":
+            if texto_abierto:
+                texto_ops.append("ET")
+                texto_abierto = False
+            ancho = float(elemento.get("display_width") or 0)
+            alto = float(elemento.get("display_height") or 0)
+            if ancho <= 0 or alto <= 0:
+                continue
+            imagen_y = cursor_y - alto
+            texto_ops.append("q")
+            texto_ops.append(
+                f"{ancho:.2f} 0 0 {alto:.2f} {inicio_x:.2f} {imagen_y:.2f} cm"
+            )
+            texto_ops.append(f"/{elemento['pdf_name']} Do")
+            texto_ops.append("Q")
+            cursor_y = imagen_y - leading
+        else:
+            cursor_y -= leading
+
+    if texto_abierto:
+        texto_ops.append("ET")
 
     contenido = "\n".join(texto_ops).encode("latin-1")
 
@@ -883,8 +989,21 @@ def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
 
     escribir_objeto(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
     escribir_objeto(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+
+    recursos = ["/Font << /F1 5 0 R >>"]
+    if imagenes_pdf:
+        refs = " ".join(
+            f"/{img['pdf_name']} {indice + 6} 0 R"
+            for indice, img in enumerate(imagenes_pdf)
+        )
+        recursos.append(f"/XObject << {refs} >>")
+    recursos_str = " ".join(recursos)
+
     escribir_objeto(
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+        (
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Contents 4 0 R /Resources << {recursos_str} >> >>\nendobj\n"
+        ).encode("latin-1")
     )
 
     flujo = (
@@ -897,6 +1016,21 @@ def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
     escribir_objeto(flujo)
 
     escribir_objeto(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    for indice, imagen in enumerate(imagenes_pdf):
+        cuerpo = (
+            f"<< /Type /XObject /Subtype /Image /Width {int(imagen['width'])} /Height {int(imagen['height'])} "
+            f"/ColorSpace {imagen['color_space']} /BitsPerComponent {imagen['bits']} "
+            f"/Length {len(imagen['data'])} /Filter {imagen['filter']} >>"
+        ).encode("latin-1")
+        flujo_imagen = (
+            f"{indice + 6} 0 obj\n".encode("latin-1")
+            + cuerpo
+            + b"\nstream\n"
+            + imagen["data"]
+            + b"\nendstream\nendobj\n"
+        )
+        escribir_objeto(flujo_imagen)
 
     xref_pos = buffer.tell()
     buffer.write(f"xref\n0 {len(offsets) + 1}\n".encode("ascii"))
@@ -929,6 +1063,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     fecha_texto = f"Santiago, {meses[fecha.month - 1]} {fecha.day} del {fecha.year}."
 
     firma = _obtener_firma(solicitud.alumno_carrera)
+    firma_imagen = _obtener_imagen_firma(solicitud.alumno_carrera)
     objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
 
     partes_alumno = [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
@@ -936,7 +1071,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     rut_formateado = _formatear_rut(solicitud.alumno_rut) or (solicitud.alumno_rut or "")
     carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
 
-    lineas: list[str] = []
+    lineas: list[Any] = []
     lineas.extend(_pdf_wrap("Universidad Tecnológica Metropolitana", ancho=72))
     encabezado = (
         f"{solicitud.escuela_nombre or ''} — "
@@ -979,6 +1114,10 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         lineas.extend(_pdf_wrap_vineta(objetivo))
 
     lineas.append("")
+
+    if firma_imagen:
+        lineas.append(firma_imagen)
+        lineas.append("")
 
     cuerpo_3 = (
         "Al término de la práctica, el estudiante deberá reportar sus avances y "
@@ -1686,6 +1825,7 @@ def crear_solicitud_carta_practica(request):
         alumno_apellidos=alumno_data.get("apellidos", "").strip(),
         alumno_carrera=alumno_data.get("carrera", "").strip(),
         practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_correo_encargado=practica_data.get("correoEncargado", "").strip(),
         practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
         practica_fecha_inicio=practica_data.get("fechaInicio"),
         practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
