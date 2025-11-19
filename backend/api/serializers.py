@@ -1,5 +1,6 @@
-from rest_framework import serializers
+from pathlib import Path
 import mimetypes
+from rest_framework import serializers
 
 from .models import (
     Usuario,
@@ -955,6 +956,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    pauta_url = serializers.SerializerMethodField()
+    pauta_nombre = serializers.SerializerMethodField()
+    pauta_tipo = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
@@ -964,6 +968,11 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "tema",
             "grupo_nombre",
             "titulo",
+            "descripcion",
+            "pauta",
+            "pauta_url",
+            "pauta_nombre",
+            "pauta_tipo",
             "fecha",
             "estado",
             "created_at",
@@ -980,7 +989,14 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "grupo_nombre",
             "entregas",
             "ultima_entrega",
+            "pauta_url",
+            "pauta_nombre",
+            "pauta_tipo",
         ]
+        extra_kwargs = {
+            "descripcion": {"required": False, "allow_null": True, "allow_blank": True},
+            "pauta": {"write_only": True, "required": False, "allow_null": True},
+        }
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
         if docente and docente.rol != "docente":
@@ -1011,6 +1027,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         data = data.copy()
         if data.get("fecha") in ("", None):
             data["fecha"] = None
+        if data.get("descripcion") == "":
+            data["descripcion"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -1034,6 +1052,26 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def get_pauta_url(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.pauta:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.pauta.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_pauta_nombre(self, obj: EvaluacionGrupoDocente) -> str:
+        if not obj.pauta:
+            return ""
+        return Path(obj.pauta.name).name
+
+    def get_pauta_tipo(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.pauta:
+            return None
+        tipo, _ = mimetypes.guess_type(obj.pauta.name)
+        return tipo or "application/octet-stream"
 
     def get_grupo(self, obj):
         tema = obj.tema
