@@ -361,11 +361,17 @@ export class PracticasComponent {
     this.isCoordinador = profile?.rol === 'coordinador';
     this.coordinadorId = this.isCoordinador ? profile?.id ?? null : null;
     this.coordinadorCarrera = this.isCoordinador ? profile?.carrera ?? null : null;
+
     this.cargarSolicitudes();
+
     if (this.coordinadorId !== null) {
+      // Documentos compartidos
       this.cargarDocumentosCompartidos();
+      //cargar firma apenas se monta el componente
+      this.cargarFirmaCoordinador();
     } else {
       this.documentosCompartidos.set([]);
+      this.firmaCoordinador.set(null);
     }
   }
 
@@ -934,12 +940,48 @@ private escribirBullet(
     return this.logoHeaderPromise;
   }
 
+ private async cargarImagenFirma(
+    url: string
+  ): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' } | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error('No se pudo cargar la imagen de la firma');
+      }
+
+      const blob = await resp.blob();
+      const mime = (blob.type || '').toLowerCase();
+      const format: 'PNG' | 'JPEG' =
+        mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : 'PNG';
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen de la firma'));
+        reader.readAsDataURL(blob);
+      });
+
+      return { dataUrl, format };
+    } catch (err) {
+      console.error('Error preparando la firma del coordinador:', err);
+      return null;
+    }
+  }
+
+
+
   private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const preview = this.construirCartaPreviewData(solicitud);
     const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
     const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
     const fechaTexto = this.fechaHoy();
+
+    // Firma gráfica del coordinador (si existe)
+    const firmaCoord = this.firmaCoordinador();
+    const firmaImagen = firmaCoord?.url
+      ? await this.cargarImagenFirma(firmaCoord.url)
+      : null;
 
     const margenX = 20;
     let cursorY = 5;
@@ -1006,44 +1048,68 @@ private escribirBullet(
 // espacio pequeño antes de la lista (opcional)
 cursorY += 6;
 
-objetivos.forEach((objetivo) => {
-  cursorY = this.escribirBullet(
-    doc,
-    objetivo,        // sin el símbolo •, la función lo agrega
-    margenX,         // x inicial
-    cursorY,         // y actual
-    anchoTexto,      // mismo ancho que usas en párrafos
-    saltoLinea,      // mismo interlineado
-    6                // sangría del bullet (puedes ajustar a gusto)
-  );
-});
+    objetivos.forEach((objetivo) => {
+      cursorY = this.escribirBullet(
+        doc,
+        objetivo,        // sin el símbolo •, la función lo agrega
+        margenX,         // x inicial
+        cursorY,         // y actual
+        anchoTexto,      // mismo ancho que usas en párrafos
+        saltoLinea,      // mismo interlineado
+        6                // sangría del bullet
+      );
+    });
 
+    cursorY += saltoLinea*3; // espacio antes de la despedida
 
-cursorY += saltoLinea;
+    // ===== Firma del coordinador como imagen (si existe) =====
+    if (firmaImagen) {
+      // dimensiones más grandes de la firma en mm
+      const firmaWidth = 66;
+      const firmaHeight = 33;
 
-    const parrafo3Lineas = doc.splitTextToSize('Le saluda atentamente,', anchoTexto);
+      // alineada al margen derecho (orientación derecha → izquierda)
+      const firmaRightX = margenX + anchoTexto;   // borde derecho del bloque
+      const firmaX = firmaRightX - firmaWidth;    // empezamos desde la derecha hacia la izquierda
+
+      doc.addImage(
+        firmaImagen.dataUrl,
+        firmaImagen.format,
+        firmaX,
+        cursorY,
+        firmaWidth,
+        firmaHeight
+      );
+
+      cursorY += firmaHeight + 4; // un poco más de espacio después de la firma
+    }
+
+    // ===== Texto "Le saluda atentamente," debajo de la firma =====
     cursorY += saltoLinea;
-    doc.text(parrafo3Lineas, margenX, cursorY);
-    //cursorY += parrafo3Lineas.length * saltoLinea + 12;
+    doc.setFont('Helvetica', 'normal');
+    const xRight = margenX + anchoTexto; // extremo derecho del bloque de texto
+    doc.text('Le saluda atentamente,', xRight, cursorY, { align: 'right' });
     cursorY += saltoLinea;
 
     doc.setFont('Helvetica', 'bold');
-    doc.text(firma.nombre, margenX, cursorY);
+    doc.text(firma.nombre, xRight, cursorY, { align: 'right' });
     cursorY += saltoLinea;
 
     doc.setFont('Helvetica', 'normal');
     if (firma.cargo) {
       const cargoLineas = doc.splitTextToSize(firma.cargo, anchoTexto);
-      doc.text(cargoLineas, margenX, cursorY);
+      doc.text(cargoLineas, xRight, cursorY, { align: 'right' });
       cursorY += cargoLineas.length * saltoLinea;
     }
 
 
+
     // ===== Pie de página =====
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('Helvetica', 'bold');
 
     const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
     const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
+    doc.setFont('Helvetica', 'normal');
 
     const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono} —  http://www.utem.cl`;
     const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);

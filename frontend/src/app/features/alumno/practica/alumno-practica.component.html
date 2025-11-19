@@ -241,6 +241,15 @@
           <small class="help" *ngIf="f('jefeDirecto').invalid && f('jefeDirecto').touched">Campo requerido.</small>
         </div>
 
+        
+        <div>
+          <label class="lbl req">Correo del encargado</label>
+          <input type="email" formControlName="correoEncargado" placeholder="nombre@empresa.cl"/>
+          <small class="help" *ngIf="f('correoEncargado').hasError('required') && f('correoEncargado').touched">Campo requerido.</small>
+          <small class="help" *ngIf="f('correoEncargado').hasError('email') && f('correoEncargado').touched">Correo no válido.</small>
+        </div>
+
+
         <div>
           <label class="lbl req">Fecha de inicio</label>
           <input type="date" formControlName="fechaInicio"/>
