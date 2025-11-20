@@ -880,6 +880,8 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
     archivo_tipo = serializers.SerializerMethodField()
 
+    MAX_ARCHIVO_MB = 25
+
     class Meta:
         model = EvaluacionEntregaAlumno
         fields = [
@@ -913,6 +915,18 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "archivo": {"write_only": True},
             "comentario": {"required": False, "allow_null": True, "allow_blank": True},
         }
+
+    def validate_archivo(self, value):
+        if not value:
+            return value
+
+        limite_bytes = self.MAX_ARCHIVO_MB * 1024 * 1024
+        if value.size > limite_bytes:
+            raise serializers.ValidationError(
+                f"El archivo supera el tamaño máximo permitido de {self.MAX_ARCHIVO_MB} MB."
+            )
+
+        return value
 
     def get_alumno(self, obj: EvaluacionEntregaAlumno):
         alumno = obj.alumno
