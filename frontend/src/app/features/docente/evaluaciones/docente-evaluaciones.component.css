@@ -19,9 +19,10 @@
 
 .form-grid {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  margin-bottom: 16px;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+  margin-bottom: 18px;
 }
 
 .field {
@@ -46,6 +47,10 @@
 .field textarea {
   resize: vertical;
   min-height: 96px;
+}
+
+.field.full {
+  grid-column: 1 / -1;
 }
 
 .field-hint {
@@ -96,6 +101,11 @@
 .status-preview.evaluada {
   background: #def7ec;
   color: #047857;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .btn {
