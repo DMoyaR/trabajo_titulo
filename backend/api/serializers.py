@@ -1,5 +1,6 @@
 from pathlib import Path
 import mimetypes
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -952,7 +953,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         required=True,
         allow_null=False,
     )
-    fecha = serializers.DateField(required=False, allow_null=True)
+    fecha = serializers.DateField(required=True, allow_null=False)
+    fecha_extendida = serializers.DateField(required=False, allow_null=True)
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
@@ -975,6 +977,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "pauta_tipo",
             "fecha",
             "estado",
+            "fecha_extendida",
             "created_at",
             "updated_at",
             "grupo",
@@ -995,7 +998,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "descripcion": {"required": False, "allow_null": True, "allow_blank": True},
-            "pauta": {"write_only": True, "required": False, "allow_null": True},
+            "pauta": {"write_only": True, "required": True, "allow_null": False},
         }
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
@@ -1025,16 +1028,27 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         data = data.copy()
-        if data.get("fecha") in ("", None):
+        if data.get("fecha") == "":
             data["fecha"] = None
+        if data.get("fecha_extendida") == "":
+            data["fecha_extendida"] = None
         if data.get("descripcion") == "":
             data["descripcion"] = None
         return super().to_internal_value(data)
+
+    def validate_fecha(self, fecha):
+        if not fecha:
+            raise serializers.ValidationError(
+                "Debes indicar la fecha máxima de entrega de la evaluación."
+            )
+        return fecha
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         tema = attrs.get("tema")
         docente = attrs.get("docente")
+        fecha = attrs.get("fecha")
+        fecha_extendida = attrs.get("fecha_extendida")
 
         if not tema:
             raise serializers.ValidationError(
@@ -1049,6 +1063,11 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         if not tema.inscripciones.filter(activo=True).exists():
             raise serializers.ValidationError(
                 {"tema": "Solo puedes registrar evaluaciones para grupos activos."}
+            )
+
+        if fecha_extendida and fecha_extendida < fecha:
+            raise serializers.ValidationError(
+                {"fecha_extendida": "El plazo extendido debe ser igual o posterior a la fecha límite original."}
             )
 
         return attrs
@@ -1072,6 +1091,15 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             return None
         tipo, _ = mimetypes.guess_type(obj.pauta.name)
         return tipo or "application/octet-stream"
+
+    def to_representation(self, instance):
+        instance.sincronizar_estado()
+        if instance.pk:
+            EvaluacionGrupoDocente.objects.filter(pk=instance.pk).update(
+                estado=instance.estado,
+                updated_at=timezone.now(),
+            )
+        return super().to_representation(instance)
 
     def get_grupo(self, obj):
         tema = obj.tema

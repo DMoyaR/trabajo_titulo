@@ -31,6 +31,7 @@ export interface EvaluacionGrupoDto {
   pauta_nombre: string;
   pauta_tipo: string | null;
   fecha: string | null;
+  fecha_extendida: string | null;
   estado: string;
   created_at: string;
   updated_at: string;
@@ -48,8 +49,9 @@ export type CrearEvaluacionPayload = {
   tema: number;
   titulo: string;
   descripcion?: string | null;
-  pauta?: File | null;
-  fecha?: string | null;
+  pauta: File;
+  fecha: string;
+  fecha_extendida?: string | null;
 };
 
 export interface GrupoActivoDto {
@@ -80,9 +82,10 @@ export class DocenteEvaluacionesService {
     const formData = new FormData();
     formData.append('tema', String(payload.tema));
     formData.append('titulo', payload.titulo);
+    formData.append('fecha', payload.fecha);
 
-    if (payload.fecha !== undefined) {
-      formData.append('fecha', payload.fecha ?? '');
+    if (payload.fecha_extendida !== undefined) {
+      formData.append('fecha_extendida', payload.fecha_extendida ?? '');
     }
 
     if (payload.descripcion !== undefined) {
@@ -93,9 +96,7 @@ export class DocenteEvaluacionesService {
       formData.append('docente', String(payload.docente));
     }
 
-    if (payload.pauta) {
-      formData.append('pauta', payload.pauta);
-    }
+    formData.append('pauta', payload.pauta);
 
     return this.http.post<EvaluacionGrupoDto>(this.baseUrl, formData);
   }

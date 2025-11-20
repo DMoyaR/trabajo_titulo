@@ -25,6 +25,22 @@
   margin-bottom: 18px;
 }
 
+.comments-row,
+.dates-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 768px) {
+  .comments-row,
+  .dates-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -101,6 +117,21 @@
 .status-preview.evaluada {
   background: #def7ec;
   color: #047857;
+}
+
+.status-preview.fuera-de-plazo {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-preview.completado-dentro-de-plazo {
+  background: #e0f2fe;
+  color: #0f4c81;
+}
+
+.status-preview.entregado-fuera-de-plazo {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .form-actions {

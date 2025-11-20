@@ -2546,6 +2546,17 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
                 }
             )
 
+        hoy = timezone.localdate()
+        fecha_limite = evaluacion.fecha_extendida or evaluacion.fecha
+        if hoy > fecha_limite:
+            raise ValidationError(
+                {
+                    "evaluacion": [
+                        "El plazo de entrega ha expirado y no se permiten nuevas entregas."
+                    ]
+                }
+            )
+
         serializer.save(evaluacion=evaluacion, alumno_id=alumno_id)
 
     def _obtener_alumno_id(self, usar_post: bool = False) -> int | None:
