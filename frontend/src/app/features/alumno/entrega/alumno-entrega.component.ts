@@ -27,9 +27,13 @@ interface Evaluacion {
   id: number;
   titulo: string;
   descripcion?: string;
+  comentario?: string | null;
   fechaLimite: string | Date | null;
   estado: EstadoEval;
   tipo: 'informe' | 'presentación' | 'anexo' | string;
+  rubricaUrl?: string | null;
+  rubricaNombre?: string | null;
+  rubricaTipo?: string | null;
   ultimaEntrega?: Entrega | null;
 }
 
@@ -134,9 +138,13 @@ export class AlumnoEntregaComponent implements OnInit {
       id: dto.id,
       titulo: dto.titulo,
       descripcion: undefined,
+      comentario: dto.comentario,
       fechaLimite: this.parseFecha(dto.fecha),
       estado: this.mapEstado(dto, ultima),
       tipo: this.inferirTipo(dto.titulo),
+      rubricaUrl: dto.rubrica_url,
+      rubricaNombre: dto.rubrica_nombre,
+      rubricaTipo: dto.rubrica_tipo,
       ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
     };
   }
