@@ -1,5 +1,6 @@
 from django.db import migrations, models
-import backend.api.models
+
+from api.models import evaluacion_rubrica_upload_to
 
 
 class Migration(migrations.Migration):
@@ -12,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='evaluaciongrupodocente',
             name='rubrica',
-            field=models.FileField(blank=True, null=True, upload_to=backend.api.models.evaluacion_rubrica_upload_to),
+            field=models.FileField(blank=True, null=True, upload_to=evaluacion_rubrica_upload_to),
         ),
     ]
