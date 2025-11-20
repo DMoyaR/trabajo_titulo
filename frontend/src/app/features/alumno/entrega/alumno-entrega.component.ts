@@ -304,14 +304,31 @@ export class AlumnoEntregaComponent implements OnInit {
   onDrop(ev: DragEvent) {
     ev.preventDefault();
     this._dragging.set(false);
-    const f = ev.dataTransfer?.files?.[0];
-    if (f) this._archivo.set(f);
+    const f = ev.dataTransfer?.files?.[0] ?? null;
+    this.asignarArchivo(f);
   }
 
   onFilePick(ev: Event) {
     const input = ev.target as HTMLInputElement;
     const f = input.files?.[0] || null;
-    this._archivo.set(f);
+    this.asignarArchivo(f);
+  }
+
+  private asignarArchivo(file: File | null) {
+    if (!file) {
+      this._archivo.set(null);
+      return;
+    }
+
+    const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+    if (sizeMB > this.maxMB) {
+      this._errorMsg.set(`El archivo supera el máximo de ${this.maxMB} MB.`);
+      this._archivo.set(null);
+      return;
+    }
+
+    this._errorMsg.set(null);
+    this._archivo.set(file);
   }
 
   submitUpload() {
@@ -378,8 +395,16 @@ export class AlumnoEntregaComponent implements OnInit {
             this._errorMsg.set(detalle.archivo[0]);
             return;
           }
+          if (detalle?.alumno?.[0]) {
+            this._errorMsg.set(detalle.alumno[0]);
+            return;
+          }
           if (detalle?.evaluacion?.[0]) {
             this._errorMsg.set(detalle.evaluacion[0]);
+            return;
+          }
+          if (typeof detalle?.detail === 'string') {
+            this._errorMsg.set(detalle.detail);
             return;
           }
           this._errorMsg.set('No pudimos subir tu entrega. Intenta nuevamente.');
