@@ -35,6 +35,16 @@
         (input)="evaluacionTitulo.set(($any($event.target)).value)"
       />
     </label>
+    <label class="field textarea-field">
+      <span>Comentario de la evaluación</span>
+      <textarea
+        rows="3"
+        placeholder="Describe brevemente los criterios o indicaciones de la evaluación"
+        [value]="evaluacionComentario()"
+        (input)="evaluacionComentario.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
+    </label>
     <label class="field">
       <span>Fecha (opcional)</span>
       <input
@@ -50,19 +60,36 @@
       </div>
     </div>
   </div>
-  <button
-    class="btn"
-    type="submit"
-    [disabled]="
-      enviando() ||
-      cargandoGruposActivos() ||
-      !gruposActivos().length ||
-      !grupoSeleccionadoId() ||
-      !evaluacionTitulo().trim()
-    "
-  >
-    {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
-  </button>
+  <div class="form-actions">
+    <button
+      class="btn"
+      type="submit"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !grupoSeleccionadoId() ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="enviarEvaluacionMasiva()"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
+    </button>
+  </div>
 </form>
 
 <p class="error" *ngIf="error()">{{ error() }}</p>
@@ -83,6 +110,9 @@
                 >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
               >
               <span>Estado: {{ evaluacion.estado }}</span>
+            </p>
+            <p class="comentario" *ngIf="evaluacion.comentario">
+              Comentario: {{ evaluacion.comentario }}
             </p>
           </li>
         </ul>

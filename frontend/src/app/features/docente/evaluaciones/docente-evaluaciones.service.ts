@@ -26,6 +26,7 @@ export interface EvaluacionGrupoDto {
   tema: number | null;
   grupo_nombre: string;
   titulo: string;
+  comentario: string | null;
   fecha: string | null;
   estado: string;
   created_at: string;
@@ -43,6 +44,7 @@ export type CrearEvaluacionPayload = {
   docente?: number | null;
   tema: number;
   titulo: string;
+  comentario: string;
   fecha?: string | null;
 };
 
@@ -74,6 +76,7 @@ export class DocenteEvaluacionesService {
     const body: Record<string, unknown> = {
       tema: payload.tema,
       titulo: payload.titulo,
+      comentario: payload.comentario,
     };
 
     if (payload.fecha) {
