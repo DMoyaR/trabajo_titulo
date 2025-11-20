@@ -31,8 +31,6 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-ALLOWED_HOSTS = ["*"]
-
 # Quick-start development settings - unsuitable for production
 load_dotenv()
 
@@ -42,10 +40,7 @@ SECRET_KEY = os.getenv("SECRET_KEY") or "insecure-test-key"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
