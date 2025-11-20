@@ -46,6 +46,18 @@
       <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
     </label>
     <label class="field">
+      <span>Rúbrica (opcional)</span>
+      <input
+        #rubricaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+        (change)="onRubricaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
+      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
+    </label>
+    <label class="field">
       <span>Fecha (opcional)</span>
       <input
         type="date"
@@ -114,6 +126,14 @@
             <p class="comentario" *ngIf="evaluacion.comentario">
               Comentario: {{ evaluacion.comentario }}
             </p>
+            <button
+              class="btn link"
+              type="button"
+              *ngIf="evaluacion.rubricaUrl"
+              (click)="descargarRubrica(evaluacion.rubricaUrl)"
+            >
+              Ver rúbrica ({{ evaluacion.rubricaNombre }})
+            </button>
           </li>
         </ul>
       </section>
