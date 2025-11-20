@@ -419,6 +419,7 @@ class EvaluacionGrupoDocente(models.Model):
     )
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
+    comentario = models.TextField(blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)

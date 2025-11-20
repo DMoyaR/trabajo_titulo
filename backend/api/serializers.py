@@ -964,6 +964,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "tema",
             "grupo_nombre",
             "titulo",
+            "comentario",
             "fecha",
             "estado",
             "created_at",
@@ -1006,6 +1007,14 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         if not titulo_limpio:
             raise serializers.ValidationError("Debes indicar el título de la evaluación.")
         return titulo_limpio
+
+    def validate_comentario(self, comentario: str | None) -> str:
+        comentario_limpio = (comentario or "").strip()
+        if not comentario_limpio:
+            raise serializers.ValidationError(
+                "Debes agregar un comentario para la evaluación."
+            )
+        return comentario_limpio
 
     def to_internal_value(self, data):
         data = data.copy()
