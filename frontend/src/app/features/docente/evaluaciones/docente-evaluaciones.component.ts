@@ -50,7 +50,12 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
   private docenteId: number | null = null;
 
-  readonly estados = ['Pendiente', 'En progreso', 'Evaluada'];
+  readonly estados = [
+    'PENDIENTE',
+    'FUERA DE PLAZO',
+    'COMPLETADO DENTRO DE PLAZO',
+    'ENTREGADO FUERA DE PLAZO',
+  ];
 
   evaluaciones = signal<EvaluacionGrupoDto[]>([]);
   grupos = signal<GrupoEvaluaciones[]>([]);
@@ -67,11 +72,19 @@ export class DocenteEvaluacionesComponent implements OnInit {
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
+  evaluacionFechaExtendida = signal('');
   evaluacionDescripcion = signal('');
   pautaArchivo = signal<File | null>(null);
 
   estadoCalculado = computed(() =>
-    this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
+    this.calcularEstadoPorFecha(
+      this.evaluacionFecha().trim() || null,
+      this.evaluacionFechaExtendida().trim() || null
+    )
+  );
+
+  estadoCalculadoClase = computed(() =>
+    this.estadoCalculado().toLowerCase().replace(/\s+/g, '-')
   );
 
   async ngOnInit(): Promise<void> {
@@ -91,19 +104,32 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
+    const fechaExtendida = this.evaluacionFechaExtendida().trim();
     const descripcion = this.evaluacionDescripcion().trim();
+    const pauta = this.pautaArchivo();
 
     if (!grupoId || !titulo) {
+      return;
+    }
+
+    if (!fecha) {
+      this.error.set('Debes ingresar la fecha máxima de entrega.');
+      return;
+    }
+
+    if (!pauta) {
+      this.error.set('Debes adjuntar la pauta de evaluación.');
       return;
     }
 
     const payload = {
       tema: grupoId,
       titulo,
-      fecha: fecha ? fecha : null,
+      fecha,
+      fecha_extendida: fechaExtendida ? fechaExtendida : null,
       docente: this.docenteId,
       descripcion: descripcion ? descripcion : null,
-      pauta: this.pautaArchivo(),
+      pauta,
     };
 
     this.enviando.set(true);
@@ -119,6 +145,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
+      this.evaluacionFechaExtendida.set('');
       this.evaluacionDescripcion.set('');
       this.pautaArchivo.set(null);
     } catch (error) {
@@ -311,31 +338,36 @@ export class DocenteEvaluacionesComponent implements OnInit {
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
-  calcularEstadoPorFecha(fecha: string | null): string {
-    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+  calcularEstadoPorFecha(fecha: string | null, fechaExtendida: string | null): string {
+    const fechaBase = this.parseFechaCorta(fecha);
+    if (!fechaBase) {
       return this.estados[0];
     }
 
+    const fechaExtra = this.parseFechaCorta(fechaExtendida);
+    const fechaLimite =
+      fechaExtra && fechaExtra.getTime() > fechaBase.getTime()
+        ? fechaExtra
+        : fechaBase;
+
+    const hoy = this.fechaActualSinHora();
+    return hoy.getTime() > fechaLimite.getTime() ? 'FUERA DE PLAZO' : 'PENDIENTE';
+  }
+
+  private fechaActualSinHora(): Date {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
+    return hoy;
+  }
 
-    const [year, month, day] = fecha.split('-').map(Number);
-    const fechaEvaluacion = new Date(year, (month ?? 1) - 1, day ?? 1);
-    fechaEvaluacion.setHours(0, 0, 0, 0);
-
-    if (Number.isNaN(fechaEvaluacion.getTime())) {
-      return this.estados[0];
+  private parseFechaCorta(valor: string | null): Date | null {
+    if (!valor || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      return null;
     }
-
-    if (fechaEvaluacion.getTime() === hoy.getTime()) {
-      return 'En progreso';
-    }
-
-    if (fechaEvaluacion.getTime() < hoy.getTime()) {
-      return 'Evaluada';
-    }
-
-    return 'Pendiente';
+    const [year, month, day] = valor.split('-').map(Number);
+    const fecha = new Date(year, (month ?? 1) - 1, day ?? 1);
+    fecha.setHours(0, 0, 0, 0);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
   private ordenarEvaluaciones(

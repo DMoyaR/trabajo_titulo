@@ -11,7 +11,7 @@ import {
 } from './alumno-entrega.service';
 import { finalize } from 'rxjs/operators';
 
-type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
+type EstadoEval = 'pendiente' | 'entregada' | 'calificada' | 'fuera-de-plazo';
 
 interface Entrega {
   titulo: string;
@@ -28,9 +28,12 @@ interface Evaluacion {
   titulo: string;
   descripcion?: string;
   fechaLimite: string | Date | null;
+  fechaExtendida: string | Date | null;
   estado: EstadoEval;
+  estadoTexto: string;
   tipo: 'informe' | 'presentación' | 'anexo' | string;
   ultimaEntrega?: Entrega | null;
+  subidaBloqueada: boolean;
 }
 
 @Component({
@@ -88,7 +91,7 @@ export class AlumnoEntregaComponent implements OnInit {
 
   canUpload = computed(() => {
     const ev = this._seleccion();
-    return !!ev && ev.estado === 'pendiente';
+    return !!ev && ev.estado === 'pendiente' && !ev.subidaBloqueada;
   });
 
   isDragging = () => this._dragging();
@@ -130,14 +133,18 @@ export class AlumnoEntregaComponent implements OnInit {
 
   private mapEvaluacion(dto: EvaluacionGrupoDto): Evaluacion {
     const ultima = dto.ultima_entrega ?? dto.entregas?.[0] ?? null;
+    const estadoTexto = (dto.estado ?? 'PENDIENTE').toUpperCase();
     return {
       id: dto.id,
       titulo: dto.titulo,
-      descripcion: undefined,
+      descripcion: dto.descripcion ?? undefined,
       fechaLimite: this.parseFecha(dto.fecha),
+      fechaExtendida: this.parseFecha(dto.fecha_extendida),
       estado: this.mapEstado(dto, ultima),
+      estadoTexto,
       tipo: this.inferirTipo(dto.titulo),
       ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
+      subidaBloqueada: this.subidaFueraDePlazo(dto),
     };
   }
 
@@ -149,15 +156,16 @@ export class AlumnoEntregaComponent implements OnInit {
       return 'entregada';
     }
 
-    const normalizado = (dto.estado ?? '').trim().toLowerCase();
-    if (normalizado === 'evaluada' || normalizado === 'calificada') {
-      return 'calificada';
+    const normalizado = (dto.estado ?? '').trim().toUpperCase();
+    if (normalizado === 'FUERA DE PLAZO') {
+      return 'fuera-de-plazo';
     }
-    if (normalizado === 'entregada') {
+    if (
+      normalizado.startsWith('COMPLETADO') ||
+      normalizado.startsWith('ENTREGADO') ||
+      normalizado === 'EVALUADA'
+    ) {
       return 'entregada';
-    }
-    if (normalizado === 'en progreso') {
-      return 'pendiente';
     }
     return 'pendiente';
   }
@@ -197,6 +205,27 @@ export class AlumnoEntregaComponent implements OnInit {
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
+  private subidaFueraDePlazo(dto: EvaluacionGrupoDto): boolean {
+    const fecha = this.parseFecha(dto.fecha);
+    const fechaExt = this.parseFecha(dto.fecha_extendida);
+
+    const limite =
+      fechaExt && fecha && fechaExt.getTime() > fecha.getTime()
+        ? fechaExt
+        : fechaExt || fecha;
+
+    if (!limite) {
+      return false;
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const corte = new Date(limite);
+    corte.setHours(0, 0, 0, 0);
+
+    return hoy.getTime() > corte.getTime();
+  }
+
   private seleccionarInicial(): void {
     const evaluaciones = this._evaluaciones();
     if (!evaluaciones.length) {
@@ -232,6 +261,7 @@ export class AlumnoEntregaComponent implements OnInit {
   estadoClase(estado: EstadoEval) {
     switch (estado) {
       case 'pendiente': return 'chip warn';
+      case 'fuera-de-plazo': return 'chip warn';
       case 'entregada': return 'chip info';
       case 'calificada': return 'chip ok';
       default: return 'chip';

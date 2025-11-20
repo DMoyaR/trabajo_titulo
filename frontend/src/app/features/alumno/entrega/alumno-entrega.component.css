@@ -69,6 +69,19 @@ h2.ttl{
 .chip.info{ background:var(--info-bg); color:var(--info); border-color:var(--info-br); }
 .chip.ok{   background:var(--ok-bg);   color:var(--ok);   border-color:var(--ok-br); }
 
+.alert{
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:12px;
+  font-size:13px;
+  border:1px solid transparent;
+}
+.alert.warn{
+  background:var(--warn-bg);
+  color:var(--warn);
+  border-color:var(--warn-br);
+}
+
 /* ====== Panel de detalle ====== */
 .detail-head{
   display:flex;

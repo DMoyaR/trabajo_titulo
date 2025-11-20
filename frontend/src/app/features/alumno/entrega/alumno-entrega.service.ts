@@ -26,7 +26,12 @@ export interface EvaluacionGrupoDto {
   tema: number | null;
   grupo_nombre: string;
   titulo: string;
+  descripcion: string | null;
+  pauta_url: string | null;
+  pauta_nombre: string;
+  pauta_tipo: string | null;
   fecha: string | null;
+  fecha_extendida: string | null;
   estado: string;
   created_at: string;
   updated_at: string;

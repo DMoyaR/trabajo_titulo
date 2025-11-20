@@ -410,9 +410,10 @@ class TrazabilidadReunion(models.Model):
 
 class EvaluacionGrupoDocente(models.Model):
     ESTADOS = [
-        ("Pendiente", "Pendiente"),
-        ("En progreso", "En progreso"),
-        ("Evaluada", "Evaluada"),
+        ("PENDIENTE", "PENDIENTE"),
+        ("FUERA DE PLAZO", "FUERA DE PLAZO"),
+        ("COMPLETADO DENTRO DE PLAZO", "COMPLETADO DENTRO DE PLAZO"),
+        ("ENTREGADO FUERA DE PLAZO", "ENTREGADO FUERA DE PLAZO"),
     ]
 
     docente = models.ForeignKey(
@@ -434,8 +435,9 @@ class EvaluacionGrupoDocente(models.Model):
     titulo = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True, null=True)
     pauta = models.FileField(upload_to=evaluacion_pauta_upload_to, blank=True, null=True)
-    fecha = models.DateField(null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
+    fecha = models.DateField(default=timezone.localdate)
+    fecha_extendida = models.DateField(blank=True, null=True)
+    estado = models.CharField(max_length=32, choices=ESTADOS, default="PENDIENTE")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -450,19 +452,36 @@ class EvaluacionGrupoDocente(models.Model):
     def __str__(self) -> str:
         return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
 
-    def sincronizar_estado(self) -> None:
+    def _obtener_ultima_entrega(self):
+        entregas_prefetch = getattr(self, "entregas_prefetch", None)
+        if entregas_prefetch:
+            return entregas_prefetch[0]
+
+        entregas_alumno = getattr(self, "entregas_alumno", None)
+        if entregas_alumno:
+            return entregas_alumno[0]
+
+        return self.entregas.order_by("-creado_en").first()
+
+    def calcular_estado_actual(self) -> str:
         hoy = timezone.localdate()
+        fecha_limite = self.fecha_extendida or self.fecha
 
-        if not self.fecha:
-            self.estado = "Pendiente"
-            return
+        entrega = self._obtener_ultima_entrega()
+        if entrega:
+            fecha_entrega = entrega.creado_en.date()
+            if fecha_entrega <= self.fecha:
+                return "COMPLETADO DENTRO DE PLAZO"
+            if self.fecha_extendida and fecha_entrega <= fecha_limite:
+                return "ENTREGADO FUERA DE PLAZO"
+            return "ENTREGADO FUERA DE PLAZO"
 
-        if self.fecha > hoy:
-            self.estado = "Pendiente"
-        elif self.fecha == hoy:
-            self.estado = "En progreso"
-        else:
-            self.estado = "Evaluada"
+        if hoy <= fecha_limite:
+            return "PENDIENTE"
+        return "FUERA DE PLAZO"
+
+    def sincronizar_estado(self) -> None:
+        self.estado = self.calcular_estado_actual()
 
     def save(self, *args, **kwargs):
         if self.tema:
@@ -521,6 +540,16 @@ class EvaluacionEntregaAlumno(models.Model):
         if not self.archivo:
             return ""
         return Path(self.archivo.name).name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        evaluacion = getattr(self, "evaluacion", None)
+        if evaluacion:
+            evaluacion.sincronizar_estado()
+            EvaluacionGrupoDocente.objects.filter(pk=evaluacion.pk).update(
+                estado=evaluacion.estado,
+                updated_at=timezone.now(),
+            )
 
 
 class PropuestaTema(models.Model):

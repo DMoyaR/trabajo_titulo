@@ -37,7 +37,10 @@
       />
     </label>
 
-    <label class="field full">
+  </div>
+
+  <div class="comments-row">
+    <label class="field">
       <span>Comentarios de la evaluación</span>
       <textarea
         rows="3"
@@ -48,44 +51,60 @@
       <small class="field-hint">Ayuda a los estudiantes a entender de qué se trata la evaluación.</small>
     </label>
 
+    <div class="field status-field">
+      <span>Estado según fecha</span>
+      <div class="status-preview" [ngClass]="estadoCalculadoClase()">
+        {{ estadoCalculado() }}
+      </div>
+      <small class="field-hint">Se calcula automáticamente con las fechas ingresadas.</small>
+    </div>
+  </div>
+
+  <div class="dates-row">
     <label class="field">
-      <span>Fecha (opcional)</span>
+      <span>Fecha máxima de entrega</span>
       <input
         type="date"
         [value]="evaluacionFecha()"
         (input)="evaluacionFecha.set(($any($event.target)).value)"
+        required
       />
     </label>
 
-    <div class="field status-field">
-      <span>Estado según fecha</span>
-      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
-        {{ estadoCalculado() }}
-      </div>
-    </div>
-
-    <label class="field full">
-      <span>Pauta de evaluación (opcional)</span>
-      <input type="file" (change)="onSeleccionPauta($event)" />
-      <small class="field-hint" *ngIf="pautaArchivo()">Archivo seleccionado: {{ pautaArchivo()?.name }}</small>
-      <small class="field-hint">Puedes adjuntar la pauta o rúbrica para que el grupo la descargue.</small>
+    <label class="field">
+      <span>Plazo extendido (opcional)</span>
+      <input
+        type="date"
+        [value]="evaluacionFechaExtendida()"
+        (input)="evaluacionFechaExtendida.set(($any($event.target)).value)"
+      />
+      <small class="field-hint">Solo si otorgas un nuevo plazo de entrega.</small>
     </label>
   </div>
+
+  <label class="field full">
+    <span>Pauta de evaluación</span>
+    <input type="file" (change)="onSeleccionPauta($event)" required />
+    <small class="field-hint" *ngIf="pautaArchivo()">Archivo seleccionado: {{ pautaArchivo()?.name }}</small>
+    <small class="field-hint">Debes adjuntar la pauta o rúbrica para que el grupo la descargue.</small>
+  </label>
 
   <div class="form-actions">
     <button
       class="btn"
       type="submit"
-      [disabled]="
-        enviando() ||
-        cargandoGruposActivos() ||
-        !gruposActivos().length ||
-        !grupoSeleccionadoId() ||
-        !evaluacionTitulo().trim()
-      "
-    >
-      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
-    </button>
+        [disabled]="
+          enviando() ||
+          cargandoGruposActivos() ||
+          !gruposActivos().length ||
+          !grupoSeleccionadoId() ||
+          !evaluacionTitulo().trim() ||
+          !evaluacionFecha().trim() ||
+          !pautaArchivo()
+        "
+      >
+        {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+      </button>
   </div>
 </form>
 
