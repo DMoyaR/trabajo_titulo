@@ -103,8 +103,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
-    const fecha = this.evaluacionFecha().trim();
-    const fechaExtendida = this.evaluacionFechaExtendida().trim();
+    const fechaEntrada = this.evaluacionFecha().trim();
+    const fechaExtendidaEntrada = this.evaluacionFechaExtendida().trim();
     const descripcion = this.evaluacionDescripcion().trim();
     const pauta = this.pautaArchivo();
 
@@ -112,8 +112,18 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
 
+    const fecha = this.normalizarFechaISO(fechaEntrada);
     if (!fecha) {
       this.error.set('Debes ingresar la fecha máxima de entrega.');
+      return;
+    }
+
+    const fechaExtendida = fechaExtendidaEntrada
+      ? this.normalizarFechaISO(fechaExtendidaEntrada)
+      : null;
+
+    if (fechaExtendidaEntrada && !fechaExtendida) {
+      this.error.set('La fecha extendida debe tener un formato válido (AAAA-MM-DD).');
       return;
     }
 
@@ -121,6 +131,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.error.set('Debes adjuntar la pauta de evaluación.');
       return;
     }
+
+    this.evaluacionFecha.set(fecha);
+    this.evaluacionFechaExtendida.set(fechaExtendida ?? '');
 
     const payload = {
       tema: grupoId,
@@ -150,9 +163,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.pautaArchivo.set(null);
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
-      this.error.set(
-        'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.'
-      );
+      const mensaje =
+        this.extraerMensajeError(error) ??
+        'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.';
+      this.error.set(mensaje);
     } finally {
       this.enviando.set(false);
     }
@@ -368,6 +382,47 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const fecha = new Date(year, (month ?? 1) - 1, day ?? 1);
     fecha.setHours(0, 0, 0, 0);
     return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  private normalizarFechaISO(valor: string): string | null {
+    const fecha = this.parseFechaCorta(valor.trim());
+    if (!fecha) {
+      return null;
+    }
+
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  private extraerMensajeError(error: unknown): string | null {
+    if (!error || typeof error !== 'object') {
+      return null;
+    }
+
+    const detalle: any = (error as any).error;
+    if (typeof detalle === 'string' && detalle.trim()) {
+      return detalle.trim();
+    }
+
+    if (detalle && typeof detalle === 'object') {
+      if (Array.isArray(detalle.non_field_errors) && detalle.non_field_errors[0]) {
+        return String(detalle.non_field_errors[0]);
+      }
+
+      for (const valor of Object.values(detalle)) {
+        if (Array.isArray(valor) && valor[0]) {
+          return String(valor[0]);
+        }
+        if (typeof valor === 'string' && valor.trim()) {
+          return valor.trim();
+        }
+      }
+    }
+
+    return null;
   }
 
   private ordenarEvaluaciones(
