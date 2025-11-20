@@ -79,7 +79,7 @@ export class AlumnoEntregaComponent implements OnInit {
   };
 
   // Constantes
-  maxMB = 25;
+  maxMB = 50;
 
   // Getters para template (signals)
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');

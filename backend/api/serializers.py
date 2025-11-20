@@ -880,7 +880,7 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
     archivo_tipo = serializers.SerializerMethodField()
 
-    MAX_ARCHIVO_MB = 25
+    MAX_ARCHIVO_MB = 50
 
     class Meta:
         model = EvaluacionEntregaAlumno
