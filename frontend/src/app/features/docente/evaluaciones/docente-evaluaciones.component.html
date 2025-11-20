@@ -26,6 +26,7 @@
       </small>
       <small class="field-hint error" *ngIf="errorGruposActivos()">{{ errorGruposActivos() }}</small>
     </label>
+
     <label class="field">
       <span>Evaluación</span>
       <input
@@ -35,16 +36,18 @@
         (input)="evaluacionTitulo.set(($any($event.target)).value)"
       />
     </label>
-    <label class="field">
-      <span>Descripción / comentarios</span>
+
+    <label class="field full">
+      <span>Comentarios de la evaluación</span>
       <textarea
         rows="3"
-        placeholder="Ej: Alcance, entregables o aspectos a evaluar"
+        placeholder="Describe el alcance, los entregables o los aspectos a evaluar"
         [value]="evaluacionDescripcion()"
         (input)="evaluacionDescripcion.set(($any($event.target)).value)"
       ></textarea>
       <small class="field-hint">Ayuda a los estudiantes a entender de qué se trata la evaluación.</small>
     </label>
+
     <label class="field">
       <span>Fecha (opcional)</span>
       <input
@@ -53,32 +56,37 @@
         (input)="evaluacionFecha.set(($any($event.target)).value)"
       />
     </label>
-    <label class="field">
-      <span>Pauta de evaluación (opcional)</span>
-      <input type="file" (change)="onSeleccionPauta($event)" />
-      <small class="field-hint" *ngIf="pautaArchivo()">Archivo seleccionado: {{ pautaArchivo()?.name }}</small>
-      <small class="field-hint">Puedes adjuntar la pauta o rúbrica para que el grupo la descargue.</small>
-    </label>
+
     <div class="field status-field">
       <span>Estado según fecha</span>
       <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
         {{ estadoCalculado() }}
       </div>
     </div>
+
+    <label class="field full">
+      <span>Pauta de evaluación (opcional)</span>
+      <input type="file" (change)="onSeleccionPauta($event)" />
+      <small class="field-hint" *ngIf="pautaArchivo()">Archivo seleccionado: {{ pautaArchivo()?.name }}</small>
+      <small class="field-hint">Puedes adjuntar la pauta o rúbrica para que el grupo la descargue.</small>
+    </label>
   </div>
-  <button
-    class="btn"
-    type="submit"
-    [disabled]="
-      enviando() ||
-      cargandoGruposActivos() ||
-      !gruposActivos().length ||
-      !grupoSeleccionadoId() ||
-      !evaluacionTitulo().trim()
-    "
-  >
-    {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
-  </button>
+
+  <div class="form-actions">
+    <button
+      class="btn"
+      type="submit"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !grupoSeleccionadoId() ||
+        !evaluacionTitulo().trim()
+      "
+    >
+      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+    </button>
+  </div>
 </form>
 
 <p class="error" *ngIf="error()">{{ error() }}</p>
