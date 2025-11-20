@@ -24,19 +24,6 @@ def evaluacion_entrega_upload_to(instance, filename: str) -> str:
 
     return f"evaluaciones/entregas/{evaluacion_id}/{alumno_id}/{slug}-{identificador}{extension}"
 
-
-def evaluacion_pauta_upload_to(instance, filename: str) -> str:
-    """Genera una ruta predecible para las pautas de evaluación."""
-
-    evaluacion_id = instance.pk or uuid.uuid4().hex[:8]
-
-    nombre = Path(filename).stem
-    extension = Path(filename).suffix.lower()
-    slug = slugify(nombre)[:50] or "pauta"
-    identificador = uuid.uuid4().hex[:8]
-
-    return f"evaluaciones/pautas/{evaluacion_id}/{slug}-{identificador}{extension}"
-
 class Usuario(models.Model):
     ROL_CHOICES = [
         ("alumno", "Alumno"),
@@ -410,10 +397,9 @@ class TrazabilidadReunion(models.Model):
 
 class EvaluacionGrupoDocente(models.Model):
     ESTADOS = [
-        ("PENDIENTE", "PENDIENTE"),
-        ("FUERA DE PLAZO", "FUERA DE PLAZO"),
-        ("COMPLETADO DENTRO DE PLAZO", "COMPLETADO DENTRO DE PLAZO"),
-        ("ENTREGADO FUERA DE PLAZO", "ENTREGADO FUERA DE PLAZO"),
+        ("Pendiente", "Pendiente"),
+        ("En progreso", "En progreso"),
+        ("Evaluada", "Evaluada"),
     ]
 
     docente = models.ForeignKey(
@@ -433,11 +419,8 @@ class EvaluacionGrupoDocente(models.Model):
     )
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True, null=True)
-    pauta = models.FileField(upload_to=evaluacion_pauta_upload_to, blank=True, null=True)
-    fecha = models.DateField(default=timezone.localdate)
-    fecha_extendida = models.DateField(blank=True, null=True)
-    estado = models.CharField(max_length=32, choices=ESTADOS, default="PENDIENTE")
+    fecha = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -452,36 +435,19 @@ class EvaluacionGrupoDocente(models.Model):
     def __str__(self) -> str:
         return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
 
-    def _obtener_ultima_entrega(self):
-        entregas_prefetch = getattr(self, "entregas_prefetch", None)
-        if entregas_prefetch:
-            return entregas_prefetch[0]
-
-        entregas_alumno = getattr(self, "entregas_alumno", None)
-        if entregas_alumno:
-            return entregas_alumno[0]
-
-        return self.entregas.order_by("-creado_en").first()
-
-    def calcular_estado_actual(self) -> str:
-        hoy = timezone.localdate()
-        fecha_limite = self.fecha_extendida or self.fecha
-
-        entrega = self._obtener_ultima_entrega()
-        if entrega:
-            fecha_entrega = entrega.creado_en.date()
-            if fecha_entrega <= self.fecha:
-                return "COMPLETADO DENTRO DE PLAZO"
-            if self.fecha_extendida and fecha_entrega <= fecha_limite:
-                return "ENTREGADO FUERA DE PLAZO"
-            return "ENTREGADO FUERA DE PLAZO"
-
-        if hoy <= fecha_limite:
-            return "PENDIENTE"
-        return "FUERA DE PLAZO"
-
     def sincronizar_estado(self) -> None:
-        self.estado = self.calcular_estado_actual()
+        hoy = timezone.localdate()
+
+        if not self.fecha:
+            self.estado = "Pendiente"
+            return
+
+        if self.fecha > hoy:
+            self.estado = "Pendiente"
+        elif self.fecha == hoy:
+            self.estado = "En progreso"
+        else:
+            self.estado = "Evaluada"
 
     def save(self, *args, **kwargs):
         if self.tema:
@@ -540,16 +506,6 @@ class EvaluacionEntregaAlumno(models.Model):
         if not self.archivo:
             return ""
         return Path(self.archivo.name).name
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        evaluacion = getattr(self, "evaluacion", None)
-        if evaluacion:
-            evaluacion.sincronizar_estado()
-            EvaluacionGrupoDocente.objects.filter(pk=evaluacion.pk).update(
-                estado=evaluacion.estado,
-                updated_at=timezone.now(),
-            )
 
 
 class PropuestaTema(models.Model):

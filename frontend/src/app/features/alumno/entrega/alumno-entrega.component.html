@@ -15,11 +15,11 @@
         <article class="item" *ngFor="let e of pendientes()" (click)="seleccionar(e)">
           <div class="top">
             <b class="title">{{ e.titulo }}</b>
-            <span [ngClass]="estadoClase(e.estado)">{{ e.estadoTexto }}</span>
+            <span [ngClass]="estadoClase(e.estado)">{{ e.estado }}</span>
           </div>
           <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
           <div class="meta">
-            <span>Fecha límite: {{ (e.fechaExtendida || e.fechaLimite) | date:'d MMM y, HH:mm' }}</span>
+            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
           </div>
         </article>
       </div>
@@ -35,11 +35,11 @@
         <article class="item" *ngFor="let e of completadas()" (click)="seleccionar(e)">
           <div class="top">
             <b class="title">{{ e.titulo }}</b>
-            <span [ngClass]="estadoClase(e.estado)">{{ e.estadoTexto }}</span>
+            <span [ngClass]="estadoClase(e.estado)">{{ e.estado }}</span>
           </div>
           <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
           <div class="meta">
-            <span>Fecha límite: {{ (e.fechaExtendida || e.fechaLimite) | date:'d MMM y, HH:mm' }}</span>
+            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
             <!-- usar ?. porque ultimaEntrega puede no venir -->
             <span *ngIf="e.ultimaEntrega?.nota != null">
               • Nota: <b>{{ e.ultimaEntrega?.nota }}</b>
@@ -75,9 +75,8 @@
   <p class="muted" *ngIf="ev.descripcion">{{ ev.descripcion }}</p>
 
   <div class="info-row">
-    <span class="chip" [ngClass]="estadoClase(ev.estado)">{{ ev.estadoTexto }}</span>
-    <span class="muted">Fecha límite: {{ (ev.fechaExtendida || ev.fechaLimite) | date:'d MMM y, HH:mm' }}</span>
-    <span class="muted" *ngIf="ev.fechaExtendida">Plazo extendido hasta: {{ ev.fechaExtendida | date:'d MMM y' }}</span>
+    <span class="chip" [ngClass]="estadoClase(ev.estado)">{{ ev.estado }}</span>
+    <span class="muted">Fecha límite: {{ ev.fechaLimite | date:'d MMM y, HH:mm' }}</span>
   </div>
 
   <!-- Si pendiente -> botón subir -->
@@ -88,9 +87,6 @@
 
   <!-- Entregada / Calificada -->
   <ng-template #vistaEntrega>
-    <div *ngIf="ev.estado === 'fuera-de-plazo' && !ev.ultimaEntrega" class="alert warn">
-      El plazo de entrega terminó y no se permiten nuevas subidas para esta evaluación.
-    </div>
     <div *ngIf="ev.ultimaEntrega; else sinEntrega" class="entrega">
       <div class="row">
         <div><b>Título:</b></div>

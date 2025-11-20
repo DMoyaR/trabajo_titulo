@@ -16,9 +16,6 @@ type GrupoEvaluaciones = {
     titulo: string;
     fecha: string | null;
     estado: string;
-    descripcion: string | null;
-    pautaUrl: string | null;
-    pautaNombre: string;
   }[];
 };
 
@@ -50,12 +47,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
   private docenteId: number | null = null;
 
-  readonly estados = [
-    'PENDIENTE',
-    'FUERA DE PLAZO',
-    'COMPLETADO DENTRO DE PLAZO',
-    'ENTREGADO FUERA DE PLAZO',
-  ];
+  readonly estados = ['Pendiente', 'En progreso', 'Evaluada'];
 
   evaluaciones = signal<EvaluacionGrupoDto[]>([]);
   grupos = signal<GrupoEvaluaciones[]>([]);
@@ -72,19 +64,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
-  evaluacionFechaExtendida = signal('');
-  evaluacionDescripcion = signal('');
-  pautaArchivo = signal<File | null>(null);
 
   estadoCalculado = computed(() =>
-    this.calcularEstadoPorFecha(
-      this.evaluacionFecha().trim() || null,
-      this.evaluacionFechaExtendida().trim() || null
-    )
-  );
-
-  estadoCalculadoClase = computed(() =>
-    this.estadoCalculado().toLowerCase().replace(/\s+/g, '-')
+    this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
   );
 
   async ngOnInit(): Promise<void> {
@@ -103,46 +85,17 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
-    const fechaEntrada = this.evaluacionFecha().trim();
-    const fechaExtendidaEntrada = this.evaluacionFechaExtendida().trim();
-    const descripcion = this.evaluacionDescripcion().trim();
-    const pauta = this.pautaArchivo();
+    const fecha = this.evaluacionFecha().trim();
 
     if (!grupoId || !titulo) {
       return;
     }
 
-    const fecha = this.normalizarFechaISO(fechaEntrada);
-    if (!fecha) {
-      this.error.set('Debes ingresar la fecha máxima de entrega.');
-      return;
-    }
-
-    const fechaExtendida = fechaExtendidaEntrada
-      ? this.normalizarFechaISO(fechaExtendidaEntrada)
-      : null;
-
-    if (fechaExtendidaEntrada && !fechaExtendida) {
-      this.error.set('La fecha extendida debe tener un formato válido (AAAA-MM-DD).');
-      return;
-    }
-
-    if (!pauta) {
-      this.error.set('Debes adjuntar la pauta de evaluación.');
-      return;
-    }
-
-    this.evaluacionFecha.set(fecha);
-    this.evaluacionFechaExtendida.set(fechaExtendida ?? '');
-
     const payload = {
       tema: grupoId,
       titulo,
-      fecha,
-      fecha_extendida: fechaExtendida ? fechaExtendida : null,
+      fecha: fecha ? fecha : null,
       docente: this.docenteId,
-      descripcion: descripcion ? descripcion : null,
-      pauta,
     };
 
     this.enviando.set(true);
@@ -158,15 +111,11 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
-      this.evaluacionFechaExtendida.set('');
-      this.evaluacionDescripcion.set('');
-      this.pautaArchivo.set(null);
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
-      const mensaje =
-        this.extraerMensajeError(error) ??
-        'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.';
-      this.error.set(mensaje);
+      this.error.set(
+        'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.'
+      );
     } finally {
       this.enviando.set(false);
     }
@@ -233,9 +182,6 @@ export class DocenteEvaluacionesComponent implements OnInit {
         titulo: evaluacion.titulo,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
-        descripcion: evaluacion.descripcion,
-        pautaUrl: evaluacion.pauta_url,
-        pautaNombre: evaluacion.pauta_nombre,
       });
       mapa.set(nombreGrupo, lista);
     }
@@ -254,9 +200,6 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo: evaluacion.titulo,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
-      descripcion: evaluacion.descripcion,
-      pautaUrl: evaluacion.pauta_url,
-      pautaNombre: evaluacion.pauta_nombre,
     };
 
     const indiceGrupo = gruposActuales.findIndex(
@@ -352,77 +295,31 @@ export class DocenteEvaluacionesComponent implements OnInit {
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
-  calcularEstadoPorFecha(fecha: string | null, fechaExtendida: string | null): string {
-    const fechaBase = this.parseFechaCorta(fecha);
-    if (!fechaBase) {
+  calcularEstadoPorFecha(fecha: string | null): string {
+    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       return this.estados[0];
     }
 
-    const fechaExtra = this.parseFechaCorta(fechaExtendida);
-    const fechaLimite =
-      fechaExtra && fechaExtra.getTime() > fechaBase.getTime()
-        ? fechaExtra
-        : fechaBase;
-
-    const hoy = this.fechaActualSinHora();
-    return hoy.getTime() > fechaLimite.getTime() ? 'FUERA DE PLAZO' : 'PENDIENTE';
-  }
-
-  private fechaActualSinHora(): Date {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    return hoy;
-  }
 
-  private parseFechaCorta(valor: string | null): Date | null {
-    if (!valor || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
-      return null;
-    }
-    const [year, month, day] = valor.split('-').map(Number);
-    const fecha = new Date(year, (month ?? 1) - 1, day ?? 1);
-    fecha.setHours(0, 0, 0, 0);
-    return Number.isNaN(fecha.getTime()) ? null : fecha;
-  }
+    const [year, month, day] = fecha.split('-').map(Number);
+    const fechaEvaluacion = new Date(year, (month ?? 1) - 1, day ?? 1);
+    fechaEvaluacion.setHours(0, 0, 0, 0);
 
-  private normalizarFechaISO(valor: string): string | null {
-    const fecha = this.parseFechaCorta(valor.trim());
-    if (!fecha) {
-      return null;
+    if (Number.isNaN(fechaEvaluacion.getTime())) {
+      return this.estados[0];
     }
 
-    const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  }
-
-  private extraerMensajeError(error: unknown): string | null {
-    if (!error || typeof error !== 'object') {
-      return null;
+    if (fechaEvaluacion.getTime() === hoy.getTime()) {
+      return 'En progreso';
     }
 
-    const detalle: any = (error as any).error;
-    if (typeof detalle === 'string' && detalle.trim()) {
-      return detalle.trim();
+    if (fechaEvaluacion.getTime() < hoy.getTime()) {
+      return 'Evaluada';
     }
 
-    if (detalle && typeof detalle === 'object') {
-      if (Array.isArray(detalle.non_field_errors) && detalle.non_field_errors[0]) {
-        return String(detalle.non_field_errors[0]);
-      }
-
-      for (const valor of Object.values(detalle)) {
-        if (Array.isArray(valor) && valor[0]) {
-          return String(valor[0]);
-        }
-        if (typeof valor === 'string' && valor.trim()) {
-          return valor.trim();
-        }
-      }
-    }
-
-    return null;
+    return 'Pendiente';
   }
 
   private ordenarEvaluaciones(
@@ -450,10 +347,5 @@ export class DocenteEvaluacionesComponent implements OnInit {
   onSeleccionGrupo(event: Event): void {
     const value = String((event.target as HTMLSelectElement)?.value ?? '').trim();
     this.grupoSeleccionadoId.set(value ? Number(value) : null);
-  }
-
-  onSeleccionPauta(event: Event): void {
-    const file = (event.target as HTMLInputElement)?.files?.[0] ?? null;
-    this.pautaArchivo.set(file);
   }
 }

@@ -26,7 +26,6 @@
       </small>
       <small class="field-hint error" *ngIf="errorGruposActivos()">{{ errorGruposActivos() }}</small>
     </label>
-
     <label class="field">
       <span>Evaluación</span>
       <input
@@ -36,76 +35,34 @@
         (input)="evaluacionTitulo.set(($any($event.target)).value)"
       />
     </label>
-
-  </div>
-
-  <div class="comments-row">
     <label class="field">
-      <span>Comentarios de la evaluación</span>
-      <textarea
-        rows="3"
-        placeholder="Describe el alcance, los entregables o los aspectos a evaluar"
-        [value]="evaluacionDescripcion()"
-        (input)="evaluacionDescripcion.set(($any($event.target)).value)"
-      ></textarea>
-      <small class="field-hint">Ayuda a los estudiantes a entender de qué se trata la evaluación.</small>
-    </label>
-
-    <div class="field status-field">
-      <span>Estado según fecha</span>
-      <div class="status-preview" [ngClass]="estadoCalculadoClase()">
-        {{ estadoCalculado() }}
-      </div>
-      <small class="field-hint">Se calcula automáticamente con las fechas ingresadas.</small>
-    </div>
-  </div>
-
-  <div class="dates-row">
-    <label class="field">
-      <span>Fecha máxima de entrega</span>
+      <span>Fecha (opcional)</span>
       <input
         type="date"
         [value]="evaluacionFecha()"
         (input)="evaluacionFecha.set(($any($event.target)).value)"
-        required
       />
     </label>
-
-    <label class="field">
-      <span>Plazo extendido (opcional)</span>
-      <input
-        type="date"
-        [value]="evaluacionFechaExtendida()"
-        (input)="evaluacionFechaExtendida.set(($any($event.target)).value)"
-      />
-      <small class="field-hint">Solo si otorgas un nuevo plazo de entrega.</small>
-    </label>
+    <div class="field status-field">
+      <span>Estado según fecha</span>
+      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
+        {{ estadoCalculado() }}
+      </div>
+    </div>
   </div>
-
-  <label class="field full">
-    <span>Pauta de evaluación</span>
-    <input type="file" (change)="onSeleccionPauta($event)" required />
-    <small class="field-hint" *ngIf="pautaArchivo()">Archivo seleccionado: {{ pautaArchivo()?.name }}</small>
-    <small class="field-hint">Debes adjuntar la pauta o rúbrica para que el grupo la descargue.</small>
-  </label>
-
-  <div class="form-actions">
-    <button
-      class="btn"
-      type="submit"
-        [disabled]="
-          enviando() ||
-          cargandoGruposActivos() ||
-          !gruposActivos().length ||
-          !grupoSeleccionadoId() ||
-          !evaluacionTitulo().trim() ||
-          !evaluacionFecha().trim() ||
-          !pautaArchivo()
-        "
-      >
-        {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
-      </button>
-  </div>
+  <button
+    class="btn"
+    type="submit"
+    [disabled]="
+      enviando() ||
+      cargandoGruposActivos() ||
+      !gruposActivos().length ||
+      !grupoSeleccionadoId() ||
+      !evaluacionTitulo().trim()
+    "
+  >
+    {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+  </button>
 </form>
 
 <p class="error" *ngIf="error()">{{ error() }}</p>
@@ -126,15 +83,6 @@
                 >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
               >
               <span>Estado: {{ evaluacion.estado }}</span>
-            </p>
-            <p class="meta" *ngIf="evaluacion.descripcion">
-              <strong>Comentarios:</strong> {{ evaluacion.descripcion }}
-            </p>
-            <p class="meta" *ngIf="evaluacion.pautaUrl">
-              <strong>Pauta:</strong>
-              <a [href]="evaluacion.pautaUrl" target="_blank" rel="noopener">
-                {{ evaluacion.pautaNombre || 'Descargar pauta' }}
-              </a>
             </p>
           </li>
         </ul>

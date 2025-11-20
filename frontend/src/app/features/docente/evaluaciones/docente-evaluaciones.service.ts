@@ -26,12 +26,7 @@ export interface EvaluacionGrupoDto {
   tema: number | null;
   grupo_nombre: string;
   titulo: string;
-  descripcion: string | null;
-  pauta_url: string | null;
-  pauta_nombre: string;
-  pauta_tipo: string | null;
   fecha: string | null;
-  fecha_extendida: string | null;
   estado: string;
   created_at: string;
   updated_at: string;
@@ -48,10 +43,7 @@ export type CrearEvaluacionPayload = {
   docente?: number | null;
   tema: number;
   titulo: string;
-  descripcion?: string | null;
-  pauta: File;
-  fecha: string;
-  fecha_extendida?: string | null;
+  fecha?: string | null;
 };
 
 export interface GrupoActivoDto {
@@ -79,26 +71,22 @@ export class DocenteEvaluacionesService {
   }
 
   crear(payload: CrearEvaluacionPayload): Observable<EvaluacionGrupoDto> {
-    const formData = new FormData();
-    formData.append('tema', String(payload.tema));
-    formData.append('titulo', payload.titulo);
-    formData.append('fecha', payload.fecha);
+    const body: Record<string, unknown> = {
+      tema: payload.tema,
+      titulo: payload.titulo,
+    };
 
-    if (payload.fecha_extendida !== undefined) {
-      formData.append('fecha_extendida', payload.fecha_extendida ?? '');
-    }
-
-    if (payload.descripcion !== undefined) {
-      formData.append('descripcion', payload.descripcion ?? '');
+    if (payload.fecha) {
+      body['fecha'] = payload.fecha;
+    } else if (payload.fecha === null) {
+      body['fecha'] = null;
     }
 
     if (payload.docente != null) {
-      formData.append('docente', String(payload.docente));
+      body['docente'] = payload.docente;
     }
 
-    formData.append('pauta', payload.pauta);
-
-    return this.http.post<EvaluacionGrupoDto>(this.baseUrl, formData);
+    return this.http.post<EvaluacionGrupoDto>(this.baseUrl, body);
   }
 
   listarGruposActivos(docenteId?: number | null): Observable<GrupoActivoDto[]> {
