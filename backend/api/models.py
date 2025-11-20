@@ -453,6 +453,9 @@ class EvaluacionGrupoDocente(models.Model):
         return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
 
     def _obtener_ultima_entrega(self):
+        if not self.pk:
+            return None
+
         entregas_prefetch = getattr(self, "entregas_prefetch", None)
         if entregas_prefetch:
             return entregas_prefetch[0]
