@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -2411,6 +2411,7 @@ class DocenteGruposActivosListView(generics.ListAPIView):
 
 class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
     serializer_class = EvaluacionGrupoDocenteSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         queryset = (

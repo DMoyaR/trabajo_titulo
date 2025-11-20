@@ -24,6 +24,18 @@ def evaluacion_entrega_upload_to(instance, filename: str) -> str:
 
     return f"evaluaciones/entregas/{evaluacion_id}/{alumno_id}/{slug}-{identificador}{extension}"
 
+
+def evaluacion_rubrica_upload_to(instance, filename: str) -> str:
+    """Genera una ruta organizada para las rúbricas de evaluaciones docentes."""
+
+    tema_id = instance.tema_id or (instance.tema.pk if getattr(instance, "tema", None) else "sin-tema")
+    nombre = Path(filename).stem
+    extension = Path(filename).suffix.lower()
+    slug = slugify(nombre)[:50] or "rubrica"
+    identificador = uuid.uuid4().hex[:12]
+
+    return f"evaluaciones/rubricas/{tema_id}/{slug}-{identificador}{extension}"
+
 class Usuario(models.Model):
     ROL_CHOICES = [
         ("alumno", "Alumno"),
@@ -420,6 +432,7 @@ class EvaluacionGrupoDocente(models.Model):
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
     comentario = models.TextField(blank=True, null=True)
+    rubrica = models.FileField(upload_to=evaluacion_rubrica_upload_to, blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -455,6 +468,12 @@ class EvaluacionGrupoDocente(models.Model):
             self.grupo_nombre = self.tema.titulo
         self.sincronizar_estado()
         super().save(*args, **kwargs)
+
+    @property
+    def rubrica_nombre(self) -> str:
+        if not self.rubrica:
+            return ""
+        return Path(self.rubrica.name).name
 
 
 class EvaluacionEntregaAlumno(models.Model):

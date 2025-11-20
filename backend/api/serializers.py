@@ -955,6 +955,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    rubrica_url = serializers.SerializerMethodField()
+    rubrica_nombre = serializers.SerializerMethodField()
+    rubrica_tipo = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
@@ -965,6 +968,10 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "grupo_nombre",
             "titulo",
             "comentario",
+            "rubrica",
+            "rubrica_url",
+            "rubrica_nombre",
+            "rubrica_tipo",
             "fecha",
             "estado",
             "created_at",
@@ -979,6 +986,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "updated_at",
             "estado",
             "grupo_nombre",
+            "rubrica_url",
+            "rubrica_nombre",
+            "rubrica_tipo",
             "entregas",
             "ultima_entrega",
         ]
@@ -1020,6 +1030,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         data = data.copy()
         if data.get("fecha") in ("", None):
             data["fecha"] = None
+        if data.get("rubrica") in ("", None):
+            data["rubrica"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -1089,6 +1101,26 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             context=self.context,
         )
         return serializer.data
+
+    def get_rubrica_url(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.rubrica.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_rubrica_nombre(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        return obj.rubrica_nombre or None
+
+    def get_rubrica_tipo(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        tipo, _ = mimetypes.guess_type(obj.rubrica.name)
+        return tipo or "application/octet-stream"
 
     def _obtener_entregas_prefetch(self, obj):
         entregas = getattr(obj, "entregas_prefetch", None)

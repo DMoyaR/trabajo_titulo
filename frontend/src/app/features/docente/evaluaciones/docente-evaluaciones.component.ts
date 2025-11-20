@@ -15,6 +15,8 @@ type GrupoEvaluaciones = {
   evaluaciones: {
     titulo: string;
     comentario: string | null;
+    rubricaNombre: string | null;
+    rubricaUrl: string | null;
     fecha: string | null;
     estado: string;
   }[];
@@ -66,6 +68,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
   evaluacionComentario = signal('');
+  evaluacionRubrica = signal<File | null>(null);
+
+  private rubricaInput?: HTMLInputElement | null;
 
   estadoCalculado = computed(() =>
     this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
@@ -76,6 +81,20 @@ export class DocenteEvaluacionesComponent implements OnInit {
     this.docenteId = profile?.id ?? null;
 
     await Promise.all([this.cargarGruposActivos(), this.cargarEvaluaciones()]);
+  }
+
+  onRubricaSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const archivo = input?.files?.[0] ?? null;
+    this.rubricaInput = input;
+    this.evaluacionRubrica.set(archivo);
+  }
+
+  private limpiarRubrica(): void {
+    this.evaluacionRubrica.set(null);
+    if (this.rubricaInput) {
+      this.rubricaInput.value = '';
+    }
   }
 
   async agregarEvaluacion(event: Event): Promise<void> {
@@ -89,6 +108,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const rubrica = this.evaluacionRubrica();
 
     if (!grupoId || !titulo || !comentario) {
       return;
@@ -100,6 +120,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
       comentario,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
+      rubrica,
     };
 
     this.enviando.set(true);
@@ -116,6 +137,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.limpiarRubrica();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
       this.error.set(
@@ -134,6 +156,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const rubrica = this.evaluacionRubrica();
     const gruposActivos = this.gruposActivos();
 
     if (!titulo || !comentario || !gruposActivos.length) {
@@ -146,6 +169,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
       comentario,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
+      rubrica,
     }));
 
     this.enviando.set(true);
@@ -189,6 +213,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.limpiarRubrica();
 
       if (hayFallos) {
         this.error.set(
@@ -265,6 +290,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       lista.push({
         titulo: evaluacion.titulo,
         comentario: evaluacion.comentario,
+        rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+        rubricaUrl: evaluacion.rubrica_url,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
       });
@@ -284,6 +311,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const nuevaEvaluacion = {
       titulo: evaluacion.titulo,
       comentario: evaluacion.comentario,
+      rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+      rubricaUrl: evaluacion.rubrica_url,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
     };
@@ -371,6 +400,16 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
     window.open(entrega.archivoUrl, '_blank');
+  }
+
+  descargarRubrica(url: string | null): void {
+    if (!url) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.open(url, '_blank');
   }
 
   private parseFecha(valor: string | null | undefined): Date | null {

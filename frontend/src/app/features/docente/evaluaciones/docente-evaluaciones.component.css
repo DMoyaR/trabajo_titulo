@@ -131,6 +131,18 @@
   background: #0f2f52;
 }
 
+.btn.link {
+  background: transparent;
+  color: #1a3e6a;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.btn.link:hover {
+  background: transparent;
+  color: #0f2f52;
+}
+
 .groups {
   display: grid;
   gap: 16px;
