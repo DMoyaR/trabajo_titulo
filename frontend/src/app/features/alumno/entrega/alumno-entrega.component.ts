@@ -201,6 +201,15 @@ export class AlumnoEntregaComponent implements OnInit {
       return null;
     }
 
+    // When the backend sends only a date (YYYY-MM-DD), construct the date at the
+    // end of the local day so it isn't shifted to the previous day by timezone
+    // conversion. Otherwise, fall back to native parsing for full timestamps.
+    const soloFecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFecha.test(valor)) {
+      const [anio, mes, dia] = valor.split('-').map((v) => Number(v));
+      return new Date(anio, mes - 1, dia, 23, 59, 0, 0);
+    }
+
     const fecha = new Date(valor);
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
