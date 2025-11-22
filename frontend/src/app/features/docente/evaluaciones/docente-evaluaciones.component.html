@@ -35,6 +35,28 @@
         (input)="evaluacionTitulo.set(($any($event.target)).value)"
       />
     </label>
+    <label class="field textarea-field">
+      <span>Comentario de la evaluación</span>
+      <textarea
+        rows="3"
+        placeholder="Describe brevemente los criterios o indicaciones de la evaluación"
+        [value]="evaluacionComentario()"
+        (input)="evaluacionComentario.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
+    </label>
+    <label class="field">
+      <span>Rúbrica (opcional)</span>
+      <input
+        #rubricaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+        (change)="onRubricaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
+      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
+    </label>
     <label class="field">
       <span>Fecha (opcional)</span>
       <input
@@ -50,19 +72,36 @@
       </div>
     </div>
   </div>
-  <button
-    class="btn"
-    type="submit"
-    [disabled]="
-      enviando() ||
-      cargandoGruposActivos() ||
-      !gruposActivos().length ||
-      !grupoSeleccionadoId() ||
-      !evaluacionTitulo().trim()
-    "
-  >
-    {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
-  </button>
+  <div class="form-actions">
+    <button
+      class="btn"
+      type="submit"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !grupoSeleccionadoId() ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="enviarEvaluacionMasiva()"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
+    </button>
+  </div>
 </form>
 
 <p class="error" *ngIf="error()">{{ error() }}</p>
@@ -84,6 +123,17 @@
               >
               <span>Estado: {{ evaluacion.estado }}</span>
             </p>
+            <p class="comentario" *ngIf="evaluacion.comentario">
+              Comentario: {{ evaluacion.comentario }}
+            </p>
+            <button
+              class="btn link"
+              type="button"
+              *ngIf="evaluacion.rubricaUrl"
+              (click)="descargarRubrica(evaluacion.rubricaUrl)"
+            >
+              Ver rúbrica ({{ evaluacion.rubricaNombre }})
+            </button>
           </li>
         </ul>
       </section>

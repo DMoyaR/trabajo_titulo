@@ -14,6 +14,9 @@ type GrupoEvaluaciones = {
   nombre: string;
   evaluaciones: {
     titulo: string;
+    comentario: string | null;
+    rubricaNombre: string | null;
+    rubricaUrl: string | null;
     fecha: string | null;
     estado: string;
   }[];
@@ -64,6 +67,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
+  evaluacionComentario = signal('');
+  evaluacionRubrica = signal<File | null>(null);
+
+  private rubricaInput?: HTMLInputElement | null;
 
   estadoCalculado = computed(() =>
     this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
@@ -76,6 +83,20 @@ export class DocenteEvaluacionesComponent implements OnInit {
     await Promise.all([this.cargarGruposActivos(), this.cargarEvaluaciones()]);
   }
 
+  onRubricaSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const archivo = input?.files?.[0] ?? null;
+    this.rubricaInput = input;
+    this.evaluacionRubrica.set(archivo);
+  }
+
+  private limpiarRubrica(): void {
+    this.evaluacionRubrica.set(null);
+    if (this.rubricaInput) {
+      this.rubricaInput.value = '';
+    }
+  }
+
   async agregarEvaluacion(event: Event): Promise<void> {
     event.preventDefault();
 
@@ -86,16 +107,20 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const grupoId = this.grupoSeleccionadoId();
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
+    const comentario = this.evaluacionComentario().trim();
+    const rubrica = this.evaluacionRubrica();
 
-    if (!grupoId || !titulo) {
+    if (!grupoId || !titulo || !comentario) {
       return;
     }
 
     const payload = {
       tema: grupoId,
       titulo,
+      comentario,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
+      rubrica,
     };
 
     this.enviando.set(true);
@@ -111,10 +136,94 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.grupoSeleccionadoId.set(null);
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
+      this.evaluacionComentario.set('');
+      this.limpiarRubrica();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
       this.error.set(
         'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.'
+      );
+    } finally {
+      this.enviando.set(false);
+    }
+  }
+
+  async enviarEvaluacionMasiva(): Promise<void> {
+    if (this.enviando()) {
+      return;
+    }
+
+    const titulo = this.evaluacionTitulo().trim();
+    const fecha = this.evaluacionFecha().trim();
+    const comentario = this.evaluacionComentario().trim();
+    const rubrica = this.evaluacionRubrica();
+    const gruposActivos = this.gruposActivos();
+
+    if (!titulo || !comentario || !gruposActivos.length) {
+      return;
+    }
+
+    const payloads = gruposActivos.map((grupo) => ({
+      tema: grupo.id,
+      titulo,
+      comentario,
+      fecha: fecha ? fecha : null,
+      docente: this.docenteId,
+      rubrica,
+    }));
+
+    this.enviando.set(true);
+    this.error.set(null);
+
+    try {
+      const resultados = await Promise.allSettled(
+        payloads.map((payload) =>
+          firstValueFrom(this.evaluacionesService.crear(payload))
+        )
+      );
+
+      const exitosas = resultados
+        .filter(
+          (resultado): resultado is PromiseFulfilledResult<EvaluacionGrupoDto> =>
+            resultado.status === 'fulfilled'
+        )
+        .map((resultado) => resultado.value);
+
+      const hayFallos = resultados.some(
+        (resultado) => resultado.status === 'rejected'
+      );
+
+      if (!exitosas.length) {
+        this.error.set(
+          'No pudimos registrar las evaluaciones masivas. Intenta nuevamente.'
+        );
+        return;
+      }
+
+      const evaluacionesActualizadas = [
+        ...this.evaluaciones(),
+        ...exitosas,
+      ];
+
+      this.evaluaciones.set(evaluacionesActualizadas);
+      this.grupos.set(this.agruparEvaluaciones(evaluacionesActualizadas));
+      this.actualizarEntregas(evaluacionesActualizadas);
+
+      this.grupoSeleccionadoId.set(null);
+      this.evaluacionTitulo.set('');
+      this.evaluacionFecha.set('');
+      this.evaluacionComentario.set('');
+      this.limpiarRubrica();
+
+      if (hayFallos) {
+        this.error.set(
+          'Algunas evaluaciones no se pudieron registrar. Revisa e intenta nuevamente.'
+        );
+      }
+    } catch (error) {
+      console.error('No se pudo registrar la evaluación de forma masiva', error);
+      this.error.set(
+        'No pudimos registrar todas las evaluaciones. Intenta nuevamente en unos momentos.'
       );
     } finally {
       this.enviando.set(false);
@@ -180,6 +289,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
       const lista = mapa.get(nombreGrupo) ?? [];
       lista.push({
         titulo: evaluacion.titulo,
+        comentario: evaluacion.comentario,
+        rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+        rubricaUrl: evaluacion.rubrica_url,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
       });
@@ -198,6 +310,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const gruposActuales = this.grupos();
     const nuevaEvaluacion = {
       titulo: evaluacion.titulo,
+      comentario: evaluacion.comentario,
+      rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+      rubricaUrl: evaluacion.rubrica_url,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
     };
@@ -285,6 +400,16 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
     window.open(entrega.archivoUrl, '_blank');
+  }
+
+  descargarRubrica(url: string | null): void {
+    if (!url) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.open(url, '_blank');
   }
 
   private parseFecha(valor: string | null | undefined): Date | null {

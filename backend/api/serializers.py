@@ -877,8 +877,10 @@ class NotificacionSerializer(serializers.ModelSerializer):
 class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     alumno = serializers.SerializerMethodField()
     archivo_url = serializers.SerializerMethodField()
-    archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
+    archivo_nombre = serializers.CharField(read_only=True)
     archivo_tipo = serializers.SerializerMethodField()
+
+    MAX_ARCHIVO_MB = 50
 
     class Meta:
         model = EvaluacionEntregaAlumno
@@ -913,6 +915,18 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "archivo": {"write_only": True},
             "comentario": {"required": False, "allow_null": True, "allow_blank": True},
         }
+
+    def validate_archivo(self, value):
+        if not value:
+            return value
+
+        limite_bytes = self.MAX_ARCHIVO_MB * 1024 * 1024
+        if value.size > limite_bytes:
+            raise serializers.ValidationError(
+                f"El archivo supera el tamaño máximo permitido de {self.MAX_ARCHIVO_MB} MB."
+            )
+
+        return value
 
     def get_alumno(self, obj: EvaluacionEntregaAlumno):
         alumno = obj.alumno
@@ -955,6 +969,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    rubrica_url = serializers.SerializerMethodField()
+    rubrica_nombre = serializers.SerializerMethodField()
+    rubrica_tipo = serializers.SerializerMethodField()
 
     class Meta:
         model = EvaluacionGrupoDocente
@@ -964,6 +981,11 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "tema",
             "grupo_nombre",
             "titulo",
+            "comentario",
+            "rubrica",
+            "rubrica_url",
+            "rubrica_nombre",
+            "rubrica_tipo",
             "fecha",
             "estado",
             "created_at",
@@ -978,6 +1000,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "updated_at",
             "estado",
             "grupo_nombre",
+            "rubrica_url",
+            "rubrica_nombre",
+            "rubrica_tipo",
             "entregas",
             "ultima_entrega",
         ]
@@ -1007,10 +1032,20 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Debes indicar el título de la evaluación.")
         return titulo_limpio
 
+    def validate_comentario(self, comentario: str | None) -> str:
+        comentario_limpio = (comentario or "").strip()
+        if not comentario_limpio:
+            raise serializers.ValidationError(
+                "Debes agregar un comentario para la evaluación."
+            )
+        return comentario_limpio
+
     def to_internal_value(self, data):
         data = data.copy()
         if data.get("fecha") in ("", None):
             data["fecha"] = None
+        if data.get("rubrica") in ("", None):
+            data["rubrica"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -1080,6 +1115,26 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             context=self.context,
         )
         return serializer.data
+
+    def get_rubrica_url(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = obj.rubrica.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_rubrica_nombre(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        return obj.rubrica_nombre or None
+
+    def get_rubrica_tipo(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if not obj.rubrica:
+            return None
+        tipo, _ = mimetypes.guess_type(obj.rubrica.name)
+        return tipo or "application/octet-stream"
 
     def _obtener_entregas_prefetch(self, obj):
         entregas = getattr(obj, "entregas_prefetch", None)

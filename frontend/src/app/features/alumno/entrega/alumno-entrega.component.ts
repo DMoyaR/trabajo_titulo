@@ -27,9 +27,13 @@ interface Evaluacion {
   id: number;
   titulo: string;
   descripcion?: string;
+  comentario?: string | null;
   fechaLimite: string | Date | null;
   estado: EstadoEval;
   tipo: 'informe' | 'presentación' | 'anexo' | string;
+  rubricaUrl?: string | null;
+  rubricaNombre?: string | null;
+  rubricaTipo?: string | null;
   ultimaEntrega?: Entrega | null;
 }
 
@@ -75,7 +79,7 @@ export class AlumnoEntregaComponent implements OnInit {
   };
 
   // Constantes
-  maxMB = 25;
+  maxMB = 50;
 
   // Getters para template (signals)
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
@@ -134,9 +138,13 @@ export class AlumnoEntregaComponent implements OnInit {
       id: dto.id,
       titulo: dto.titulo,
       descripcion: undefined,
+      comentario: dto.comentario,
       fechaLimite: this.parseFecha(dto.fecha),
       estado: this.mapEstado(dto, ultima),
       tipo: this.inferirTipo(dto.titulo),
+      rubricaUrl: dto.rubrica_url,
+      rubricaNombre: dto.rubrica_nombre,
+      rubricaTipo: dto.rubrica_tipo,
       ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
     };
   }
@@ -191,6 +199,15 @@ export class AlumnoEntregaComponent implements OnInit {
   private parseFecha(valor: string | null | undefined): Date | null {
     if (!valor) {
       return null;
+    }
+
+    // When the backend sends only a date (YYYY-MM-DD), construct the date at the
+    // end of the local day so it isn't shifted to the previous day by timezone
+    // conversion. Otherwise, fall back to native parsing for full timestamps.
+    const soloFecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFecha.test(valor)) {
+      const [anio, mes, dia] = valor.split('-').map((v) => Number(v));
+      return new Date(anio, mes - 1, dia, 23, 59, 0, 0);
     }
 
     const fecha = new Date(valor);
@@ -287,14 +304,31 @@ export class AlumnoEntregaComponent implements OnInit {
   onDrop(ev: DragEvent) {
     ev.preventDefault();
     this._dragging.set(false);
-    const f = ev.dataTransfer?.files?.[0];
-    if (f) this._archivo.set(f);
+    const f = ev.dataTransfer?.files?.[0] ?? null;
+    this.asignarArchivo(f);
   }
 
   onFilePick(ev: Event) {
     const input = ev.target as HTMLInputElement;
     const f = input.files?.[0] || null;
-    this._archivo.set(f);
+    this.asignarArchivo(f);
+  }
+
+  private asignarArchivo(file: File | null) {
+    if (!file) {
+      this._archivo.set(null);
+      return;
+    }
+
+    const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+    if (sizeMB > this.maxMB) {
+      this._errorMsg.set(`El archivo supera el máximo de ${this.maxMB} MB.`);
+      this._archivo.set(null);
+      return;
+    }
+
+    this._errorMsg.set(null);
+    this._archivo.set(file);
   }
 
   submitUpload() {
@@ -361,8 +395,16 @@ export class AlumnoEntregaComponent implements OnInit {
             this._errorMsg.set(detalle.archivo[0]);
             return;
           }
+          if (detalle?.alumno?.[0]) {
+            this._errorMsg.set(detalle.alumno[0]);
+            return;
+          }
           if (detalle?.evaluacion?.[0]) {
             this._errorMsg.set(detalle.evaluacion[0]);
+            return;
+          }
+          if (typeof detalle?.detail === 'string') {
+            this._errorMsg.set(detalle.detail);
             return;
           }
           this._errorMsg.set('No pudimos subir tu entrega. Intenta nuevamente.');

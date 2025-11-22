@@ -222,7 +222,7 @@
 
 <div class="toast" *ngIf="toast()">{{ toast() }}</div>
 
-<!-- ======= DETALLE (sigue igual) ======= -->
+<!-- ======= DETALLE  ======= -->
 <ng-container *ngIf="showDetalle() && current() as c">
   <div class="backdrop" (click)="cerrarDetalle()"></div>
 
@@ -268,7 +268,8 @@
         </div>
 
         <div class="actions">
-          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">   
+          <form class="approve-form" [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
+            <input type="url" placeholder="URL PDF firmado (opcional)" formControlName="urlFirmado">
             <button class="btn primary" type="submit">Aprobar y Firmar</button>
           </form>
 
@@ -279,49 +280,92 @@
         </div>
       </div>
 
-      <div class="col carta-col">
-        <h4>Vista previa</h4>
-        <div class="preview-col">
-          <div class="carta-preview">
-            <header class="c-enc">
-              <div class="c-uni">Universidad Tecnológica Metropolitana</div>
-              <div class="c-addr">{{ cartaPreview().escuelaNombre }} — {{ cartaPreview().escuelaDireccion }} — Tel. {{ cartaPreview().escuelaTelefono }}</div>
-            </header>
+<div class="col carta-col">
+  <h4>Vista previa</h4>
+  <div class="preview-col">
+    <div class="carta-preview">
+      <!-- Encabezado con logo (similar al PDF) -->
+      <header class="c-enc">
+        <img src="/assets/Logo_Header.png" alt="Logo UTEM" class="c-logo" />
+      </header>
 
-            <div class="c-fecha">{{ fechaHoy() }}</div>
+      <!-- Fecha alineada a la derecha -->
+      <div class="c-fecha">{{ fechaHoy() }}</div>
 
-            <section class="c-dest">
-              <div>Señor</div>
-              <div class="c-dest-name">{{ cartaPreview().destNombres }} {{ cartaPreview().destApellidos }}</div>
-              <div class="c-dest-cargo">{{ cartaPreview().destCargo }}</div>
-              <div class="c-dest-emp">{{ cartaPreview().destEmpresa }}</div>
-              <div>Presente</div>
-            </section>
+      <!-- Destinatario -->
+      <section class="c-dest">
+        <div>Señor</div>
+        <div class="c-dest-name">
+          {{ cartaPreview().destNombres }} {{ cartaPreview().destApellidos }}
+        </div>
+        <div class="c-dest-cargo">{{ cartaPreview().destCargo }}</div>
+        <div class="c-dest-emp">{{ cartaPreview().destEmpresa }}</div>
+        <div>Presente</div>
+      </section>
 
-            <section class="c-body">
-              <p>
-                Me permito dirigirme a Ud. para presentar al Sr. <b>{{ cartaPreview().alumnoNombres }} {{ cartaPreview().alumnoApellidos }}</b>,
-                RUT <b>{{ cartaPreview().alumnoRut }}</b>, alumno regular de la carrera de <b>{{ cartaPreview().carrera }}</b> de la
-                Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
-              </p>
-              <p>
-                Esta práctica tiene una duración de
-                <b>{{ cartaPreview().duracionHoras }}</b> horas cronológicas
-                y sus objetivos son:
-              </p>
-              <ul class="c-obj"><li *ngFor="let obj of objetivosActuales()">{{ obj }}</li></ul>
-              <p>Le saluda atentamente,</p>
-            </section>
+      <!-- Cuerpo de la carta, similar a los párrafos del PDF -->
+      <section class="c-body">
+        <!-- Primer párrafo (Me permito dirigirme...) -->
+        <p>
+          Me permito dirigirme a Ud. para presentar al Sr.
+          <b>{{ cartaPreview().alumnoNombres }} {{ cartaPreview().alumnoApellidos }}</b>
+          <ng-container *ngIf="cartaPreview().alumnoRut && cartaPreview().alumnoRut !== '—'">
+            , RUT <b>{{ cartaPreview().alumnoRut }}</b>
+          </ng-container>
+          <ng-container *ngIf="cartaPreview().carrera && cartaPreview().carrera !== '—'">
+            , de la carrera de <b>{{ cartaPreview().carrera }}</b>
+          </ng-container>
+          de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+        </p>
 
-            <footer class="c-sign">
-              <div class="c-firma-nombre">{{ firmaActual().nombre }}</div>
-              <div class="c-firma-cargo">{{ firmaActual().cargo }}</div>
-              <div class="c-web">{{ firmaActual().institucion || 'Universidad Tecnológica Metropolitana' }}</div>
-            </footer>
+        <!-- Segundo párrafo (seguro, duración, fecha de inicio, objetivos) -->
+        <p>
+          Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3º de la
+          ley N.º 16.744 y el Art. 1.º del D.L. N.º 313/73. Esta práctica tiene una duración de
+          <b>{{ cartaPreview().duracionHoras | number }}</b> horas cronológicas,
+          con fecha de inicio el día <b>{{ cartaPreview().fechaInicio }}</b> y sus objetivos son:
+        </p>
+
+        <!-- Lista de objetivos -->
+        <ul class="c-obj">
+          <li *ngFor="let obj of objetivosActuales()">{{ obj }}</li>
+        </ul>
+
+        <!-- Despedida alineada a la derecha, como en el PDF -->
+        <p class="c-despedida">Le saluda atentamente,</p>
+      </section>
+
+      <!-- Firma (imagen + texto) alineada a la derecha -->
+      <footer class="c-sign">
+        <div class="c-sign-inner">
+          <img
+            *ngIf="firmaCoordinador()?.url"
+            [src]="firmaCoordinador()!.url!"
+            alt="Firma del coordinador"
+            class="c-firma-img"
+          />
+          <div class="c-firma-text">
+            <div class="c-firma-nombre">{{ firmaActual().nombre }}</div>
+            <div class="c-firma-cargo">{{ firmaActual().cargo }}</div>
           </div>
-          <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
+        </div>
+      </footer>
+
+      <!-- Pie de página similar al PDF -->
+      <div class="c-footer">
+        <div class="c-footer-inst">
+          {{ firmaActual().institucion || 'Universidad Tecnológica Metropolitana' }}
+        </div>
+        <div class="c-footer-addr">
+          {{ cartaPreview().escuelaNombre }} — {{ cartaPreview().escuelaDireccion }}
+          — Tel. {{ cartaPreview().escuelaTelefono }} — http://www.utem.cl
         </div>
       </div>
+    </div>
+
+  </div>
+</div>
+
     </div>
   </aside>
 </ng-container>

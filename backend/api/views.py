@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -2411,6 +2411,7 @@ class DocenteGruposActivosListView(generics.ListAPIView):
 
 class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
     serializer_class = EvaluacionGrupoDocenteSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         queryset = (
@@ -2509,6 +2510,8 @@ class AlumnoEvaluacionListView(generics.ListAPIView):
 class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
     serializer_class = EvaluacionEntregaAlumnoSerializer
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
 
     def get_queryset(self):
         evaluacion_id = self.kwargs.get("pk")
@@ -2554,6 +2557,12 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
             fuente = self.request.query_params
 
         alumno_param = fuente.get("alumno") if fuente else None
+
+        if alumno_param in (None, "", "null"):
+            usuario = getattr(self.request, "user", None)
+            if getattr(usuario, "id", None):
+                return usuario.id
+
         try:
             alumno_id = int(alumno_param)
         except (TypeError, ValueError):

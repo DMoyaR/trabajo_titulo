@@ -26,6 +26,10 @@ export interface EvaluacionGrupoDto {
   tema: number | null;
   grupo_nombre: string;
   titulo: string;
+  comentario: string | null;
+  rubrica_url: string | null;
+  rubrica_nombre: string | null;
+  rubrica_tipo: string | null;
   fecha: string | null;
   estado: string;
   created_at: string;
@@ -43,6 +47,8 @@ export type CrearEvaluacionPayload = {
   docente?: number | null;
   tema: number;
   titulo: string;
+  comentario: string;
+  rubrica?: File | null;
   fecha?: string | null;
 };
 
@@ -71,22 +77,46 @@ export class DocenteEvaluacionesService {
   }
 
   crear(payload: CrearEvaluacionPayload): Observable<EvaluacionGrupoDto> {
-    const body: Record<string, unknown> = {
-      tema: payload.tema,
-      titulo: payload.titulo,
-    };
+    const usarFormData = Boolean(payload.rubrica instanceof File);
+
+    if (!usarFormData) {
+      const body: Record<string, unknown> = {
+        tema: payload.tema,
+        titulo: payload.titulo,
+        comentario: payload.comentario,
+      };
+
+      if (payload.fecha) {
+        body['fecha'] = payload.fecha;
+      } else if (payload.fecha === null) {
+        body['fecha'] = null;
+      }
+
+      if (payload.docente != null) {
+        body['docente'] = payload.docente;
+      }
+
+      return this.http.post<EvaluacionGrupoDto>(this.baseUrl, body);
+    }
+
+    const form = new FormData();
+    form.append('tema', String(payload.tema));
+    form.append('titulo', payload.titulo);
+    form.append('comentario', payload.comentario);
 
     if (payload.fecha) {
-      body['fecha'] = payload.fecha;
-    } else if (payload.fecha === null) {
-      body['fecha'] = null;
+      form.append('fecha', payload.fecha);
     }
 
     if (payload.docente != null) {
-      body['docente'] = payload.docente;
+      form.append('docente', String(payload.docente));
     }
 
-    return this.http.post<EvaluacionGrupoDto>(this.baseUrl, body);
+    if (payload.rubrica instanceof File) {
+      form.append('rubrica', payload.rubrica);
+    }
+
+    return this.http.post<EvaluacionGrupoDto>(this.baseUrl, form);
   }
 
   listarGruposActivos(docenteId?: number | null): Observable<GrupoActivoDto[]> {

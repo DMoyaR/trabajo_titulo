@@ -33,12 +33,18 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   border: 1px solid #c7d5eb;
   border-radius: 10px;
   padding: 10px 12px;
   font: inherit;
   background: #fff;
+  resize: vertical;
+}
+
+.textarea-field {
+  grid-column: 1 / -1;
 }
 
 .field-hint {
@@ -91,6 +97,12 @@
   color: #047857;
 }
 
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .btn {
   border: 0;
   border-radius: 10px;
@@ -117,6 +129,18 @@
 
 .btn.secondary:hover {
   background: #0f2f52;
+}
+
+.btn.link {
+  background: transparent;
+  color: #1a3e6a;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.btn.link:hover {
+  background: transparent;
+  color: #0f2f52;
 }
 
 .groups {
@@ -178,6 +202,12 @@
   flex-wrap: wrap;
   color: #4b5563;
   font-size: 13px;
+}
+
+.comentario {
+  margin: 6px 0 0;
+  color: #1f2937;
+  font-size: 14px;
 }
 
 .empty {
