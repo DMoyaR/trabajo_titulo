@@ -67,6 +67,7 @@
   gap:12px; margin:8px 0 12px;
 }
 .muted { color:#6b7280; }
+.error { color:#b91c1c; margin:8px 0; }
 
 /* Botones */
 .btn { border:0; border-radius:8px; padding:8px 14px; font-weight:800; cursor:pointer; }

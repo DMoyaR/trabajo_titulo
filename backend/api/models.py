@@ -1,5 +1,40 @@
-from django.db import models
+from pathlib import Path
+import uuid
+
 from django.contrib.auth.hashers import make_password, check_password as auth_check_password
+from django.db import models
+from django.utils import timezone
+from django.utils.text import slugify
+
+
+def evaluacion_entrega_upload_to(instance, filename: str) -> str:
+    """Genera una ruta predecible y única para los archivos de entregas."""
+
+    evaluacion_id = instance.evaluacion_id or (
+        instance.evaluacion.pk if getattr(instance, "evaluacion", None) else "sin-evaluacion"
+    )
+    alumno_id = instance.alumno_id or (
+        instance.alumno.pk if getattr(instance, "alumno", None) else "sin-alumno"
+    )
+
+    nombre = Path(filename).stem
+    extension = Path(filename).suffix.lower()
+    slug = slugify(nombre)[:50] or "archivo"
+    identificador = uuid.uuid4().hex[:12]
+
+    return f"evaluaciones/entregas/{evaluacion_id}/{alumno_id}/{slug}-{identificador}{extension}"
+
+
+def evaluacion_rubrica_upload_to(instance, filename: str) -> str:
+    """Genera una ruta organizada para las rúbricas de evaluaciones docentes."""
+
+    tema_id = instance.tema_id or (instance.tema.pk if getattr(instance, "tema", None) else "sin-tema")
+    nombre = Path(filename).stem
+    extension = Path(filename).suffix.lower()
+    slug = slugify(nombre)[:50] or "rubrica"
+    identificador = uuid.uuid4().hex[:12]
+
+    return f"evaluaciones/rubricas/{tema_id}/{slug}-{identificador}{extension}"
 
 class Usuario(models.Model):
     ROL_CHOICES = [
@@ -48,8 +83,16 @@ class Usuario(models.Model):
     nombre_completo = models.CharField(max_length=100)
     correo = models.EmailField(unique=True, max_length=100)
     carrera = models.CharField(max_length=50, choices=CARRERA_CHOICES, blank=True, null=True)
-    rut = models.CharField(max_length=15, unique=True)
+    rut = models.CharField(max_length=15, unique=True, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    docente_guia = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alumnos_guia",
+        limit_choices_to={"rol": "docente"},
+    )
     rol = models.CharField(max_length=20, choices=ROL_CHOICES)
     contrasena = models.CharField(max_length=128)
 
@@ -177,6 +220,11 @@ class SolicitudCartaPractica(models.Model):
     practica_empresa_rut = models.CharField(max_length=20)
     practica_sector = models.CharField(max_length=160)
     practica_duracion_horas = models.PositiveIntegerField()
+    practica_correo_encargado = models.EmailField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
 
     dest_nombres = models.CharField(max_length=120)
     dest_apellidos = models.CharField(max_length=120)
@@ -207,6 +255,277 @@ class SolicitudCartaPractica(models.Model):
 
     def __str__(self) -> str:
         return f"Carta práctica de {self.alumno_nombres} {self.alumno_apellidos}"
+
+
+class SolicitudReunion(models.Model):
+    ESTADOS = [
+        ("pendiente", "Pendiente"),
+        ("aprobada", "Aprobada"),
+        ("rechazada", "Rechazada"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_reunion",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="solicitudes_reunion_recibidas",
+        limit_choices_to={"rol": "docente"},
+    )
+    motivo = models.TextField()
+    disponibilidad_sugerida = models.CharField(max_length=255, blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="pendiente")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "solicitudes_reunion"
+        ordering = ["-creado_en"]
+        verbose_name = "Solicitud reuniones alumno"
+        verbose_name_plural = "Solicitudes reuniones alumno"
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno desconocido"
+        return f"Solicitud de reunión de {alumno} ({self.estado})"
+
+
+class Reunion(models.Model):
+    ESTADOS = [
+        ("aprobada", "Aprobada"),
+        ("finalizada", "Finalizada"),
+        ("no_realizada", "No realizada"),
+        ("reprogramada", "Reprogramada"),
+    ]
+    MODALIDADES = [
+        ("presencial", "Presencial"),
+        ("online", "Online"),
+    ]
+
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_alumno",
+    )
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_docente",
+        limit_choices_to={"rol": "docente"},
+    )
+    solicitud = models.OneToOneField(
+        SolicitudReunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reunion",
+    )
+    fecha = models.DateField()
+    hora_inicio = models.TimeField()
+    hora_termino = models.TimeField()
+    modalidad = models.CharField(max_length=20, choices=MODALIDADES)
+    motivo = models.TextField()
+    observaciones = models.TextField(blank=True, null=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="aprobada")
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reuniones_registradas",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "reuniones"
+        ordering = ["-fecha", "-hora_inicio"]
+        indexes = [
+            models.Index(fields=["docente", "fecha", "hora_inicio", "hora_termino"]),
+        ]
+        verbose_name = "Solicitud reuniones docente"
+        verbose_name_plural = "Solicitudes reuniones docente"
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno"
+        fecha = self.fecha.isoformat()
+        return f"Reunión {fecha} - {alumno} ({self.estado})"
+
+
+class TrazabilidadReunion(models.Model):
+    TIPOS = [
+        ("creacion_solicitud", "Creación de solicitud"),
+        ("aprobada_desde_solicitud", "Aprobada desde solicitud"),
+        ("agendada_directamente", "Agendada directamente"),
+        ("rechazo", "Rechazo"),
+        ("cierre_final", "Cierre final"),
+    ]
+
+    solicitud = models.ForeignKey(
+        SolicitudReunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trazabilidad",
+    )
+    reunion = models.ForeignKey(
+        Reunion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trazabilidad",
+    )
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    tipo = models.CharField(max_length=40, choices=TIPOS)
+    estado_anterior = models.CharField(max_length=20, blank=True, null=True)
+    estado_nuevo = models.CharField(max_length=20, blank=True, null=True)
+    comentario = models.TextField(blank=True, null=True)
+    datos = models.JSONField(default=dict, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "trazabilidad_reuniones"
+        ordering = ["-creado_en"]
+
+    def __str__(self) -> str:
+        referencia = "reunión" if self.reunion_id else "solicitud"
+        return f"Registro de {referencia} ({self.tipo})"
+
+
+class EvaluacionGrupoDocente(models.Model):
+    ESTADOS = [
+        ("Pendiente", "Pendiente"),
+        ("En progreso", "En progreso"),
+        ("Evaluada", "Evaluada"),
+    ]
+
+    docente = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluaciones_grupo",
+        limit_choices_to={"rol": "docente"},
+    )
+    tema = models.ForeignKey(
+        "TemaDisponible",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluaciones_docente",
+    )
+    grupo_nombre = models.CharField(max_length=160)
+    titulo = models.CharField(max_length=200)
+    comentario = models.TextField(blank=True, null=True)
+    rubrica = models.FileField(upload_to=evaluacion_rubrica_upload_to, blank=True, null=True)
+    fecha = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "evaluaciones_grupo_docente"
+        ordering = ["grupo_nombre", "-fecha", "-created_at"]
+        indexes = [
+            models.Index(fields=["docente", "grupo_nombre", "estado"]),
+            models.Index(fields=["tema", "fecha"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.grupo_nombre} - {self.titulo} ({self.estado})"
+
+    def sincronizar_estado(self) -> None:
+        hoy = timezone.localdate()
+
+        if not self.fecha:
+            self.estado = "Pendiente"
+            return
+
+        if self.fecha > hoy:
+            self.estado = "Pendiente"
+        elif self.fecha == hoy:
+            self.estado = "En progreso"
+        else:
+            self.estado = "Evaluada"
+
+    def save(self, *args, **kwargs):
+        if self.tema:
+            self.grupo_nombre = self.tema.titulo
+        self.sincronizar_estado()
+        super().save(*args, **kwargs)
+
+    @property
+    def rubrica_nombre(self) -> str:
+        if not self.rubrica:
+            return ""
+        return Path(self.rubrica.name).name
+
+
+class EvaluacionEntregaAlumno(models.Model):
+    ESTADOS_REVISION = [
+        ("pendiente", "Pendiente"),
+        ("revisada", "Revisada"),
+    ]
+
+    evaluacion = models.ForeignKey(
+        EvaluacionGrupoDocente,
+        on_delete=models.CASCADE,
+        related_name="entregas",
+    )
+    alumno = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="entregas_evaluaciones",
+        limit_choices_to={"rol": "alumno"},
+    )
+    titulo = models.CharField(max_length=180)
+    comentario = models.TextField(blank=True, null=True)
+    archivo = models.FileField(upload_to=evaluacion_entrega_upload_to)
+    nota = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
+    estado_revision = models.CharField(
+        max_length=20,
+        choices=ESTADOS_REVISION,
+        default="pendiente",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "evaluaciones_entregas_alumno"
+        ordering = ["-creado_en"]
+        indexes = [
+            models.Index(
+                fields=["evaluacion", "alumno", "estado_revision"],
+                name="evaluacione_evaluac_3ae986_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        alumno = self.alumno.nombre_completo if self.alumno else "Alumno sin asignar"
+        return f"{alumno} - {self.titulo}"
+
+    @property
+    def archivo_nombre(self) -> str:
+        if not self.archivo:
+            return ""
+        return Path(self.archivo.name).name
 
 
 class PropuestaTema(models.Model):
@@ -269,6 +588,7 @@ class Notificacion(models.Model):
         ("propuesta", "Propuesta"),
         ("general", "General"),
         ("tema", "Tema"),
+        ("reunion", "Reunión"),
         ("inscripcion", "Inscripción"),
     ]
 
@@ -317,3 +637,30 @@ class PracticaDocumento(models.Model):
 
     def __str__(self) -> str:
         return f"{self.nombre} ({self.carrera})"
+
+
+class PracticaFirmaCoordinador(models.Model):
+    """Firma del coordinador para las cartas de práctica por carrera."""
+
+    carrera = models.CharField(
+        max_length=120,
+        choices=Usuario.CARRERA_CHOICES,
+        unique=True,
+    )
+    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d")
+    uploaded_by = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="firmas_practica",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "practica_firmas_coordinador"
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return f"Firma {self.carrera}"

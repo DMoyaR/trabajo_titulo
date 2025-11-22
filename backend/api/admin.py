@@ -9,6 +9,12 @@ from .models import (
     PropuestaTemaDocente,
     Notificacion,
     PracticaDocumento,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
+    EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
+    TemaDisponible,
 )
 
 
@@ -102,8 +108,106 @@ class NotificacionAdmin(admin.ModelAdmin):
     search_fields = ("titulo", "mensaje", "usuario__nombre_completo", "usuario__correo")
 
 
+@admin.register(EvaluacionGrupoDocente)
+class EvaluacionGrupoDocenteAdmin(admin.ModelAdmin):
+    list_display = (
+        "grupo_nombre",
+        "titulo",
+        "estado",
+        "docente",
+        "tema",
+        "fecha",
+        "updated_at",
+    )
+    list_filter = ("estado", "docente", "tema")
+    search_fields = (
+        "grupo_nombre",
+        "titulo",
+        "docente__nombre_completo",
+        "tema__titulo",
+    )
+    autocomplete_fields = ("docente", "tema")
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("grupo_nombre", "-fecha", "-updated_at")
+
+
+@admin.register(EvaluacionEntregaAlumno)
+class EvaluacionEntregaAlumnoAdmin(admin.ModelAdmin):
+    list_display = (
+        "evaluacion",
+        "alumno",
+        "titulo",
+        "estado_revision",
+        "nota",
+        "creado_en",
+    )
+    list_filter = ("estado_revision", "evaluacion__docente")
+    search_fields = (
+        "evaluacion__titulo",
+        "evaluacion__grupo_nombre",
+        "alumno__nombre_completo",
+        "titulo",
+    )
+    autocomplete_fields = ("evaluacion", "alumno")
+    readonly_fields = ("creado_en", "actualizado_en")
+
+
+@admin.register(TemaDisponible)
+class TemaDisponibleAdmin(admin.ModelAdmin):
+    search_fields = ("titulo", "carrera", "rama")
+    list_display = ("titulo", "carrera", "rama", "cupos")
+
+
 @admin.register(PracticaDocumento)
 class PracticaDocumentoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "carrera", "uploaded_by", "created_at")
     list_filter = ("carrera",)
     search_fields = ("nombre", "descripcion", "uploaded_by__nombre_completo")
+
+
+@admin.register(SolicitudReunion)
+class SolicitudReunionAdmin(admin.ModelAdmin):
+    list_display = ("id", "alumno", "docente", "estado", "creado_en")
+    list_filter = ("estado", "docente")
+    search_fields = (
+        "alumno__nombre_completo",
+        "alumno__correo",
+        "docente__nombre_completo",
+        "motivo",
+    )
+    readonly_fields = ("creado_en", "actualizado_en")
+    autocomplete_fields = ("alumno", "docente")
+
+
+@admin.register(Reunion)
+class ReunionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "fecha",
+        "hora_inicio",
+        "docente",
+        "alumno",
+        "estado",
+    )
+    list_filter = ("estado", "modalidad", "docente")
+    search_fields = (
+        "alumno__nombre_completo",
+        "alumno__correo",
+        "docente__nombre_completo",
+        "motivo",
+    )
+    readonly_fields = ("creado_en", "actualizado_en")
+    autocomplete_fields = ("alumno", "docente", "solicitud", "creado_por")
+
+
+@admin.register(TrazabilidadReunion)
+class TrazabilidadReunionAdmin(admin.ModelAdmin):
+    list_display = ("id", "tipo", "solicitud", "reunion", "usuario", "creado_en")
+    list_filter = ("tipo",)
+    search_fields = (
+        "solicitud__alumno__nombre_completo",
+        "reunion__docente__nombre_completo",
+        "usuario__nombre_completo",
+    )
+    readonly_fields = ("creado_en",)
+    autocomplete_fields = ("solicitud", "reunion", "usuario")

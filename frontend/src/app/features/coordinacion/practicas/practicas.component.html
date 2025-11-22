@@ -2,7 +2,7 @@
 
 <!-- ======= Pestañas principales ======= -->
 <div class="toolbar card">
-  <div class="tabs main-tabs">
+<div class="tabs main-tabs">
 <button class="tab"
   [class.active]="mainTab()==='solicitudes'"
   (click)="setMainTab('solicitudes')"
@@ -20,6 +20,19 @@
   [style.color]="mainTab()==='documentos' ? '#fff' : null">
   Documentos Oficiales
 </button>
+
+
+<button class="tab"
+  *ngIf="isCoordinador"
+  [class.active]="mainTab()==='firma'"
+  (click)="setMainTab('firma')"
+  [style.background-color]="mainTab()==='firma' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='firma' ? '#00a35c' : null"
+  [style.color]="mainTab()==='firma' ? '#fff' : null">
+  Firma del coordinador
+</button>
+
+
   </div>
 
   <!-- Buscador SOLO en Solicitudes -->
@@ -108,6 +121,64 @@
   </div>
 </section>
 
+
+<!-- ======= CONTENIDO: FIRMA COORDINADOR ======= -->
+<section *ngIf="mainTab()==='firma' && isCoordinador">
+  <div class="card docs-card firma-card">
+    <div class="card-head">
+      <h3>Firma del coordinador</h3>
+      <p class="muted">Visible solo para coordinación de {{ coordinadorCarrera || 'la carrera' }}.</p>
+    </div>
+
+    <div class="alert error" *ngIf="firmaError()">{{ firmaError() }}</div>
+
+    <div class="firma-grid">
+      <form class="firma-form" (ngSubmit)="subirFirmaCoordinador()" novalidate>
+        <label class="file-input">
+          <input
+            #firmaInput
+            type="file"
+            accept="image/png,image/jpeg"
+            (change)="onFirmaSeleccionada($event)"
+          />
+          <span>{{ firmaArchivoNombre() || 'Seleccionar imagen de firma' }}</span>
+        </label>
+
+        <div class="firma-actions">
+          <button class="btn primary" type="submit" [disabled]="firmaGestionLoading()">
+            {{ firmaGestionLoading() ? 'Guardando…' : 'Guardar firma' }}
+          </button>
+          <button class="btn sm" type="button" (click)="limpiarArchivoFirma()" [disabled]="firmaGestionLoading()">
+            Limpiar
+          </button>
+        </div>
+
+        <div class="help error" *ngIf="firmaUploadError()">{{ firmaUploadError() }}</div>
+        <p class="muted">Formatos aceptados: PNG o JPG. Se utilizará solo en coordinación.</p>
+      </form>
+
+      <div class="firma-preview">
+        <p class="muted" *ngIf="firmaLoading()">Cargando firma…</p>
+        <div class="alert error" *ngIf="!firmaLoading() && firmaError()">{{ firmaError() }}</div>
+        <div class="preview-box" *ngIf="!firmaLoading() && !firmaError()">
+          <p class="muted" *ngIf="!firmaCoordinador()">Aún no registras una firma para tu carrera.</p>
+          <img
+            *ngIf="firmaCoordinador()?.url"
+            [src]="firmaCoordinador()!.url!"
+            alt="Firma del coordinador"
+          />
+          <small class="muted" *ngIf="firmaCoordinador()">
+            Última actualización: {{ formatFecha(firmaCoordinador()!.updatedAt) }}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+
 <!-- ======= CONTENIDO: SOLICITUDES ======= -->
 <section *ngIf="mainTab()==='solicitudes'">
   <div class="card">
@@ -142,7 +213,7 @@
 
       <div class="pager" *ngIf="total() > size()">
         <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
-        <span>Página {{ page() }}</span>
+        <span>    Página    {{ page() }}</span>
         <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
       </div>
     </div>
@@ -173,6 +244,7 @@
         <div class="info-group">
           <h4>Datos de la práctica</h4>
           <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+          
           <p><b>Cargo del estudiante:</b> {{ c.practica.cargoAlumno }}</p>
           <p><b>Fecha de inicio:</b> {{ formatFecha(c.practica.fechaInicio) }}</p>
           <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
@@ -181,9 +253,10 @@
         </div>
 
         <div class="info-group">
-          <h4>Empresa / Destinatario</h4>
+          <h4>Empresa / Destinatario</h4>      
           <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
           <p><b>Contacto:</b> {{ c.destinatario.nombres }} {{ c.destinatario.apellidos }}</p>
+          <p><b>Correo del encargado:</b> {{ c.practica.correoEncargado }}</p>
           <p><b>Cargo del contacto:</b> {{ c.destinatario.cargo }}</p>
         </div>
 
@@ -195,9 +268,8 @@
         </div>
 
         <div class="actions">
-          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
-            <input type="url" placeholder="URL PDF firmado (opcional)" formControlName="urlFirmado">
-            <button class="btn primary" type="submit">Aprobar</button>
+          <form [formGroup]="aprobarForm" (ngSubmit)="aprobar()">   
+            <button class="btn primary" type="submit">Aprobar y Firmar</button>
           </form>
 
           <form [formGroup]="rechazarForm" (ngSubmit)="rechazar()">

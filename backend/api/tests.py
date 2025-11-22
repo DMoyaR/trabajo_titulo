@@ -4,7 +4,14 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
 
-from .models import PropuestaTema, TemaDisponible, Usuario, Notificacion, InscripcionTema
+from .models import (
+    PropuestaTema,
+    TemaDisponible,
+    Usuario,
+    Notificacion,
+    InscripcionTema,
+    SolicitudReunion,
+)
 
 
 class TemaDisponibleAPITestCase(APITestCase):
@@ -1358,3 +1365,116 @@ class TemaDisponibleFinalizacionNotificationTests(APITestCase):
         )
         eventos = {notif.meta.get("evento") for notif in Notificacion.objects.all()}
         self.assertEqual(eventos, {"tema_finalizado"})
+
+
+class ReunionesAPITestCase(APITestCase):
+    def setUp(self):
+        self.solicitudes_url = reverse("gestionar-solicitudes-reunion")
+
+        self.docente = Usuario.objects.create(
+            nombre_completo="Docente Encargado",
+            correo="docente.encargado@example.com",
+            carrera="Computación",
+            rut="55555555-5",
+            telefono="",
+            rol="docente",
+            contrasena="clave",
+        )
+
+        self.docente_extra = Usuario.objects.create(
+            nombre_completo="Docente Secundario",
+            correo="docente.secundario@example.com",
+            carrera="Computación",
+            rut="66666666-6",
+            telefono="",
+            rol="docente",
+            contrasena="clave",
+        )
+
+    def _crear_alumno(self, indice: int) -> Usuario:
+        return Usuario.objects.create(
+            nombre_completo=f"Alumno {indice}",
+            correo=f"alumno{indice}@example.com",
+            carrera="Computación",
+            rut=f"7777777{indice}-{indice}",
+            telefono="",
+            rol="alumno",
+            contrasena="clave",
+        )
+
+    def _asignar_trabajo_titulo(self, alumno: Usuario, docente: Usuario) -> TemaDisponible:
+        tema = TemaDisponible.objects.create(
+            titulo=f"Tema {alumno.pk}",
+            carrera="Computación",
+            rama="Investigación",
+            descripcion="Trabajo de título",
+            requisitos=[],
+            cupos=1,
+            docente_responsable=docente,
+            created_by=docente,
+        )
+        InscripcionTema.objects.create(
+            tema=tema,
+            alumno=alumno,
+            activo=True,
+            es_responsable=True,
+        )
+        return tema
+
+    def test_alumno_crea_solicitud_usando_docente_del_trabajo(self):
+        alumno = self._crear_alumno(1)
+        self._asignar_trabajo_titulo(alumno, self.docente)
+
+        payload = {
+            "alumno": alumno.pk,
+            "motivo": "Necesito revisar avances",
+            "disponibilidadSugerida": "Lunes 10:00",
+        }
+
+        response = self.client.post(self.solicitudes_url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(SolicitudReunion.objects.count(), 1)
+
+        solicitud = SolicitudReunion.objects.get()
+        self.assertEqual(solicitud.alumno, alumno)
+        self.assertEqual(solicitud.docente, self.docente)
+        self.assertEqual(solicitud.estado, "pendiente")
+        self.assertEqual(response.data.get("estado"), "pendiente")
+        self.assertEqual(response.data.get("docente", {}).get("id"), self.docente.pk)
+
+    def test_listado_para_docente_filtra_por_solicitudes_propias(self):
+        alumno_1 = self._crear_alumno(1)
+        alumno_2 = self._crear_alumno(2)
+        self._asignar_trabajo_titulo(alumno_1, self.docente)
+        self._asignar_trabajo_titulo(alumno_2, self.docente_extra)
+
+        SolicitudReunion.objects.create(
+            alumno=alumno_1,
+            docente=self.docente,
+            motivo="Revisar avance",
+            disponibilidad_sugerida="Martes",
+        )
+        SolicitudReunion.objects.create(
+            alumno=alumno_2,
+            docente=self.docente_extra,
+            motivo="Dudas",
+        )
+
+        response = self.client.get(self.solicitudes_url, {"docente": self.docente.pk})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        solicitud = response.data[0]
+        self.assertEqual(solicitud.get("docente", {}).get("id"), self.docente.pk)
+        self.assertEqual(solicitud.get("alumno", {}).get("id"), alumno_1.pk)
+
+    def test_alumno_sin_docente_no_puede_crear_solicitud(self):
+        alumno = self._crear_alumno(3)
+
+        payload = {"alumno": alumno.pk, "motivo": "Necesito ayuda"}
+        response = self.client.post(self.solicitudes_url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", response.data)
+        self.assertEqual(SolicitudReunion.objects.count(), 0)

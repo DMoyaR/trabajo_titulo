@@ -1,33 +1,49 @@
 import io
 import json
+import logging
 import re
 import textwrap
 import unicodedata
+import zlib
+import importlib
+from typing import Any
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value
+from django.db.models import Q, Value, Prefetch
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+try:  # pragma: no cover - dependencia opcional en tiempo de ejecución
+    Image = importlib.import_module("PIL.Image")
+except Exception:  # pragma: no cover
+    Image = None  # type: ignore
+    Image = None  # type: ignore
 
 from .models import (
     InscripcionTema,
     Notificacion,
     PracticaDocumento,
+    PracticaFirmaCoordinador,
     PropuestaTema,
     PropuestaTemaDocente,
     SolicitudCartaPractica,
+    SolicitudReunion,
+    Reunion,
+    TrazabilidadReunion,
     TemaDisponible,
     Usuario,
+    EvaluacionGrupoDocente,
+    EvaluacionEntregaAlumno,
 )
 from .notifications import (
     notificar_cupos_completados,
@@ -38,15 +54,29 @@ from .serializers import (
     LoginSerializer,
     NotificacionSerializer,
     PracticaDocumentoSerializer,
+    PracticaFirmaCoordinadorSerializer,
     PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDocenteDecisionSerializer,
     PropuestaTemaSerializer,
     SolicitudCartaPracticaCreateSerializer,
     SolicitudCartaPracticaSerializer,
+    SolicitudReunionSerializer,
+    SolicitudReunionCreateSerializer,
+    AprobarSolicitudReunionSerializer,
+    RechazarSolicitudReunionSerializer,
+    ReunionSerializer,
+    ReunionCreateSerializer,
+    ReunionCerrarSerializer,
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
+    EvaluacionGrupoDocenteSerializer,
+    EvaluacionEntregaAlumnoSerializer,
+    DocenteGrupoActivoSerializer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 REDIRECTS = {
@@ -263,6 +293,23 @@ _CARRERA_STOPWORDS = {
 }
 
 
+_CARRERA_EQUIVALENCIAS = [
+    {"computacion", "informatica"},
+    {"industrial", "industria"},
+]
+
+
+def _expandir_tokens_equivalentes(tokens: set[str]) -> set[str]:
+    if not tokens:
+        return set()
+
+    resultado = set(tokens)
+    for grupo in _CARRERA_EQUIVALENCIAS:
+        if resultado & grupo:
+            resultado |= grupo
+    return resultado
+
+
 def _tokenizar_carrera(valor: str | None) -> set[str]:
     if not valor:
         return set()
@@ -297,19 +344,44 @@ def _carreras_coinciden(a: str | None, b: str | None) -> bool:
     return len(comunes) >= 2
 
 
-def _filtrar_queryset_por_carrera(queryset, carrera: str | None):
+def _carreras_equivalentes(a: str | None, b: str | None) -> bool:
+    tokens_a = _expandir_tokens_equivalentes(_tokenizar_carrera(a))
+    tokens_b = _expandir_tokens_equivalentes(_tokenizar_carrera(b))
+
+    if not tokens_a or not tokens_b:
+        return False
+
+    return bool(tokens_a & tokens_b)
+
+
+def _carreras_compatibles(a: str | None, b: str | None) -> bool:
+    return _carreras_coinciden(a, b) or _carreras_equivalentes(a, b)
+
+
+def _filtrar_queryset_por_carrera(
+    queryset,
+    carrera: str | None,
+    *,
+    permitir_equivalencias: bool = True,
+):
     if not carrera:
-        return queryset.none()
+        return queryset
 
     tokens_objetivo = _tokenizar_carrera(carrera)
     if not tokens_objetivo:
-        return queryset.none()
+        return queryset
 
     matching_ids = [
         pk
         for pk, carrera_tema in queryset.values_list("pk", "carrera")
-        if _carreras_coinciden(carrera_tema, carrera)
-        or _tokenizar_carrera(carrera_tema) == tokens_objetivo
+        if (
+            _carreras_coinciden(carrera_tema, carrera)
+            or (
+                permitir_equivalencias
+                and _carreras_equivalentes(carrera_tema, carrera)
+            )
+            or _tokenizar_carrera(carrera_tema) == tokens_objetivo
+        )
     ]
 
     if not matching_ids:
@@ -381,6 +453,269 @@ def _obtener_usuario_para_temas(request) -> Usuario | None:
     return _obtener_usuario_por_id(request.query_params.get("alumno"))
 
 
+def _validar_docente_asignado(alumno: Usuario | None, docente: Usuario | None) -> bool:
+    if not docente or docente.rol != "docente":
+        return False
+    asignado = _obtener_docente_a_cargo(alumno)
+    return bool(asignado and asignado.pk == docente.pk)
+
+
+def _obtener_docente_a_cargo(alumno: Usuario | None) -> Usuario | None:
+    if not alumno or alumno.rol != "alumno":
+        return None
+
+    if alumno.docente_guia_id:
+        return alumno.docente_guia
+
+    inscripcion = (
+        InscripcionTema.objects.filter(
+            alumno=alumno,
+            activo=True,
+            tema__docente_responsable__isnull=False,
+        )
+        .select_related("tema__docente_responsable")
+        .order_by("-created_at")
+        .first()
+    )
+    if inscripcion:
+        return inscripcion.tema.docente_responsable
+
+    return None
+
+
+def _registrar_trazabilidad_reunion(
+    *,
+    tipo: str,
+    usuario: Usuario | None,
+    solicitud: SolicitudReunion | None = None,
+    reunion: Reunion | None = None,
+    estado_anterior: str | None = None,
+    estado_nuevo: str | None = None,
+    comentario: str | None = None,
+    datos: dict | None = None,
+) -> TrazabilidadReunion:
+    payload = datos or {}
+    return TrazabilidadReunion.objects.create(
+        solicitud=solicitud,
+        reunion=reunion,
+        usuario=usuario,
+        tipo=tipo,
+        estado_anterior=estado_anterior,
+        estado_nuevo=estado_nuevo,
+        comentario=comentario or None,
+        datos=payload,
+    )
+
+
+def _formatear_fecha_humana(valor) -> str:
+    if not valor:
+        return ""
+    try:
+        return valor.strftime("%d/%m/%Y")
+    except AttributeError:
+        return str(valor)
+
+
+def _formatear_hora_humana(valor) -> str:
+    if not valor:
+        return ""
+    try:
+        return valor.strftime("%H:%M")
+    except AttributeError:
+        return str(valor)
+
+
+def _notificar_solicitud_reunion_creada(solicitud: SolicitudReunion) -> None:
+    docente = solicitud.docente
+    if not docente:
+        return
+
+    alumno = solicitud.alumno
+    if alumno:
+        alumno_nombre = alumno.nombre_completo
+        alumno_id = alumno.pk
+    else:
+        alumno_nombre = "Un alumno"
+        alumno_id = None
+
+    disponibilidad = (solicitud.disponibilidad_sugerida or "").strip()
+    mensaje = (
+        f"{alumno_nombre} solicitó una reunión. Motivo: {solicitud.motivo}."
+    )
+    if disponibilidad:
+        mensaje = f"{mensaje} Disponibilidad sugerida: {disponibilidad}."
+
+    Notificacion.objects.create(
+        usuario=docente,
+        titulo="Nueva solicitud de reunión",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_creada",
+            "solicitudId": solicitud.pk,
+            "alumnoId": alumno_id,
+            "docenteId": docente.pk,
+        },
+    )
+
+
+def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    modalidad = (
+        reunion.get_modalidad_display()
+        if hasattr(reunion, "get_modalidad_display")
+        else reunion.modalidad
+    )
+    fecha = _formatear_fecha_humana(reunion.fecha)
+    inicio = _formatear_hora_humana(reunion.hora_inicio)
+    termino = _formatear_hora_humana(reunion.hora_termino)
+
+    mensaje = (
+        f"Tu docente agendó una reunión para el {fecha} entre {inicio} y {termino} "
+        f"({modalidad.lower()})."
+    )
+    if reunion.motivo:
+        mensaje = f"{mensaje} Motivo: {reunion.motivo}."
+    if reunion.observaciones:
+        mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Reunión agendada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_aprobada",
+            "reunionId": reunion.pk,
+            "solicitudId": reunion.solicitud_id,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_solicitud_reunion_rechazada(
+    solicitud: SolicitudReunion, comentario: str | None
+) -> None:
+    alumno = solicitud.alumno
+    if not alumno:
+        return
+
+    mensaje = (
+        "Tu docente revisó tu solicitud de reunión y la rechazó."
+        f" Motivo: {solicitud.motivo}."
+    )
+    comentario = (comentario or "").strip()
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Solicitud de reunión rechazada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "solicitud_rechazada",
+            "solicitudId": solicitud.pk,
+            "docenteId": solicitud.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    modalidad = (
+        reunion.get_modalidad_display()
+        if hasattr(reunion, "get_modalidad_display")
+        else reunion.modalidad
+    )
+    fecha = _formatear_fecha_humana(reunion.fecha)
+    inicio = _formatear_hora_humana(reunion.hora_inicio)
+    termino = _formatear_hora_humana(reunion.hora_termino)
+
+    mensaje = (
+        f"Tu docente agendó directamente una reunión para el {fecha} entre {inicio} y {termino} "
+        f"({modalidad.lower()})."
+    )
+    if reunion.motivo:
+        mensaje = f"{mensaje} Motivo: {reunion.motivo}."
+    if reunion.observaciones:
+        mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Nueva reunión agendada",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "reunion_agendada",
+            "reunionId": reunion.pk,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _notificar_reunion_cerrada(reunion: Reunion, comentario: str | None) -> None:
+    alumno = reunion.alumno
+    if not alumno:
+        return
+
+    estado = reunion.get_estado_display() if hasattr(reunion, "get_estado_display") else reunion.estado
+    fecha = _formatear_fecha_humana(reunion.fecha)
+
+    mensaje = f"Tu reunión del {fecha} fue marcada como {estado.lower()}."
+    comentario = (comentario or "").strip()
+    if comentario:
+        mensaje = f"{mensaje} Comentario: {comentario}."
+
+    Notificacion.objects.create(
+        usuario=alumno,
+        titulo="Estado de reunión actualizado",
+        mensaje=mensaje,
+        tipo="reunion",
+        meta={
+            "evento": "reunion_cerrada",
+            "reunionId": reunion.pk,
+            "estado": reunion.estado,
+            "docenteId": reunion.docente_id,
+            "alumnoId": alumno.pk,
+        },
+    )
+
+
+def _validar_disponibilidad_docente(
+    *,
+    docente: Usuario,
+    fecha,
+    hora_inicio,
+    hora_termino,
+    excluir: Reunion | None = None,
+) -> Reunion | None:
+    if hora_termino <= hora_inicio:
+        raise ValueError("La hora de término debe ser posterior a la hora de inicio.")
+
+    queryset = Reunion.objects.filter(
+        docente=docente,
+        fecha=fecha,
+        estado__in=["aprobada"],
+    )
+    if excluir:
+        queryset = queryset.exclude(pk=excluir.pk)
+
+    for existente in queryset:
+        if hora_inicio < existente.hora_termino and hora_termino > existente.hora_inicio:
+            return existente
+    return None
+
+
 def _formatear_rut(valor: str | None) -> str:
     limpio = _limpiar_rut(valor)
     if not limpio:
@@ -404,6 +739,60 @@ def _obtener_firma(carrera: str | None) -> dict[str, str]:
     if carrera and carrera in FIRMAS_POR_CARRERA:
         return FIRMAS_POR_CARRERA[carrera]
     return FIRMA_FALLBACK
+
+
+def _obtener_imagen_firma(carrera: str | None) -> dict[str, Any] | None:
+    if not carrera or Image is None:
+        return None
+
+    firma = (
+        PracticaFirmaCoordinador.objects.filter(carrera__iexact=carrera)
+        .order_by("-updated_at")
+        .first()
+    )
+    if not firma or not firma.archivo:
+        return None
+
+    try:
+        with firma.archivo.open("rb") as archivo:
+            imagen = Image.open(archivo)
+            imagen.load()
+    except Exception:  # pragma: no cover - errores inesperados de lectura
+        logger.exception("No se pudo cargar la firma del coordinador para %s", carrera)
+        return None
+
+    if imagen.mode in ("RGBA", "LA"):
+        fondo = Image.new("RGBA", imagen.size, (255, 255, 255, 255))
+        imagen = Image.alpha_composite(fondo, imagen.convert("RGBA"))
+    imagen = imagen.convert("RGB")
+
+    ancho, alto = imagen.size
+    if ancho <= 0 or alto <= 0:
+        return None
+
+    max_ancho = 200.0
+    if ancho > max_ancho:
+        escala = max_ancho / float(ancho)
+        nuevo_ancho = max(1, int(round(ancho * escala)))
+        nuevo_alto = max(1, int(round(alto * escala)))
+        resampling = getattr(Image, "Resampling", Image)
+        filtro = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", Image.NEAREST))
+        imagen = imagen.resize((nuevo_ancho, nuevo_alto), filtro)
+        ancho, alto = imagen.size
+
+    datos = zlib.compress(imagen.tobytes())
+
+    return {
+        "tipo": "imagen",
+        "width": ancho,
+        "height": alto,
+        "color_space": "/DeviceRGB",
+        "bits": 8,
+        "filter": "/FlateDecode",
+        "data": datos,
+        "display_width": float(ancho),
+        "display_height": float(alto),
+    }
 
 
 def _obtener_objetivos(carrera: str | None, escuela_id: str | None) -> list[str]:
@@ -526,26 +915,66 @@ def _pdf_escape_texto(texto: str) -> str:
     )
 
 
-def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
+def _renderizar_pdf_lineas(lineas: list[Any]) -> bytes:
     leading = 16
-    inicio_x = 72
-    inicio_y = 770
+    inicio_x = 72.0
+    inicio_y = 770.0
 
-    texto_ops: list[str] = [
-        "BT",
-        "/F1 12 Tf",
-        f"1 0 0 1 {inicio_x} {inicio_y} Tm",
-        f"{leading} TL",
-    ]
+    items: list[Any] = []
+    imagenes_pdf: list[dict[str, Any]] = []
+    contador_imagenes = 0
+    for elemento in lineas:
+        if isinstance(elemento, dict) and elemento.get("tipo") == "imagen":
+            contador_imagenes += 1
+            item = elemento.copy()
+            item["pdf_name"] = f"Im{contador_imagenes}"
+            imagenes_pdf.append(item)
+            items.append(item)
+        else:
+            items.append(elemento)
 
-    for linea in lineas:
-        if not linea:
-            texto_ops.append("T*")
-            continue
-        texto_ops.append(f"({_pdf_escape_texto(_normalizar_texto_pdf(linea))}) Tj")
-        texto_ops.append("T*")
+    cursor_y = float(inicio_y)
+    texto_ops: list[str] = []
+    texto_abierto = False
 
-    texto_ops.append("ET")
+    def abrir_texto() -> None:
+        nonlocal texto_abierto
+        if not texto_abierto:
+            texto_ops.append("BT")
+            texto_ops.append("/F1 12 Tf")
+            texto_abierto = True
+
+    for elemento in items:
+        if isinstance(elemento, str):
+            linea_normalizada = _normalizar_texto_pdf(elemento)
+            if linea_normalizada:
+                abrir_texto()
+                texto_ops.append(f"1 0 0 1 {inicio_x:.2f} {cursor_y:.2f} Tm")
+                texto_ops.append(
+                    f"({_pdf_escape_texto(linea_normalizada)}) Tj"
+                )
+            cursor_y -= leading
+        elif isinstance(elemento, dict) and elemento.get("tipo") == "imagen":
+            if texto_abierto:
+                texto_ops.append("ET")
+                texto_abierto = False
+            ancho = float(elemento.get("display_width") or 0)
+            alto = float(elemento.get("display_height") or 0)
+            if ancho <= 0 or alto <= 0:
+                continue
+            imagen_y = cursor_y - alto
+            texto_ops.append("q")
+            texto_ops.append(
+                f"{ancho:.2f} 0 0 {alto:.2f} {inicio_x:.2f} {imagen_y:.2f} cm"
+            )
+            texto_ops.append(f"/{elemento['pdf_name']} Do")
+            texto_ops.append("Q")
+            cursor_y = imagen_y - leading
+        else:
+            cursor_y -= leading
+
+    if texto_abierto:
+        texto_ops.append("ET")
 
     contenido = "\n".join(texto_ops).encode("latin-1")
 
@@ -560,8 +989,21 @@ def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
 
     escribir_objeto(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
     escribir_objeto(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+
+    recursos = ["/Font << /F1 5 0 R >>"]
+    if imagenes_pdf:
+        refs = " ".join(
+            f"/{img['pdf_name']} {indice + 6} 0 R"
+            for indice, img in enumerate(imagenes_pdf)
+        )
+        recursos.append(f"/XObject << {refs} >>")
+    recursos_str = " ".join(recursos)
+
     escribir_objeto(
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+        (
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"/Contents 4 0 R /Resources << {recursos_str} >> >>\nendobj\n"
+        ).encode("latin-1")
     )
 
     flujo = (
@@ -574,6 +1016,21 @@ def _renderizar_pdf_lineas(lineas: list[str]) -> bytes:
     escribir_objeto(flujo)
 
     escribir_objeto(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    for indice, imagen in enumerate(imagenes_pdf):
+        cuerpo = (
+            f"<< /Type /XObject /Subtype /Image /Width {int(imagen['width'])} /Height {int(imagen['height'])} "
+            f"/ColorSpace {imagen['color_space']} /BitsPerComponent {imagen['bits']} "
+            f"/Length {len(imagen['data'])} /Filter {imagen['filter']} >>"
+        ).encode("latin-1")
+        flujo_imagen = (
+            f"{indice + 6} 0 obj\n".encode("latin-1")
+            + cuerpo
+            + b"\nstream\n"
+            + imagen["data"]
+            + b"\nendstream\nendobj\n"
+        )
+        escribir_objeto(flujo_imagen)
 
     xref_pos = buffer.tell()
     buffer.write(f"xref\n0 {len(offsets) + 1}\n".encode("ascii"))
@@ -606,6 +1063,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     fecha_texto = f"Santiago, {meses[fecha.month - 1]} {fecha.day} del {fecha.year}."
 
     firma = _obtener_firma(solicitud.alumno_carrera)
+    firma_imagen = _obtener_imagen_firma(solicitud.alumno_carrera)
     objetivos = _obtener_objetivos(solicitud.alumno_carrera, solicitud.escuela_id)
 
     partes_alumno = [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""]
@@ -613,7 +1071,7 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     rut_formateado = _formatear_rut(solicitud.alumno_rut) or (solicitud.alumno_rut or "")
     carrera_texto = solicitud.alumno_carrera or "Carrera profesional"
 
-    lineas: list[str] = []
+    lineas: list[Any] = []
     lineas.extend(_pdf_wrap("Universidad Tecnológica Metropolitana", ancho=72))
     encabezado = (
         f"{solicitud.escuela_nombre or ''} — "
@@ -656,6 +1114,10 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
         lineas.extend(_pdf_wrap_vineta(objetivo))
 
     lineas.append("")
+
+    if firma_imagen:
+        lineas.append(firma_imagen)
+        lineas.append("")
 
     cuerpo_3 = (
         "Al término de la práctica, el estudiante deberá reportar sus avances y "
@@ -779,16 +1241,27 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         usuario = _obtener_usuario_para_temas(self.request)
 
         if usuario:
+            if usuario.rol == "alumno":
+                if usuario.carrera:
+                    filtrado = _filtrar_queryset_por_carrera(
+                        queryset,
+                        usuario.carrera,
+                        permitir_equivalencias=False,
+                    )
+                    if filtrado.exists():
+                        return filtrado
+                return queryset
+
             if usuario.carrera:
-                filtrado = _filtrar_queryset_por_carrera(queryset, usuario.carrera)
+                filtrado = _filtrar_queryset_por_carrera(
+                    queryset,
+                    usuario.carrera,
+                    permitir_equivalencias=usuario.rol != "docente",
+                )
                 if usuario.rol == "docente":
-                    return filtrado
-                if usuario.rol == "alumno":
                     return filtrado
                 if filtrado.exists():
                     return filtrado
-            if usuario.rol == "alumno":
-                return queryset.none()
             return queryset
 
         carrera = self.request.query_params.get("carrera")
@@ -823,11 +1296,11 @@ def tema_disponible_detalle(request, pk: int):
         usuario
         and usuario.rol == "alumno"
         and usuario.carrera
-        and not _carreras_coinciden(tema.carrera, usuario.carrera)
+        and not _carreras_compatibles(tema.carrera, usuario.carrera)
     ):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if carrera_param and not _carreras_coinciden(tema.carrera, carrera_param):
+    if carrera_param and not _carreras_compatibles(tema.carrera, carrera_param):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if usuario and usuario.rol == "alumno":
@@ -909,7 +1382,7 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+    if alumno.carrera and not _carreras_compatibles(tema.carrera, alumno.carrera):
         return Response(
             {
                 "detail": "Solo puedes reservar temas asociados a tu carrera.",
@@ -963,7 +1436,13 @@ def reservar_tema(request, pk: int):
         inscripcion_id=inscripcion.pk,
     )
 
-    if cupos_antes > 0 and cupos_despues == 0:
+    cupos_completados_permitido = not (
+        tema.created_by
+        and tema.created_by.rol == "alumno"
+        and tema.docente_responsable_id is not None
+    )
+
+    if cupos_antes > 0 and cupos_despues == 0 and cupos_completados_permitido:
         notificar_cupos_completados(tema)
 
     serializer = TemaDisponibleSerializer(
@@ -1002,7 +1481,7 @@ def asignar_companeros(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if alumno.carrera and not _carreras_coinciden(tema.carrera, alumno.carrera):
+    if alumno.carrera and not _carreras_compatibles(tema.carrera, alumno.carrera):
         return Response(
             {"detail": "Solo puedes gestionar temas asociados a tu carrera."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1079,7 +1558,7 @@ def asignar_companeros(request, pk: int):
         if usuario.rol != "alumno":
             errores[correo] = "Solo puedes agregar estudiantes a tu grupo."
             continue
-        if usuario.carrera and not _carreras_coinciden(tema.carrera, usuario.carrera):
+        if usuario.carrera and not _carreras_compatibles(tema.carrera, usuario.carrera):
             errores[correo] = "El estudiante no pertenece a la carrera del tema."
             continue
         companeros.append(usuario)
@@ -1346,6 +1825,7 @@ def crear_solicitud_carta_practica(request):
         alumno_apellidos=alumno_data.get("apellidos", "").strip(),
         alumno_carrera=alumno_data.get("carrera", "").strip(),
         practica_jefe_directo=practica_data.get("jefeDirecto", "").strip(),
+        practica_correo_encargado=practica_data.get("correoEncargado", "").strip(),
         practica_cargo_alumno=practica_data.get("cargoAlumno", "").strip(),
         practica_fecha_inicio=practica_data.get("fechaInicio"),
         practica_empresa_rut=practica_data.get("empresaRut", "").strip(),
@@ -1452,6 +1932,642 @@ def listar_solicitudes_carta_practica(request):
         items, many=True, context={"request": request}
     )
     return Response({"items": serializer.data, "total": total})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def gestionar_solicitudes_reunion(request):
+    if request.method == "GET":
+        queryset = (
+            SolicitudReunion.objects.select_related("alumno", "docente")
+            .prefetch_related("trazabilidad__usuario")
+            .order_by("-creado_en")
+        )
+
+        alumno = _obtener_usuario_por_id(request.query_params.get("alumno"))
+        docente = _obtener_usuario_por_id(request.query_params.get("docente"))
+        coordinador = _obtener_usuario_por_id(request.query_params.get("coordinador"))
+
+        if alumno:
+            if alumno.rol != "alumno":
+                return Response(
+                    {"alumno": "El identificador no corresponde a un alumno."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(alumno=alumno)
+        elif docente:
+            if docente.rol != "docente":
+                return Response(
+                    {"docente": "El identificador no corresponde a un docente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(docente=docente)
+        elif coordinador:
+            if coordinador.rol != "coordinador":
+                return Response(
+                    {"coordinador": "El identificador no corresponde a coordinación."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"detail": "Debe indicar un alumno, docente o coordinador para listar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estado = request.query_params.get("estado")
+        if estado in {"pendiente", "aprobada", "rechazada"}:
+            queryset = queryset.filter(estado=estado)
+
+        serializer = SolicitudReunionSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    serializer = SolicitudReunionCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    alumno = _obtener_usuario_por_id(serializer.validated_data.get("alumno"))
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"alumno": "El identificador de alumno no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docente = _obtener_docente_a_cargo(alumno)
+    if not docente:
+        return Response(
+            {
+                "detail": (
+                    "El alumno no tiene un docente guía ni un trabajo de título a cargo."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    disponibilidad = serializer.validated_data.get("disponibilidadSugerida")
+
+    solicitud = SolicitudReunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        motivo=serializer.validated_data["motivo"],
+        disponibilidad_sugerida=disponibilidad,
+    )
+
+    _registrar_trazabilidad_reunion(
+        tipo="creacion_solicitud",
+        usuario=alumno,
+        solicitud=solicitud,
+        estado_nuevo="pendiente",
+        datos={
+            "motivo": solicitud.motivo,
+            "disponibilidadSugerida": disponibilidad,
+        },
+    )
+
+    _notificar_solicitud_reunion_creada(solicitud)
+
+    output = SolicitudReunionSerializer(solicitud)
+    headers = {"Location": f"/api/reuniones/solicitudes/{solicitud.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def aprobar_solicitud_reunion(request, pk: int):
+    solicitud = get_object_or_404(
+        SolicitudReunion.objects.select_related("alumno", "docente"), pk=pk
+    )
+
+    if solicitud.estado != "pendiente":
+        return Response(
+            {"detail": "Solo es posible aprobar solicitudes en estado pendiente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = AprobarSolicitudReunionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = solicitud.alumno
+    if not _validar_docente_asignado(alumno, docente):
+        return Response(
+            {"detail": "El docente no está asignado como guía del alumno."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    fecha = serializer.validated_data["fecha"]
+    hora_inicio = serializer.validated_data["horaInicio"]
+    hora_termino = serializer.validated_data["horaTermino"]
+
+    try:
+        conflicto = _validar_disponibilidad_docente(
+            docente=docente,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_termino=hora_termino,
+        )
+    except ValueError as exc:
+        return Response(
+            {"horaTermino": [str(exc)]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if conflicto:
+        return Response(
+            {
+                "detail": "El horario se solapa con otra reunión ya agendada.",
+                "reunionConflictoId": conflicto.pk,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    modalidad = serializer.validated_data["modalidad"]
+    comentario = serializer.validated_data.get("comentario")
+
+    reunion = Reunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        solicitud=solicitud,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_termino=hora_termino,
+        modalidad=modalidad,
+        motivo=solicitud.motivo,
+        observaciones=comentario or solicitud.disponibilidad_sugerida,
+        estado="aprobada",
+        creado_por=docente,
+    )
+
+    estado_anterior = solicitud.estado
+    solicitud.estado = "aprobada"
+    if solicitud.docente_id != docente.pk:
+        solicitud.docente = docente
+    solicitud.save(update_fields=["estado", "docente", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="aprobada_desde_solicitud",
+        usuario=docente,
+        solicitud=solicitud,
+        reunion=reunion,
+        estado_anterior=estado_anterior,
+        estado_nuevo="aprobada",
+        comentario=comentario,
+        datos={
+            "fecha": fecha.isoformat(),
+            "horaInicio": hora_inicio.isoformat(),
+            "horaTermino": hora_termino.isoformat(),
+            "modalidad": modalidad,
+            "motivoAlumno": solicitud.motivo,
+        },
+    )
+
+    _notificar_solicitud_reunion_aprobada(reunion)
+
+    output = ReunionSerializer(reunion)
+    headers = {"Location": f"/api/reuniones/{reunion.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def rechazar_solicitud_reunion(request, pk: int):
+    solicitud = get_object_or_404(
+        SolicitudReunion.objects.select_related("alumno", "docente"), pk=pk
+    )
+
+    if solicitud.estado != "pendiente":
+        return Response(
+            {"detail": "Solo es posible rechazar solicitudes en estado pendiente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = RechazarSolicitudReunionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    alumno = solicitud.alumno
+    if not _validar_docente_asignado(alumno, docente) and (
+        solicitud.docente_id and solicitud.docente_id != docente.pk
+    ):
+        return Response(
+            {"detail": "El docente no está asignado a esta solicitud."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    comentario = serializer.validated_data.get("comentario")
+
+    estado_anterior = solicitud.estado
+    solicitud.estado = "rechazada"
+    if solicitud.docente_id != docente.pk:
+        solicitud.docente = docente
+    solicitud.save(update_fields=["estado", "docente", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="rechazo",
+        usuario=docente,
+        solicitud=solicitud,
+        estado_anterior=estado_anterior,
+        estado_nuevo="rechazada",
+        comentario=comentario,
+        datos={"motivoAlumno": solicitud.motivo},
+    )
+
+    _notificar_solicitud_reunion_rechazada(solicitud, comentario)
+
+    output = SolicitudReunionSerializer(solicitud)
+    return Response(output.data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+def gestionar_reuniones(request):
+    if request.method == "GET":
+        queryset = (
+            Reunion.objects.select_related("alumno", "docente", "solicitud")
+            .prefetch_related("trazabilidad__usuario")
+            .order_by("-fecha", "-hora_inicio")
+        )
+
+        alumno = _obtener_usuario_por_id(request.query_params.get("alumno"))
+        docente = _obtener_usuario_por_id(request.query_params.get("docente"))
+        coordinador = _obtener_usuario_por_id(request.query_params.get("coordinador"))
+
+        if alumno:
+            if alumno.rol != "alumno":
+                return Response(
+                    {"alumno": "El identificador no corresponde a un alumno."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(alumno=alumno)
+        elif docente:
+            if docente.rol != "docente":
+                return Response(
+                    {"docente": "El identificador no corresponde a un docente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            queryset = queryset.filter(docente=docente)
+        elif coordinador:
+            if coordinador.rol != "coordinador":
+                return Response(
+                    {"coordinador": "El identificador no corresponde a coordinación."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"detail": "Debe indicar un alumno, docente o coordinador para listar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estado = request.query_params.get("estado")
+        if estado in {"aprobada", "finalizada", "no_realizada", "reprogramada"}:
+            queryset = queryset.filter(estado=estado)
+
+        serializer = ReunionSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    serializer = ReunionCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    alumno = _obtener_usuario_por_id(serializer.validated_data.get("alumno"))
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"alumno": "El identificador del alumno no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not _validar_docente_asignado(alumno, docente):
+        return Response(
+            {"detail": "El docente no está asignado como guía del alumno."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    fecha = serializer.validated_data["fecha"]
+    hora_inicio = serializer.validated_data["horaInicio"]
+    hora_termino = serializer.validated_data["horaTermino"]
+
+    try:
+        conflicto = _validar_disponibilidad_docente(
+            docente=docente,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_termino=hora_termino,
+        )
+    except ValueError as exc:
+        return Response(
+            {"horaTermino": [str(exc)]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if conflicto:
+        return Response(
+            {
+                "detail": "El horario se solapa con otra reunión ya agendada.",
+                "reunionConflictoId": conflicto.pk,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reunion = Reunion.objects.create(
+        alumno=alumno,
+        docente=docente,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_termino=hora_termino,
+        modalidad=serializer.validated_data["modalidad"],
+        motivo=serializer.validated_data["motivo"],
+        observaciones=serializer.validated_data.get("observaciones"),
+        estado="aprobada",
+        creado_por=docente,
+    )
+
+    _registrar_trazabilidad_reunion(
+        tipo="agendada_directamente",
+        usuario=docente,
+        reunion=reunion,
+        estado_nuevo="aprobada",
+        comentario=serializer.validated_data.get("observaciones"),
+        datos={
+            "fecha": fecha.isoformat(),
+            "horaInicio": hora_inicio.isoformat(),
+            "horaTermino": hora_termino.isoformat(),
+            "modalidad": reunion.modalidad,
+            "motivo": reunion.motivo,
+        },
+    )
+
+    _notificar_reunion_agendada_directamente(reunion)
+
+    output = ReunionSerializer(reunion)
+    headers = {"Location": f"/api/reuniones/{reunion.pk}"}
+    return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def cerrar_reunion(request, pk: int):
+    reunion = get_object_or_404(Reunion.objects.select_related("docente", "alumno"), pk=pk)
+
+    serializer = ReunionCerrarSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    docente = _obtener_usuario_por_id(serializer.validated_data.get("docente"))
+    if not docente or docente.rol != "docente":
+        return Response(
+            {"docente": "El identificador del docente no es válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if reunion.docente_id != docente.pk:
+        return Response(
+            {"detail": "Solo el docente asignado puede cerrar la reunión."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if reunion.estado not in {"aprobada", "reprogramada"}:
+        return Response(
+            {"detail": "La reunión ya fue cerrada previamente."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nuevo_estado = serializer.validated_data["estado"]
+    comentario = serializer.validated_data.get("comentario")
+    estado_anterior = reunion.estado
+    reunion.estado = nuevo_estado
+    reunion.save(update_fields=["estado", "actualizado_en"])
+
+    _registrar_trazabilidad_reunion(
+        tipo="cierre_final",
+        usuario=docente,
+        reunion=reunion,
+        solicitud=reunion.solicitud,
+        estado_anterior=estado_anterior,
+        estado_nuevo=nuevo_estado,
+        comentario=comentario,
+        datos={
+            "fecha": reunion.fecha.isoformat(),
+            "horaInicio": reunion.hora_inicio.isoformat(),
+            "horaTermino": reunion.hora_termino.isoformat(),
+            "modalidad": reunion.modalidad,
+        },
+    )
+
+    _notificar_reunion_cerrada(reunion, comentario)
+
+    output = ReunionSerializer(reunion)
+    return Response(output.data)
+
+
+class DocenteGruposActivosListView(generics.ListAPIView):
+    serializer_class = DocenteGrupoActivoSerializer
+
+    def get_queryset(self):
+        docente_param = self.request.query_params.get("docente")
+        if docente_param in (None, "", "null"):
+            return TemaDisponible.objects.none()
+
+        try:
+            docente_id = int(docente_param)
+        except (TypeError, ValueError):
+            return TemaDisponible.objects.none()
+
+        queryset = (
+            TemaDisponible.objects.filter(
+                Q(docente_responsable_id=docente_id)
+                | Q(created_by_id=docente_id),
+                inscripciones__activo=True,
+            )
+            .prefetch_related(
+                Prefetch(
+                    "inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
+            .distinct()
+            .order_by("titulo")
+        )
+
+        return queryset
+
+
+class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
+    serializer_class = EvaluacionGrupoDocenteSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+
+    def get_queryset(self):
+        queryset = (
+            EvaluacionGrupoDocente.objects.all()
+            .select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                ),
+                Prefetch(
+                    "entregas",
+                    queryset=EvaluacionEntregaAlumno.objects.select_related("alumno")
+                    .order_by("-creado_en"),
+                    to_attr="entregas_prefetch",
+                )
+            )
+            .order_by("grupo_nombre", "-fecha", "-created_at")
+        )
+        docente_id = self.request.query_params.get("docente")
+        if docente_id in (None, "", "null"):
+            return queryset
+        try:
+            docente_id_int = int(docente_id)
+        except (TypeError, ValueError):
+            return queryset.none()
+        return queryset.filter(docente_id=docente_id_int)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        if data.get("fecha") in ("", None):
+            data["fecha"] = None
+
+        if not data.get("docente"):
+            docente_param = request.query_params.get("docente")
+            try:
+                docente_id = (
+                    int(docente_param)
+                    if docente_param not in (None, "", "null")
+                    else None
+                )
+            except (TypeError, ValueError):
+                docente_id = None
+            if docente_id:
+                data["docente"] = docente_id
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class AlumnoEvaluacionListView(generics.ListAPIView):
+    serializer_class = EvaluacionGrupoDocenteSerializer
+
+    def get_queryset(self):
+        alumno_param = self.request.query_params.get("alumno")
+        try:
+            alumno_id = int(alumno_param)
+        except (TypeError, ValueError):
+            return EvaluacionGrupoDocente.objects.none()
+
+        queryset = (
+            EvaluacionGrupoDocente.objects.filter(
+                tema__inscripciones__alumno_id=alumno_id,
+                tema__inscripciones__activo=True,
+            )
+            .select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                ),
+                Prefetch(
+                    "entregas",
+                    queryset=EvaluacionEntregaAlumno.objects.filter(alumno_id=alumno_id)
+                    .select_related("alumno")
+                    .order_by("-creado_en"),
+                    to_attr="entregas_alumno",
+                )
+            )
+            .distinct()
+            .order_by("grupo_nombre", "-fecha", "-created_at")
+        )
+
+        return queryset
+
+
+class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
+    serializer_class = EvaluacionEntregaAlumnoSerializer
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    def get_queryset(self):
+        evaluacion_id = self.kwargs.get("pk")
+        alumno_id = self._obtener_alumno_id()
+        if not alumno_id:
+            return EvaluacionEntregaAlumno.objects.none()
+
+        return (
+            EvaluacionEntregaAlumno.objects.filter(
+                evaluacion_id=evaluacion_id,
+                alumno_id=alumno_id,
+            )
+            .select_related("alumno", "evaluacion", "evaluacion__tema")
+            .order_by("-creado_en")
+        )
+
+    def perform_create(self, serializer):
+        evaluacion = get_object_or_404(
+            EvaluacionGrupoDocente.objects.select_related("tema"),
+            pk=self.kwargs.get("pk"),
+        )
+        alumno_id = self._obtener_alumno_id(usar_post=True)
+        if not alumno_id:
+            raise ValidationError({"alumno": ["Debes indicar el alumno que realiza la entrega."]})
+
+        if not evaluacion.tema or not evaluacion.tema.inscripciones.filter(
+            alumno_id=alumno_id, activo=True
+        ).exists():
+            raise ValidationError(
+                {
+                    "evaluacion": [
+                        "La evaluación seleccionada no pertenece a tu grupo activo."
+                    ]
+                }
+            )
+
+        serializer.save(evaluacion=evaluacion, alumno_id=alumno_id)
+
+    def _obtener_alumno_id(self, usar_post: bool = False) -> int | None:
+        if usar_post:
+            fuente = self.request.data
+        else:
+            fuente = self.request.query_params
+
+        alumno_param = fuente.get("alumno") if fuente else None
+
+        if alumno_param in (None, "", "null"):
+            usuario = getattr(self.request, "user", None)
+            if getattr(usuario, "id", None):
+                return usuario.id
+
+        try:
+            alumno_id = int(alumno_param)
+        except (TypeError, ValueError):
+            return None
+        return alumno_id
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:
@@ -1699,28 +2815,18 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
             usuario = Usuario.objects.filter(correo__iexact=correo, rol="alumno").first()
             if not usuario:
                 continue
-            if carrera and usuario.carrera and not _carreras_coinciden(carrera, usuario.carrera):
+            if carrera and usuario.carrera and not _carreras_compatibles(carrera, usuario.carrera):
                 continue
             if any(existing.pk == usuario.pk for existing, _ in participantes):
                 continue
             participantes.append((usuario, False))
 
         for usuario, es_responsable in participantes[:cupos]:
-            inscripcion = InscripcionTema.objects.create(
+            InscripcionTema.objects.create(
                 tema=tema,
                 alumno=usuario,
                 es_responsable=es_responsable,
             )
-            notificar_reserva_tema(
-                tema,
-                usuario,
-                cupos_disponibles=tema.cupos_disponibles,
-                reactivada=False,
-                inscripcion_id=inscripcion.pk,
-            )
-
-    if tema.cupos_disponibles == 0:
-        notificar_cupos_completados(tema)
 
     return tema
 
@@ -1943,3 +3049,73 @@ def eliminar_documento_practica(request, pk: int):
         documento.archivo.delete(save=False)
     documento.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_firma_coordinador_practica(request):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        firma = (
+            PracticaFirmaCoordinador.objects.select_related("uploaded_by")
+            .filter(carrera__iexact=carrera)
+            .order_by("-updated_at")
+            .first()
+        )
+        if not firma:
+            return Response({"item": None})
+
+        serializer = PracticaFirmaCoordinadorSerializer(
+            firma, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    content_type = (archivo.content_type or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        return Response(
+            {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    firma, created = PracticaFirmaCoordinador.objects.get_or_create(
+        carrera=carrera,
+        defaults={"archivo": archivo, "uploaded_by": coordinador},
+    )
+
+    if not created:
+        if firma.archivo:
+            firma.archivo.delete(save=False)
+        firma.archivo = archivo
+        firma.uploaded_by = coordinador
+        firma.save(update_fields=["archivo", "uploaded_by", "updated_at"])
+
+    serializer = PracticaFirmaCoordinadorSerializer(
+        firma, context={"request": request}
+    )
+    status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    headers = {"Location": f"/api/coordinacion/practicas/firma/"}
+    return Response(serializer.data, status=status_code, headers=headers)

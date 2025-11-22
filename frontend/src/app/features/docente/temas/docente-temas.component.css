@@ -201,7 +201,7 @@
   display:flex; 
   justify-content:space-between; 
   align-items:center;
-  padding:16px 18px; 
+  padding:16px 16px; 
   border-bottom:1px solid #e9eef6; 
   background:#f8fbff;
 }
@@ -209,7 +209,7 @@
 .icon { 
   background:none; 
   border:0; 
-  font-size:1.2rem; 
+  font-size:1.1rem; 
   cursor:pointer; 
 }
 
@@ -318,11 +318,11 @@ select:focus {
 .tabla { border:1px solid #e9eef6; border-radius:10px; overflow:hidden; margin:16px 24px 14px; }
 .tabla .head {
   display:grid; grid-template-columns:1.1fr 1.4fr 1fr .8fr .7fr .6fr;
-  background:#f7fbff; font-weight:800; color:#1a3e6a; padding:10px 12px;
+  background:#f7fbff; font-weight:800; color:#1a3e6a; padding:10px 10px;
 }
 .fila {
-  display:grid; grid-template-columns:1.1fr 1.4fr 1fr .8fr .7fr .6fr;
-  padding:10px 12px; align-items:center; border-bottom:1px solid #eef2f7;
+  display:grid; grid-template-columns:1.1fr 1.1fr 1.2fr .8fr .75fr .6fr;
+  padding:8px 10px; align-items:center; border-bottom:1px solid #eef2f7;
 }
 .fila:nth-child(even) { background:#fafbfd; }
 

@@ -58,3 +58,13 @@
     <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
   </div>
 </div>
+
+<div class="card">
+  <h3>Restricciones y compromisos</h3>
+  <ul class="restricciones-list">
+    <li *ngFor="let restriccion of restricciones()">
+      <h4>{{ restriccion.titulo }}</h4>
+      <p>{{ restriccion.descripcion }}</p>
+    </li>
+  </ul>
+</div>

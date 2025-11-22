@@ -1,7 +1,15 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgIf, NgFor, NgClass } from '@angular/common';
+
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import {
+  AlumnoEntregasService,
+  EvaluacionGrupoDto,
+  EvaluacionEntregaDto,
+} from './alumno-entrega.service';
+import { finalize } from 'rxjs/operators';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
 
@@ -10,6 +18,7 @@ interface Entrega {
   comentario?: string | null;
   archivoNombre: string;
   archivoTipo: string;
+  archivoUrl?: string | null;
   fecha: string | Date;
   nota?: number | null;
 }
@@ -18,9 +27,13 @@ interface Evaluacion {
   id: number;
   titulo: string;
   descripcion?: string;
-  fechaLimite: string | Date;
+  comentario?: string | null;
+  fechaLimite: string | Date | null;
   estado: EstadoEval;
   tipo: 'informe' | 'presentación' | 'anexo' | string;
+  rubricaUrl?: string | null;
+  rubricaNombre?: string | null;
+  rubricaTipo?: string | null;
   ultimaEntrega?: Entrega | null;
 }
 
@@ -31,53 +44,18 @@ interface Evaluacion {
   styleUrls: ['./alumno-entrega.component.css'],
   imports: [CommonModule, FormsModule, NgIf, NgFor, NgClass, DatePipe, TitleCasePipe],
 })
-export class AlumnoEntregaComponent {
+export class AlumnoEntregaComponent implements OnInit {
   // UI text
   titulo = 'Entregas';
 
-  // Simulación de datos (puedes reemplazar por los que vengan del backend)
-  private _evaluaciones = signal<Evaluacion[]>([
-    {
-      id: 1,
-      titulo: 'Informe de Avance #2',
-      descripcion: 'Sube el informe con conclusiones preliminares.',
-      fechaLimite: new Date(),
-      estado: 'pendiente',
-      tipo: 'informe',
-      ultimaEntrega: null,
-    },
-    {
-      id: 2,
-      titulo: 'Presentación intermedia',
-      descripcion: 'Diapositivas de 10-12 láminas.',
-      fechaLimite: new Date(),
-      estado: 'calificada',
-      tipo: 'presentación',
-      ultimaEntrega: {
-        titulo: 'Deck v1',
-        comentario: 'Buen contenido, mejorar visuales.',
-        archivoNombre: 'presentacion_intermedia_v1.pptx',
-        archivoTipo: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        fecha: new Date(),
-        nota: 6.0,
-      },
-    },
-    {
-      id: 3,
-      titulo: 'Anexo de datos',
-      fechaLimite: new Date(),
-      estado: 'entregada',
-      tipo: 'anexo',
-      ultimaEntrega: {
-        titulo: 'dataset_UG.zip',
-        comentario: null,
-        archivoNombre: 'dataset_UG.zip',
-        archivoTipo: 'application/zip',
-        fecha: new Date(),
-        nota: null,
-      },
-    },
-  ]);
+  private readonly currentUserService = inject(CurrentUserService);
+  private readonly entregasService = inject(AlumnoEntregasService);
+
+  private _evaluaciones = signal<Evaluacion[]>([]);
+  private _cargando = signal(false);
+  private _loadError = signal<string | null>(null);
+
+  private alumnoId: number | null = null;
 
   // Selección
   private _seleccion = signal<Evaluacion | null>(null);
@@ -101,13 +79,16 @@ export class AlumnoEntregaComponent {
   };
 
   // Constantes
-  maxMB = 25;
+  maxMB = 50;
 
   // Getters para template (signals)
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
   completadas = () => this._evaluaciones().filter(e => e.estado !== 'pendiente');
 
   seleccionada = () => this._seleccion();
+
+  cargando = () => this._cargando();
+  loadError = () => this._loadError();
 
   canUpload = computed(() => {
     const ev = this._seleccion();
@@ -119,12 +100,142 @@ export class AlumnoEntregaComponent {
   progress = () => this._progress();
   errorMsg = () => this._errorMsg();
 
+  ngOnInit(): void {
+    const perfil = this.currentUserService.getProfile();
+    if (!perfil?.id) {
+      this._loadError.set('No fue posible identificar al alumno actual.');
+      return;
+    }
+
+    this.alumnoId = perfil.id;
+
+    this._cargando.set(true);
+    this._loadError.set(null);
+
+    this.entregasService.listarEvaluaciones(perfil.id).subscribe({
+      next: evaluaciones => {
+        const mapeadas = evaluaciones.map(ev => this.mapEvaluacion(ev));
+        this._evaluaciones.set(mapeadas);
+        this._cargando.set(false);
+        this.seleccionarInicial();
+      },
+      error: (error) => {
+        console.error('No se pudieron cargar las evaluaciones del alumno', error);
+        this._cargando.set(false);
+        const detalle = error?.error?.detail;
+        if (typeof detalle === 'string') {
+          this._loadError.set(detalle);
+        } else {
+          this._loadError.set('No pudimos cargar tus evaluaciones. Intenta nuevamente más tarde.');
+        }
+      },
+    });
+  }
+
+  private mapEvaluacion(dto: EvaluacionGrupoDto): Evaluacion {
+    const ultima = dto.ultima_entrega ?? dto.entregas?.[0] ?? null;
+    return {
+      id: dto.id,
+      titulo: dto.titulo,
+      descripcion: undefined,
+      comentario: dto.comentario,
+      fechaLimite: this.parseFecha(dto.fecha),
+      estado: this.mapEstado(dto, ultima),
+      tipo: this.inferirTipo(dto.titulo),
+      rubricaUrl: dto.rubrica_url,
+      rubricaNombre: dto.rubrica_nombre,
+      rubricaTipo: dto.rubrica_tipo,
+      ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
+    };
+  }
+
+  private mapEstado(dto: EvaluacionGrupoDto, ultima: EvaluacionEntregaDto | null): EstadoEval {
+    if (ultima) {
+      if (ultima.estado_revision === 'revisada') {
+        return 'calificada';
+      }
+      return 'entregada';
+    }
+
+    const normalizado = (dto.estado ?? '').trim().toLowerCase();
+    if (normalizado === 'evaluada' || normalizado === 'calificada') {
+      return 'calificada';
+    }
+    if (normalizado === 'entregada') {
+      return 'entregada';
+    }
+    if (normalizado === 'en progreso') {
+      return 'pendiente';
+    }
+    return 'pendiente';
+  }
+
+  private mapEntregaDto(dto: EvaluacionEntregaDto): Entrega {
+    return {
+      titulo: dto.titulo,
+      comentario: dto.comentario,
+      archivoNombre: dto.archivo_nombre,
+      archivoTipo: dto.archivo_tipo ?? 'application/octet-stream',
+      archivoUrl: dto.archivo_url,
+      fecha: this.parseFecha(dto.creado_en) ?? dto.creado_en,
+      nota: dto.nota,
+    };
+  }
+
+  private inferirTipo(titulo: string | null | undefined): Evaluacion['tipo'] {
+    const texto = (titulo ?? '').toLowerCase();
+    if (texto.includes('present')) {
+      return 'presentación';
+    }
+    if (texto.includes('anexo') || texto.includes('datos')) {
+      return 'anexo';
+    }
+    if (texto.includes('informe') || texto.includes('report')) {
+      return 'informe';
+    }
+    return 'general';
+  }
+
+  private parseFecha(valor: string | null | undefined): Date | null {
+    if (!valor) {
+      return null;
+    }
+
+    // When the backend sends only a date (YYYY-MM-DD), construct the date at the
+    // end of the local day so it isn't shifted to the previous day by timezone
+    // conversion. Otherwise, fall back to native parsing for full timestamps.
+    const soloFecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloFecha.test(valor)) {
+      const [anio, mes, dia] = valor.split('-').map((v) => Number(v));
+      return new Date(anio, mes - 1, dia, 23, 59, 0, 0);
+    }
+
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  private seleccionarInicial(): void {
+    const evaluaciones = this._evaluaciones();
+    if (!evaluaciones.length) {
+      this._seleccion.set(null);
+      return;
+    }
+
+    const actual = this._seleccion();
+    if (actual && evaluaciones.some(ev => ev.id === actual.id)) {
+      return;
+    }
+
+    const pendiente = evaluaciones.find(ev => ev.estado === 'pendiente');
+    this._seleccion.set(pendiente ?? evaluaciones[0]);
+  }
+
   archivoInfo() {
     const f = this._archivo();
     if (!f) return null;
     const sizeMB = Math.round((f.size / (1024 * 1024)) * 10) / 10;
     return { name: f.name, type: f.type || 'desconocido', sizeMB };
-    }
+  }
 
   // Acciones UI
   seleccionar(e: Evaluacion) {
@@ -193,17 +304,34 @@ export class AlumnoEntregaComponent {
   onDrop(ev: DragEvent) {
     ev.preventDefault();
     this._dragging.set(false);
-    const f = ev.dataTransfer?.files?.[0];
-    if (f) this._archivo.set(f);
+    const f = ev.dataTransfer?.files?.[0] ?? null;
+    this.asignarArchivo(f);
   }
 
   onFilePick(ev: Event) {
     const input = ev.target as HTMLInputElement;
     const f = input.files?.[0] || null;
-    this._archivo.set(f);
+    this.asignarArchivo(f);
   }
 
-  async submitUpload() {
+  private asignarArchivo(file: File | null) {
+    if (!file) {
+      this._archivo.set(null);
+      return;
+    }
+
+    const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+    if (sizeMB > this.maxMB) {
+      this._errorMsg.set(`El archivo supera el máximo de ${this.maxMB} MB.`);
+      this._archivo.set(null);
+      return;
+    }
+
+    this._errorMsg.set(null);
+    this._archivo.set(file);
+  }
+
+  submitUpload() {
     this._errorMsg.set(null);
 
     if (!this.upload.titulo?.trim()) {
@@ -219,38 +347,68 @@ export class AlumnoEntregaComponent {
       return;
     }
 
-    // Simulación de upload
-    this._sending.set(true);
-    this._progress.set(0);
-
-    // Simular progreso
-    const total = 100;
-    for (let p = 0; p <= total; p += 10) {
-      await new Promise(r => setTimeout(r, 120));
-      this._progress.set(p);
-    }
-
-    // Actualizar la evaluación seleccionada como entregada
+    const alumnoId = this.alumnoId;
     const ev = this._seleccion();
-    if (ev) {
-      const f = this._archivo()!;
-      const nuevaEntrega: Entrega = {
-        titulo: this.upload.titulo,
-        comentario: this.upload.comentario || null,
-        archivoNombre: f.name,
-        archivoTipo: f.type || 'application/octet-stream',
-        fecha: new Date(),
-        nota: null,
-      };
-      const actualizada: Evaluacion = { ...ev, estado: 'entregada', ultimaEntrega: nuevaEntrega };
-
-      // Reemplazar en la lista
-      const lista = this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x));
-      this._evaluaciones.set(lista);
-      this._seleccion.set(actualizada);
+    if (!alumnoId || !ev) {
+      this._errorMsg.set('No se pudo identificar la evaluación seleccionada.');
+      return;
     }
 
-    this._sending.set(false);
-    this.showUpload.set(false);
+    this._sending.set(true);
+    this._progress.set(10);
+
+    this.entregasService
+      .enviarEntrega(ev.id, alumnoId, {
+        titulo: this.upload.titulo.trim(),
+        comentario: this.upload.comentario?.trim() || null,
+        archivo: this._archivo()!,
+      })
+      .pipe(
+        finalize(() => {
+          this._sending.set(false);
+          this._progress.set(0);
+        })
+      )
+      .subscribe({
+        next: dto => {
+          const entrega = this.mapEntregaDto(dto);
+          const estado: EstadoEval = dto.estado_revision === 'revisada' ? 'calificada' : 'entregada';
+          const actualizada: Evaluacion = { ...ev, estado, ultimaEntrega: entrega };
+          this._evaluaciones.set(
+            this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x))
+          );
+          this._seleccion.set(actualizada);
+          this._progress.set(100);
+          this.showUpload.set(false);
+          this._archivo.set(null);
+          this.upload.titulo = '';
+          this.upload.comentario = '';
+        },
+        error: error => {
+          console.error('No se pudo registrar la entrega de la evaluación', error);
+          const detalle = error?.error;
+          if (detalle?.titulo?.[0]) {
+            this._errorMsg.set(detalle.titulo[0]);
+            return;
+          }
+          if (detalle?.archivo?.[0]) {
+            this._errorMsg.set(detalle.archivo[0]);
+            return;
+          }
+          if (detalle?.alumno?.[0]) {
+            this._errorMsg.set(detalle.alumno[0]);
+            return;
+          }
+          if (detalle?.evaluacion?.[0]) {
+            this._errorMsg.set(detalle.evaluacion[0]);
+            return;
+          }
+          if (typeof detalle?.detail === 'string') {
+            this._errorMsg.set(detalle.detail);
+            return;
+          }
+          this._errorMsg.set('No pudimos subir tu entrega. Intenta nuevamente.');
+        },
+      });
   }
 }

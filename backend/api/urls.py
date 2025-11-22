@@ -10,6 +10,11 @@ from .views import (
     listar_solicitudes_carta_practica,
     aprobar_solicitud_carta_practica,
     rechazar_solicitud_carta_practica,
+    gestionar_solicitudes_reunion,
+    aprobar_solicitud_reunion,
+    rechazar_solicitud_reunion,
+    gestionar_reuniones,
+    cerrar_reunion,
     PropuestaTemaListCreateView,
     PropuestaTemaRetrieveUpdateView,
     DocenteListView,
@@ -17,6 +22,11 @@ from .views import (
     marcar_notificacion_leida,
     gestionar_documentos_practica,
     eliminar_documento_practica,
+    gestionar_firma_coordinador_practica,
+    DocenteEvaluacionListCreateView,
+    DocenteGruposActivosListView,
+    AlumnoEvaluacionListView,
+    AlumnoEvaluacionEntregaListCreateView,
 )
 
 urlpatterns = [
@@ -85,6 +95,11 @@ urlpatterns = [
         name="gestionar-documentos-practica",
     ),
     path(
+    "coordinacion/practicas/firma/",
+    gestionar_firma_coordinador_practica,
+    name="gestionar-firma-coordinador-practica",
+    ),
+    path(
         "coordinacion/practicas/documentos/<int:pk>/",
         eliminar_documento_practica,
         name="eliminar-documento-practica",
@@ -93,5 +108,50 @@ urlpatterns = [
         "practicas/documentos/",
         gestionar_documentos_practica,
         name="listar-documentos-practica",
+    ),
+    path(
+        "reuniones/solicitudes/",
+        gestionar_solicitudes_reunion,
+        name="gestionar-solicitudes-reunion",
+    ),
+    path(
+        "reuniones/solicitudes/<int:pk>/aprobar/",
+        aprobar_solicitud_reunion,
+        name="aprobar-solicitud-reunion",
+    ),
+    path(
+        "reuniones/solicitudes/<int:pk>/rechazar/",
+        rechazar_solicitud_reunion,
+        name="rechazar-solicitud-reunion",
+    ),
+    path(
+        "reuniones/",
+        gestionar_reuniones,
+        name="gestionar-reuniones",
+    ),
+    path(
+        "reuniones/<int:pk>/cerrar/",
+        cerrar_reunion,
+        name="cerrar-reunion",
+    ),
+    path(
+        "docentes/evaluaciones/",
+        DocenteEvaluacionListCreateView.as_view(),
+        name="docente-evaluaciones",
+    ),
+    path(
+        "docentes/grupos/activos/",
+        DocenteGruposActivosListView.as_view(),
+        name="docente-grupos-activos",
+    ),
+    path(
+        "alumnos/evaluaciones/",
+        AlumnoEvaluacionListView.as_view(),
+        name="alumno-evaluaciones",
+    ),
+    path(
+        "alumnos/evaluaciones/<int:pk>/entregas/",
+        AlumnoEvaluacionEntregaListCreateView.as_view(),
+        name="alumno-evaluacion-entregas",
     ),
 ]

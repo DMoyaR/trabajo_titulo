@@ -50,6 +50,7 @@ interface SolicitudCarta {
   practica: {
     jefeDirecto: string;
     cargoAlumno: string;
+    correoEncargado: string;
     fechaInicio: string;
     empresaRut: string;
     sectorEmpresa: string;
@@ -178,6 +179,12 @@ export class AlumnoPracticaComponent implements OnInit {
   solicitudes = signal<SolicitudCarta[]>([]);
   solicitudesLoading = signal(false);
   solicitudesError = signal<string | null>(null);
+
+  // Computed para verificar si existe alguna solicitud en revisión o aprobada
+  tieneSolicitudActivaOAprobada = computed(() => {
+    const sols = this.solicitudes();
+    return sols.some(s => s.estado === 'pendiente' || s.estado === 'aprobado');
+  });
 
   private alumnoRut: string | null = null;
   private carreraAlumno: string | null = null;
@@ -372,6 +379,7 @@ export class AlumnoPracticaComponent implements OnInit {
     sectorEmpresa: ['', Validators.required],
     sectorEmpresaOtro: [''],
     jefeDirecto: ['', Validators.required],
+    correoEncargado: ['', [Validators.required, Validators.email]],
     fechaInicio: ['', [Validators.required, fechaNoPasadaValidator()]],
     cargoAlumno: ['', Validators.required],
   });
@@ -790,6 +798,7 @@ export class AlumnoPracticaComponent implements OnInit {
       },
       practica: {
         jefeDirecto: v.jefeDirecto!,
+        correoEncargado: v.correoEncargado!,
         cargoAlumno: v.cargoAlumno!,
         fechaInicio: v.fechaInicio!,
         empresaRut: formatearRut(v.empresaRut!),

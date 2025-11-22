@@ -1,30 +1,236 @@
-<h2 class="ttl">Evaluaciones — Panel del Coordinador</h2>
+<h2 class="ttl">Evaluaciones por grupo</h2>
+<p class="description">
+  Registra de forma manual las evaluaciones que realizará cada grupo. Completa la información del
+  formulario y presiona <strong>Agregar evaluación</strong> para construir tu listado.
+</p>
 
-<div class="filters">
-  <select><option>Contrato: 2024</option></select>
-  <select><option>Semestre: 2°</option></select>
-  <select><option>Proceso: Práctica</option></select>
-</div>
+<form class="form" (submit)="agregarEvaluacion($event)">
+  <div class="form-grid">
+    <label class="field">
+      <span>Grupo activo</span>
+      <select
+        [value]="grupoSeleccionadoId() ?? ''"
+        (change)="onSeleccionGrupo($event)"
+        [disabled]="cargandoGruposActivos() || !gruposActivos().length || enviando()"
+      >
+        <option value="" disabled hidden>
+          {{ cargandoGruposActivos() ? 'Cargando grupos…' : 'Selecciona un grupo activo' }}
+        </option>
+        <option *ngFor="let grupo of gruposActivos()" [value]="grupo.id">
+          {{ grupo.nombre }}{{ grupo.integrantes.length ? ' — ' + grupo.integrantes.join(' / ') : '' }}
+        </option>
+      </select>
+      <small class="field-hint" *ngIf="cargandoGruposActivos()">Cargando grupos activos…</small>
+      <small class="field-hint warning" *ngIf="!cargandoGruposActivos() && !gruposActivos().length && !errorGruposActivos()">
+        No tienes grupos activos disponibles en este momento.
+      </small>
+      <small class="field-hint error" *ngIf="errorGruposActivos()">{{ errorGruposActivos() }}</small>
+    </label>
+    <label class="field">
+      <span>Evaluación</span>
+      <input
+        type="text"
+        placeholder="Ej: Revisión de avance"
+        [value]="evaluacionTitulo()"
+        (input)="evaluacionTitulo.set(($any($event.target)).value)"
+      />
+    </label>
+    <label class="field textarea-field">
+      <span>Comentario de la evaluación</span>
+      <textarea
+        rows="3"
+        placeholder="Describe brevemente los criterios o indicaciones de la evaluación"
+        [value]="evaluacionComentario()"
+        (input)="evaluacionComentario.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
+    </label>
+    <label class="field">
+      <span>Rúbrica (opcional)</span>
+      <input
+        #rubricaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+        (change)="onRubricaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
+      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
+    </label>
+    <label class="field">
+      <span>Fecha (opcional)</span>
+      <input
+        type="date"
+        [value]="evaluacionFecha()"
+        (input)="evaluacionFecha.set(($any($event.target)).value)"
+      />
+    </label>
+    <div class="field status-field">
+      <span>Estado según fecha</span>
+      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
+        {{ estadoCalculado() }}
+      </div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button
+      class="btn"
+      type="submit"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !grupoSeleccionadoId() ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="enviarEvaluacionMasiva()"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim()
+      "
+    >
+      {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
+    </button>
+  </div>
+</form>
 
-<table class="tbl">
-  <thead>
-    <tr>
-      <th>Estudiante</th>
-      <th>Sección</th>
-      <th>Proceso</th>
-      <th>Estado</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let r of rows()">
-      <td>{{ r.estudiante }}</td>
-      <td>{{ r.seccion }}</td>
-      <td>{{ r.proy }}</td>
-      <td>{{ r.estado }}</td>
-      <td><button class="btn sm">Valorar</button></td>
-    </tr>
-  </tbody>
-</table>
+<p class="error" *ngIf="error()">{{ error() }}</p>
 
-<div class="actions"><button class="btn">Exportar</button></div>
+<ng-container *ngIf="!cargando(); else loadingState">
+  <ng-container *ngIf="grupos().length; else emptyState">
+    <div class="groups">
+      <section class="group-card" *ngFor="let grupo of grupos()">
+        <header>
+          <h3>{{ grupo.nombre }}</h3>
+          <span>{{ grupo.evaluaciones.length }} evaluaciones</span>
+        </header>
+        <ul>
+          <li *ngFor="let evaluacion of grupo.evaluaciones">
+            <h4>{{ evaluacion.titulo }}</h4>
+            <p class="meta">
+              <span *ngIf="evaluacion.fecha"
+                >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
+              >
+              <span>Estado: {{ evaluacion.estado }}</span>
+            </p>
+            <p class="comentario" *ngIf="evaluacion.comentario">
+              Comentario: {{ evaluacion.comentario }}
+            </p>
+            <button
+              class="btn link"
+              type="button"
+              *ngIf="evaluacion.rubricaUrl"
+              (click)="descargarRubrica(evaluacion.rubricaUrl)"
+            >
+              Ver rúbrica ({{ evaluacion.rubricaNombre }})
+            </button>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <section class="entregas-panel">
+      <header class="entregas-header">
+        <div>
+          <h3>Entregas recibidas</h3>
+          <p class="muted">
+            Revisa los archivos subidos por tus estudiantes para cada evaluación registrada.
+          </p>
+        </div>
+      </header>
+
+      <div class="entregas-grid">
+        <div class="entregas-col">
+          <h4>Pendientes</h4>
+          <ng-container *ngIf="entregasPendientes().length; else sinPendientes">
+            <article class="entrega-card pendiente" *ngFor="let entrega of entregasPendientes()">
+              <header>
+                <div>
+                  <h5>{{ entrega.evaluacionTitulo }}</h5>
+                  <span class="tag warn">Por revisar</span>
+                </div>
+                <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
+              </header>
+              <ul class="info">
+                <li><strong>Grupo:</strong> {{ entrega.grupo }}</li>
+                <li>
+                  <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
+                  <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
+                </li>
+                <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
+                <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+              </ul>
+              <button class="btn secondary" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                Revisar
+              </button>
+            </article>
+          </ng-container>
+          <ng-template #sinPendientes>
+            <p class="muted">No tienes entregas pendientes de revisión.</p>
+          </ng-template>
+        </div>
+
+        <div class="entregas-col">
+          <h4>Evaluadas</h4>
+          <ng-container *ngIf="entregasRevisadas().length; else sinRevisadas">
+            <article class="entrega-card revisada" *ngFor="let entrega of entregasRevisadas()">
+              <header>
+                <div>
+                  <h5>{{ entrega.evaluacionTitulo }}</h5>
+                  <span class="tag ok">Evaluada</span>
+                </div>
+                <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
+              </header>
+              <ul class="info">
+                <li><strong>Grupo:</strong> {{ entrega.grupo }}</li>
+                <li>
+                  <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
+                  <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
+                </li>
+                <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
+                <li *ngIf="entrega.nota != null"><strong>Nota:</strong> {{ entrega.nota }}</li>
+                <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+              </ul>
+              <button class="btn secondary" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                Ver resumen
+              </button>
+            </article>
+          </ng-container>
+          <ng-template #sinRevisadas>
+            <p class="muted">Aún no hay entregas evaluadas.</p>
+          </ng-template>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</ng-container>
+
+<ng-template #emptyState>
+  <ng-container *ngIf="!error(); else errorState">
+    <div class="empty">
+      <h3>Aún no has registrado evaluaciones</h3>
+      <p>Comienza agregando el primer grupo desde el formulario de arriba.</p>
+    </div>
+  </ng-container>
+</ng-template>
+
+<ng-template #errorState>
+  <div class="empty error-state">
+    <h3>No pudimos cargar tus evaluaciones</h3>
+    <p>Intenta recargar la página o agrega una nueva evaluación para comenzar.</p>
+  </div>
+</ng-template>
+
+<ng-template #loadingState>
+  <div class="loading">Cargando evaluaciones…</div>
+</ng-template>

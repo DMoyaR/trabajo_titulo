@@ -4,7 +4,10 @@
 <section class="card">
   <h3>Evaluaciones</h3>
 
-  <div class="split">
+  <div class="error" *ngIf="loadError() as msg">{{ msg }}</div>
+  <p class="muted" *ngIf="cargando()">Cargando evaluaciones…</p>
+
+  <div class="split" *ngIf="!cargando()">
     <!-- Pendientes -->
     <div>
       <h4 class="sec">Pendientes</h4>
@@ -16,7 +19,12 @@
           </div>
           <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
           <div class="meta">
-            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+            <ng-container *ngIf="e.fechaLimite; else noFechaPend">
+              <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+            </ng-container>
+            <ng-template #noFechaPend>
+              <span>Fecha límite no asignada</span>
+            </ng-template>
           </div>
         </article>
       </div>
@@ -36,7 +44,12 @@
           </div>
           <p class="desc" *ngIf="e.descripcion">{{ e.descripcion }}</p>
           <div class="meta">
-            <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+            <ng-container *ngIf="e.fechaLimite; else noFechaComp">
+              <span>Fecha límite: {{ e.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+            </ng-container>
+            <ng-template #noFechaComp>
+              <span>Fecha límite no asignada</span>
+            </ng-template>
             <!-- usar ?. porque ultimaEntrega puede no venir -->
             <span *ngIf="e.ultimaEntrega?.nota != null">
               • Nota: <b>{{ e.ultimaEntrega?.nota }}</b>
@@ -73,7 +86,43 @@
 
   <div class="info-row">
     <span class="chip" [ngClass]="estadoClase(ev.estado)">{{ ev.estado }}</span>
-    <span class="muted">Fecha límite: {{ ev.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+    <ng-container *ngIf="ev.fechaLimite; else noFechaDetalle">
+      <span class="muted">Fecha límite: {{ ev.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+    </ng-container>
+  </div>
+  <ng-template #noFechaDetalle>
+    <span class="muted">Fecha límite no asignada</span>
+  </ng-template>
+
+  <div class="docente-detail">
+    <div class="docente-head">
+      <b>Detalles del docente</b>
+      <span class="muted">Información que acompaña a la evaluación</span>
+    </div>
+
+    <div class="row">
+      <div><b>Comentario:</b></div>
+      <div>{{ ev.comentario || 'Sin comentarios adicionales.' }}</div>
+    </div>
+
+    <div class="row">
+      <div><b>Rúbrica:</b></div>
+      <div>
+        <ng-container *ngIf="ev.rubricaUrl && ev.rubricaNombre; else sinRubrica">
+          <a
+            [href]="ev.rubricaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            📎 {{ ev.rubricaNombre }}
+          </a>
+          <small class="muted" *ngIf="ev.rubricaTipo">({{ ev.rubricaTipo }})</small>
+        </ng-container>
+        <ng-template #sinRubrica>
+          Sin rúbrica adjunta.
+        </ng-template>
+      </div>
+    </div>
   </div>
 
   <!-- Si pendiente -> botón subir -->
@@ -98,7 +147,19 @@
       <div class="row">
         <div><b>Archivo:</b></div>
         <div>
-          📄 {{ ev.ultimaEntrega.archivoNombre }}
+          📄
+          <ng-container *ngIf="ev.ultimaEntrega.archivoUrl; else archivoSinLink">
+            <a
+              [href]="ev.ultimaEntrega.archivoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ ev.ultimaEntrega.archivoNombre }}
+            </a>
+          </ng-container>
+          <ng-template #archivoSinLink>
+            {{ ev.ultimaEntrega.archivoNombre }}
+          </ng-template>
           <small class="muted">({{ ev.ultimaEntrega.archivoTipo }})</small>
         </div>
       </div>

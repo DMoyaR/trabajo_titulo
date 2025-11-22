@@ -11,8 +11,14 @@
     <ng-container *ngIf="!grupoSeleccionado; else panelEntregas">
       <h3>Grupos asignados</h3>
 
-      <div class="grupos-container">
-        <div class="grupo-card" *ngFor="let grupo of (tab==='titulo1' ? gruposTitulo1 : gruposTitulo2)">
+      <p class="muted" *ngIf="cargandoGrupos">Cargando grupos…</p>
+      <p class="error" *ngIf="!cargandoGrupos && errorGrupos">{{ errorGrupos }}</p>
+      <p class="muted" *ngIf="!cargandoGrupos && !errorGrupos && !gruposActuales.length">
+        Aún no tienes grupos con alumnos inscritos.
+      </p>
+
+      <div class="grupos-container" *ngIf="!cargandoGrupos && !errorGrupos && gruposActuales.length">
+        <div class="grupo-card" *ngFor="let grupo of gruposActuales">
           <div class="grupo-info">
             <div class="grupo-nombre">{{ grupo.nombre }}</div>
             <div class="grupo-integrantes">{{ grupo.integrantes.join(' / ') }}</div>

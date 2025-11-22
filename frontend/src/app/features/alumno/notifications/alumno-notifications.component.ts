@@ -27,7 +27,13 @@ export class AlumnoNotificationsComponent {
   }
 
   iconoPara(tipo: string): string {
-    return tipo === 'propuesta' ? '📘' : '🔔';
+    if (tipo === 'propuesta') {
+      return '📘';
+    }
+    if (tipo === 'reunion') {
+      return '📅';
+    }
+    return '🔔';
   }
 
   marcarNotificacion(notificacion: Notificacion) {
