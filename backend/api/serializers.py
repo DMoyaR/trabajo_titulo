@@ -877,7 +877,7 @@ class NotificacionSerializer(serializers.ModelSerializer):
 class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     alumno = serializers.SerializerMethodField()
     archivo_url = serializers.SerializerMethodField()
-    archivo_nombre = serializers.CharField(source="archivo_nombre", read_only=True)
+    archivo_nombre = serializers.CharField(read_only=True)
     archivo_tipo = serializers.SerializerMethodField()
 
     MAX_ARCHIVO_MB = 50

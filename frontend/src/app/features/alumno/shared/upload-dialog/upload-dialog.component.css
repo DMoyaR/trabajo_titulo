@@ -1,7 +1,0 @@
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;}
-.modal{background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.2);width:min(480px,92vw);}
-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #e9eef6;}
-.body{padding:14px;display:grid;gap:10px;}
-footer{padding:10px 14px;display:flex;justify-content:flex-end;}
-.btn{background:#1976d2;color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;}
-.x{border:0;background:transparent;cursor:pointer;}
