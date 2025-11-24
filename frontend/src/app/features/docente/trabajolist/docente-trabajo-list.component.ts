@@ -27,16 +27,16 @@ type Entrega = {
   titulo: string;
   tipo: string;
   estado: EstadoEntrega;
-  fechaLimite?: string;
-  fechaEntrega?: string;
-  nota?: number;
-  comentarios?: string;
-  rubricaNombre?: string;
-  rubricaUrl?: string;
-  rubricaTipo?: string;
-  informeNombre?: string;
-  informeUrl?: string;
-  informeTipo?: string;
+  fechaLimite: string | null;
+  fechaEntrega: string | null;
+  nota: number | null;
+  comentarios: string | null;
+  rubricaNombre: string | null;
+  rubricaUrl: string | null;
+  rubricaTipo: string | null;
+  informeNombre: string | null;
+  informeUrl: string | null;
+  informeTipo: string | null;
   expanded?: boolean;
   ordenFecha?: number;
 };
@@ -316,13 +316,14 @@ export class DocenteTrabajoListComponent implements OnInit {
               fechaEntrega: this.formatearFecha(fechaEntrega),
               ordenFecha: fechaEntrega.getTime(),
               nota: entregaActualizada.nota ?? this.notaInput,
-              comentarios: entregaActualizada.comentario || 'Sin comentarios adicionales.',
-              rubricaNombre: rubricaAdjunta?.nombre,
-              rubricaUrl: rubricaAdjunta?.url,
-              rubricaTipo: rubricaAdjunta?.tipo,
-              informeNombre: informeAdjunto?.nombre,
-              informeUrl: informeAdjunto?.url,
-              informeTipo: informeAdjunto?.tipo,
+              comentarios:
+                entregaActualizada.comentario || 'Sin comentarios adicionales.',
+              rubricaNombre: rubricaAdjunta?.nombre ?? null,
+              rubricaUrl: rubricaAdjunta?.url ?? null,
+              rubricaTipo: rubricaAdjunta?.tipo ?? null,
+              informeNombre: informeAdjunto?.nombre ?? null,
+              informeUrl: informeAdjunto?.url ?? null,
+              informeTipo: informeAdjunto?.tipo ?? null,
             };
 
             if (this.grupoSeleccionado) {
@@ -437,10 +438,16 @@ export class DocenteTrabajoListComponent implements OnInit {
       titulo: entrega.titulo || evaluacion.titulo || 'Entrega',
       tipo: evaluacion.titulo || 'Evaluación',
       estado: entrega.estado_revision === 'revisada' ? 'evaluado' : 'pendiente',
-      fechaLimite: fechaLimite ? this.formatearFecha(fechaLimite) : undefined,
-      fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : undefined,
-      nota: entrega.nota ?? undefined,
-      comentarios: entrega.comentario ?? evaluacion.comentario ?? undefined,
+      fechaLimite: fechaLimite ? this.formatearFecha(fechaLimite) : null,
+      fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
+      nota: entrega.nota ?? null,
+      comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
+      rubricaNombre: null,
+      rubricaUrl: entrega.archivo_url,
+      rubricaTipo: entrega.archivo_tipo ?? null,
+      informeNombre: null,
+      informeUrl: null,
+      informeTipo: null,
       ordenFecha,
     };
   }
