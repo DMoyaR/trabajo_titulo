@@ -1,0 +1,135 @@
+<div class="card">
+  <h2 class="ttl">Trabajo de Título</h2>
+
+  <div class="tabs">
+    <button [class.active]="tab === 'titulo1'" (click)="tab = 'titulo1'; volverAListaGrupos()">T. Título I</button>
+    <button [class.active]="tab === 'titulo2'" (click)="tab = 'titulo2'; volverAListaGrupos()">T. Título II</button>
+    <a class="btn link" routerLink="/docente/temas">Gestionar temas</a>
+  </div>
+
+  <div *ngIf="tab === 'titulo1' || tab === 'titulo2'">
+    <ng-container *ngIf="!grupoSeleccionado; else panelEntregas">
+      <h3>Grupos asignados</h3>
+
+      <p class="muted" *ngIf="cargandoGrupos">Cargando grupos…</p>
+      <p class="error" *ngIf="!cargandoGrupos && errorGrupos">{{ errorGrupos }}</p>
+      <p class="muted" *ngIf="!cargandoGrupos && !errorGrupos && !gruposActuales.length">
+        Aún no tienes grupos con alumnos inscritos.
+      </p>
+
+      <div class="grupos-container" *ngIf="!cargandoGrupos && !errorGrupos && gruposActuales.length">
+        <div class="grupo-card" *ngFor="let grupo of gruposActuales">
+          <div class="grupo-info">
+            <div class="grupo-nombre">{{ grupo.nombre }}</div>
+            <div class="grupo-integrantes">{{ grupo.integrantes.join(' / ') }}</div>
+          </div>
+
+          <div class="grupo-actions">
+            <span class="chip-status" [ngClass]="estadoClase(grupo.estado)">
+              {{ estadoTexto(grupo.estado) }}
+            </span>
+            <button class="btn-ver" type="button" (click)="verGrupo(grupo)">Ver</button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #panelEntregas>
+      <div class="row-head">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="btn light" type="button" (click)="volverAListaGrupos()">← Volver</button>
+          <h3 style="margin:0">Entregas — {{ grupoSeleccionado?.nombre }}</h3>
+        </div>
+        <div class="muted">{{ grupoSeleccionado?.integrantes?.join(' / ') }}</div>
+      </div>
+
+      <div class="filtros-bar">
+        <select [(ngModel)]="filtroTipo">
+          <option *ngFor="let t of tiposEntrega" [value]="t">{{ t }}</option>
+        </select>
+        <input type="text" [(ngModel)]="filtroBusqueda" placeholder="Buscar entrega..." />
+      </div>
+
+      <div class="entregas-grid">
+        <div class="col">
+          <h4 class="sec">Pendientes</h4>
+          <ng-container *ngIf="hasPendientes; else noPend">
+            <div class="hit-card" *ngFor="let e of entregasFiltradas" [hidden]="e.estado!=='pendiente'">
+              <div class="hit-head">
+                <div class="hit-titulo">{{ e.titulo }}</div>
+                <span class="chip chip-warn">Pendiente</span>
+              </div>
+              <div class="hit-descr muted">
+                {{ e.tipo }} • <ng-container *ngIf="e.fechaLimite">Coordinar antes del {{ e.fechaLimite }}</ng-container>
+              </div>
+              <div class="hit-actions">
+                <button class="btn primary" type="button" (click)="revisarEntrega(e)">Revisar</button>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #noPend>
+            <p class="muted">No hay entregas pendientes según los filtros.</p>
+          </ng-template>
+        </div>
+
+        <div class="col">
+          <h4 class="sec">Evaluadas</h4>
+          <ng-container *ngIf="hasEvaluadas; else noEval">
+            <div class="hit-card" *ngFor="let e of entregasFiltradas" [hidden]="e.estado!=='evaluado'">
+              <div class="hit-head">
+                <div class="hit-titulo">{{ e.titulo }}</div>
+                <span class="chip chip-ok">Evaluada</span>
+              </div>
+              <div class="hit-meta muted">
+                Entregada {{ e.fechaEntrega }} <span *ngIf="e.nota">• Nota: <b>{{ e.nota }}</b></span>
+              </div>
+              <div class="hit-actions">
+                <button class="btn light" type="button" (click)="toggleResumen(e)">
+                  {{ e.expanded ? 'Ocultar resumen' : 'Ver resumen' }}
+                </button>
+              </div>
+              <div class="hit-resumen" *ngIf="e.expanded">
+                <p class="muted"><b>Comentarios:</b></p>
+                <p>{{ e.comentarios }}</p>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #noEval>
+            <p class="muted">No hay entregas evaluadas según los filtros.</p>
+          </ng-template>
+        </div>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="backdrop" *ngIf="showEvalModal" (click)="cerrarEvalModal()"></div>
+  <div class="modal narrow" *ngIf="showEvalModal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h4 class="ttl" style="margin:0">Evaluar entrega</h4>
+      <button type="button" class="icon" (click)="cerrarEvalModal()">✕</button>
+    </div>
+
+    <form class="grid" (ngSubmit)="guardarEvaluacion()" novalidate>
+      <div class="field full">
+        <label>Entrega</label>
+        <div class="readonly">{{ entregaEnRevision?.titulo }}</div>
+        <div class="muted">{{ entregaEnRevision?.tipo }}</div>
+      </div>
+
+      <div class="field">
+        <label>Nota (1.0 a 7.0) <span class="req">*</span></label>
+        <input type="number" min="1" max="7" step="0.1" [(ngModel)]="notaInput" name="nota" required />
+      </div>
+
+      <div class="field full">
+        <label>Comentarios</label>
+        <textarea [(ngModel)]="comentariosInput" name="comentarios" placeholder="Opcional, observaciones de la evaluación"></textarea>
+      </div>
+
+      <div class="actions full">
+        <button type="button" class="btn light" (click)="cerrarEvalModal()">Cancelar</button>
+        <button type="submit" class="btn primary" [disabled]="notaInput==null">Guardar evaluación</button>
+      </div>
+    </form>
+  </div>
+</div>

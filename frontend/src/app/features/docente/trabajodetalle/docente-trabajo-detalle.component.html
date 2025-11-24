@@ -1,0 +1,101 @@
+<div class="header">
+  <div class="header-left">
+    <h2 class="ttl">Trabajo de Título</h2>
+    <p class="subtitle">Grupo 3</p>
+  </div>
+<button class="btn-upload" (click)="openUploadDialog()">
+    <span>📤</span>
+    Subir archivo
+  </button>
+</div>
+
+<docente-upload-dialog
+  *ngIf="isUploadDialogOpen()"
+  (close)="closeUploadDialog()"
+  (confirm)="handleUploadConfirm($event)"
+></docente-upload-dialog>
+
+<div class="grid">
+  <!-- Indicadores de Avance -->
+  <div class="card">
+    <h3>
+      <span class="card-icon">📊</span>
+      Indicadores de Avance
+    </h3>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Avance</th>
+            <th>Últimas entregas</th>
+            <th>Próximas entregas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let i of indicadores()">
+            <td><strong>{{ i.estudiante }}</strong></td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="prog">
+                  <div class="bar" 
+                       [class]="getBarClass(i.avance)"
+                       [style.width.%]="getBarWidth(i.avance)">
+                  </div>
+                </div>
+                <span style="font-size: 13px; color: #666;">{{ i.avance }}</span>
+              </div>
+            </td>
+            <td style="font-size: 13px; color: #666;">{{ i.ultimasEntregas }}</td>
+            <td style="font-size: 13px; color: #666;">{{ i.proximasEntregas }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Revisar Entregas -->
+  <div class="card revisar-card">
+    <div class="revisar-icon">📤</div>
+    <p class="revisar-text">Bitácoras, informes, anexos</p>
+    <button class="btn" (click)="irAEvaluaciones()">Revisar entregas</button>
+  </div>
+</div>
+
+<!-- Repositorio de Documentos -->
+<div class="card">
+  <h3>
+    <span class="card-icon">📁</span>
+    Repositorio de Documentos Oficiales
+  </h3>
+  
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input 
+      type="text" 
+      placeholder="Buscar" 
+      [(ngModel)]="searchTerm"
+    />
+  </div>
+
+  <div class="section-label">Práctica</div>
+  <ul class="files">
+    <li *ngFor="let d of repo()">
+      <span class="file-icon">📄</span>
+      <div class="file-info">
+        <span class="file-name">{{ d.nombre }}</span>
+        <span class="file-date">{{ d.fecha }}</span>
+      </div>
+      <button class="btn sm">Descargar</button>
+    </li>
+  </ul>
+</div>
+
+<!-- Observaciones -->
+<div class="observaciones">
+  <h3>
+    <span class="card-icon">💬</span>
+    Observaciones
+  </h3>
+  <p class="observaciones-text">Buen trabajo en general.</p>
+</div>

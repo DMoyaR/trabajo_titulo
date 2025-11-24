@@ -180,12 +180,6 @@ export class AlumnoPracticaComponent implements OnInit {
   solicitudesLoading = signal(false);
   solicitudesError = signal<string | null>(null);
 
-  // Computed para verificar si existe alguna solicitud en revisión o aprobada
-  tieneSolicitudActivaOAprobada = computed(() => {
-    const sols = this.solicitudes();
-    return sols.some(s => s.estado === 'pendiente' || s.estado === 'aprobado');
-  });
-
   private alumnoRut: string | null = null;
   private carreraAlumno: string | null = null;
 

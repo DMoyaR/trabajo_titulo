@@ -1,0 +1,222 @@
+<h2 class="ttl">Calendario</h2>
+
+<div class="wrap">
+  <!-- Calendario principal -->
+  <section class="panel">
+    <div class="toolbar">
+      <div class="left">
+        <button class="pill" (click)="goToday()">Hoy</button>
+        <button class="pill" (click)="prevMonth()">◀</button>
+        <button class="pill" (click)="nextMonth()">▶</button>
+      </div>
+
+      <div class="title">
+        {{ monthNames[month()] }} {{ year() }}
+      </div>
+
+      <div class="right">
+        <button class="pill" (click)="openResumen()">Resumen de reuniones</button>
+        <!-- Eliminado: botón “Agendar reunión continua” -->
+        <button class="pill primary" (click)="openSolicitar()">Solicitar reunión</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="cal-grid">
+      <div class="cal-dow" *ngFor="let d of weekDays">{{ d }}</div>
+
+      <ng-container *ngFor="let w of weeks()">
+        <div *ngFor="let d of w"
+             class="cal-cell"
+             [class.empty]="d===0"
+             [class.is-today]="isToday(d)"
+             [class.is-selected]="isSelected(d)"
+             (click)="onDayClick(d)">
+          <span class="num" *ngIf="d>0">{{ d }}</span>
+          <span class="badge" *ngIf="eventsCount(d) > 0">{{ eventsCount(d) }}</span>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="footer-space"></div>
+  </section>
+
+  <!-- Lateral: Mini + Picker -->
+  <aside class="mini">
+    <div class="mini-header">
+      <button class="mini-nav" (click)="miniPrev()">◀</button>
+      <b class="mini-title" (click)="toggleMiniPicker()">
+        {{ monthNames[month()] }} {{ year() }}
+      </b>
+      <button class="mini-nav" (click)="miniNext()">▶</button>
+    </div>
+
+    <!-- Picker avanzado -->
+    <div class="mini-picker" *ngIf="showMiniPicker">
+      <div class="row">
+        <label>Mes:</label>
+        <select [(ngModel)]="tempMonth">
+          <option *ngFor="let m of monthNames; let i=index" [value]="i">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label style="align-self:flex-start;">Año:</label>
+        <div class="year-box">
+          <div class="year-head">
+            <button class="mini-nav" (click)="prevYearsBlock()">◀</button>
+            <button class="pill ranges" *ngIf="!showRangeView" (click)="showRanges()">Rangos ▾</button>
+            <button class="pill ranges" *ngIf="showRangeView" (click)="backToYears()">▶ Años ◀</button>
+            <button class="mini-nav" (click)="nextYearsBlock()">▶</button>
+          </div>
+
+          <div class="years" *ngIf="!showRangeView">
+            <span class="year"
+                  *ngFor="let y of yearsInRange"
+                  [class.sel]="y===tempYear"
+                  (click)="selectYear(y)">{{ y }}</span>
+          </div>
+
+          <div class="ranges-list" *ngIf="showRangeView">
+            <span class="range"
+                  *ngFor="let r of yearRanges"
+                  (click)="pickRange(r.start)">{{ r.start }}–{{ r.end }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mini-actions">
+        <button class="pill ok" (click)="applyMiniPicker()">Aceptar</button>
+        <button class="pill" (click)="cancelMiniPicker()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Mini grid -->
+    <div class="mini-grid">
+      <div class="mini-dow" *ngFor="let d of ['L','M','M','J','V','S','D']">{{ d }}</div>
+
+      <ng-container *ngFor="let w of miniWeeks()">
+        <div *ngFor="let d of w"
+             class="mini-day"
+             [class.empty]="d===0"
+             [class.is-today]="isToday(d)"
+             [class.is-selected]="isSelected(d)"
+             (click)="onDayClick(d)">
+          <span *ngIf="d>0">{{ d }}</span>
+        </div>
+      </ng-container>
+    </div>
+  </aside>
+</div>
+
+<!-- ===== Modal: Eventos del día (solo lectura) ===== -->
+<div class="overlay" *ngIf="showDayModal()">
+  <div class="modal">
+    <header>
+      <h3>Eventos — {{ selectedDay() }} {{ monthNames[month()] }} {{ year() }}</h3>
+      <button class="x" (click)="closeDayModal()">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div *ngIf="dayEvents().length === 0" class="event empty">No hay eventos para este día.</div>
+
+      <div *ngFor="let ev of dayEvents()" class="event">
+        <div class="ev-head">
+          <b>{{ ev.hora }} — {{ ev.titulo }}</b>
+          <span class="state" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'">
+            {{ ev.estado }}
+          </span>
+        </div>
+        <div class="ev-sub">{{ ev.lugar }}</div>
+        <div class="ev-desc">{{ ev.descripcion }}</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="pill" (click)="closeDayModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Solicitar reunión ===== -->
+<div class="overlay" *ngIf="showSolicitudModal()">
+  <div class="modal">
+    <header>
+      <h3>Solicitar reunión</h3>
+      <button class="x" (click)="closeSolicitar()">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <form (ngSubmit)="submitSolicitud()" class="ev-form">
+        <div class="row">
+          <label>Fecha
+            <input type="date" [(ngModel)]="solicitudForm.fecha" name="fecha" required />
+          </label>
+          <label>Hora
+            <input type="time" [(ngModel)]="solicitudForm.hora" name="hora" required />
+          </label>
+        </div>
+        <div class="row">
+          <label>Título
+            <input type="text" [(ngModel)]="solicitudForm.titulo" name="titulo" required />
+          </label>
+          <label>Lugar
+            <input type="text" [(ngModel)]="solicitudForm.lugar" name="lugar" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Descripción
+            <textarea rows="3" [(ngModel)]="solicitudForm.descripcion" name="descripcion"></textarea>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="pill" (click)="closeSolicitar()">Cancelar</button>
+          <button type="submit" class="pill primary">Enviar solicitud</button>
+        </div>
+      </form>
+      <small class="muted">Tu solicitud quedará en estado <b>Pendiente</b> hasta ser revisada por tu docente guía.</small>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Resumen (solo lectura) ===== -->
+<div class="overlay" *ngIf="showResumenModal()">
+  <div class="modal">
+    <header>
+      <h3>Resumen (próximas 6 semanas)</h3>
+      <button class="x" (click)="closeResumen()">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div *ngIf="resumen().length === 0" class="event empty">No hay reuniones en el período.</div>
+
+      <div *ngFor="let s of resumen()" class="summary-day">
+        <div class="summary-head">
+          <b>{{ s.date | date:'EEEE d' }} de {{ monthNames[s.date.getMonth()] }} {{ s.date.getFullYear() }}</b>
+          <span class="summary-count">{{ s.items.length }} evento(s)</span>
+        </div>
+
+        <div class="summary-items">
+          <div class="summary-item" *ngFor="let ev of s.items">
+            <div class="left"><b>{{ ev.hora }}</b></div>
+            <div class="mid">
+              <div class="ttl">{{ ev.titulo }}</div>
+              <div class="sub">{{ ev.lugar }}</div>
+            </div>
+            <div class="right">
+              <span class="state small" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'">
+                {{ ev.estado }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:8px;">
+        <button type="button" class="pill" (click)="closeResumen()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

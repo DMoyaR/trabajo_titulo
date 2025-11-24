@@ -532,11 +532,7 @@ export class DocenteTemasComponent implements OnInit {
       .pipe(finalize(() => (this.propuestasCargando = false)))
       .subscribe({
         next: (propuestas) => {
-          // FILTRAR: Solo mostrar propuestas creadas por alumnos
-          this.propuestas = propuestas.filter(propuesta => {
-            // Si existe alumno y tiene información, es una propuesta de alumno
-            return propuesta.alumno != null && propuesta.alumno.nombre != null;
-          });
+          this.propuestas = propuestas;
           this.propuestasCargadas = true;
         },
         error: () => {

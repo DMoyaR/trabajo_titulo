@@ -1,0 +1,41 @@
+<h2 class="ttl">Notificaciones</h2>
+
+<div class="panel">
+  <p class="muted" *ngIf="cargando()">Cargando notificaciones...</p>
+  <div class="error" *ngIf="!cargando() && error()">{{ error() }}</div>
+
+  <ng-container *ngIf="!cargando() && !error()">
+    <div class="acciones" *ngIf="solicitudes().length">
+      <span class="contador" [class.oculto]="!totalPendientes()">
+        No leídas: {{ totalPendientes() }}
+      </span>
+      <button type="button" class="pill" (click)="marcarTodas()" [disabled]="!totalPendientes()">
+        Marcar todas como leídas
+      </button>
+    </div>
+
+    <p class="muted" *ngIf="!solicitudes().length">
+      No tienes notificaciones registradas.
+    </p>
+
+    <ul class="list" *ngIf="solicitudes().length">
+      <li class="item" *ngFor="let notificacion of solicitudes()" [class.leida]="notificacion.leida">
+        <span class="ic">🔔</span>
+        <div class="item-header">
+          <strong>{{ notificacion.titulo }}</strong>
+          <p>{{ notificacion.mensaje }}</p>
+          <small>{{ formatoFecha(notificacion.createdAt) }}</small>
+        </div>
+        <button
+          type="button"
+          class="link"
+          *ngIf="!notificacion.leida"
+          (click)="marcarComoLeida(notificacion)"
+        >
+          Marcar como leída
+        </button>
+        <span class="chip leida-badge" *ngIf="notificacion.leida">Leída</span>
+      </li>
+    </ul>
+  </ng-container>
+</div>

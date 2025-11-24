@@ -1,0 +1,15 @@
+<div class="overlay">
+  <div class="modal">
+    <header>
+      <h3>Subir Entrega</h3>
+      <button class="x" (click)="close.emit()">✕</button>
+    </header>
+    <div class="body">
+      <input type="file" />
+      <textarea rows="3" placeholder="Comentario (opcional)"></textarea>
+    </div>
+    <footer>
+      <button class="btn" (click)="close.emit()">Cerrar</button>
+    </footer>
+  </div>
+</div>

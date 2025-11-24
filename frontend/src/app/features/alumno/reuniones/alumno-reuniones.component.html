@@ -1,0 +1,126 @@
+<h2 class="ttl">Reuniones con tu docente guía</h2>
+
+<div class="alert error" *ngIf="error()">{{ error() }}</div>
+<div class="alert success" *ngIf="mensaje()">{{ mensaje() }}</div>
+
+<section class="panel">
+  <h3>Solicita una reunión</h3>
+  <p class="muted">
+    Cuéntale a tu docente el motivo y, si lo deseas, sugiere disponibilidad. El docente definirá la
+    fecha y modalidad definitiva al aprobar.
+  </p>
+
+  <form class="form" [formGroup]="solicitudForm" (ngSubmit)="enviarSolicitud()">
+    <label class="field">
+      <span>Motivo de la reunión *</span>
+      <textarea
+        formControlName="motivo"
+        rows="4"
+        placeholder="Ej. Revisar el avance del capítulo 2"
+      ></textarea>
+      <small class="err" *ngIf="solicitudForm.controls.motivo.invalid && solicitudForm.controls.motivo.touched">
+        Indica el motivo de la reunión.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Disponibilidad sugerida (opcional)</span>
+      <input
+        type="text"
+        formControlName="disponibilidadSugerida"
+        placeholder="Ej. Miércoles por la tarde"
+      />
+    </label>
+
+    <button class="btn primario" type="submit" [disabled]="enviandoSolicitud()">
+      {{ enviandoSolicitud() ? 'Enviando…' : 'Enviar solicitud' }}
+    </button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Solicitudes enviadas</h3>
+    <span class="chip" *ngIf="solicitudesPendientes().length">
+      Pendientes: {{ solicitudesPendientes().length }}
+    </span>
+  </div>
+
+  <p class="muted" *ngIf="cargandoSolicitudes()">Cargando solicitudes…</p>
+  <p class="muted" *ngIf="!cargandoSolicitudes() && !solicitudes().length">
+    Aún no envías solicitudes.
+  </p>
+
+  <article class="solicitud" *ngFor="let solicitud of solicitudes()">
+    <header>
+      <span class="estado" [class.pendiente]="solicitud.estado === 'pendiente'"
+        [class.aprobada]="solicitud.estado === 'aprobada'"
+        [class.rechazada]="solicitud.estado === 'rechazada'"
+      >
+        {{ estadoSolicitudLabel(solicitud.estado) }}
+      </span>
+      <small>{{ fechaHora(solicitud.creadoEn) }}</small>
+    </header>
+
+    <div class="contenido">
+      <p class="motivo">{{ solicitud.motivo }}</p>
+      <p class="muted" *ngIf="solicitud.disponibilidadSugerida">
+        Disponibilidad sugerida: <strong>{{ solicitud.disponibilidadSugerida }}</strong>
+      </p>
+    </div>
+
+    <section class="historial" *ngIf="solicitud.trazabilidad.length">
+      <h4>Historial</h4>
+      <ul>
+        <li *ngFor="let evento of solicitud.trazabilidad">
+          <span class="fecha">{{ fechaHora(evento.fecha) }}</span>
+          <span class="detalle">{{ descripcionEvento(evento) }}</span>
+        </li>
+      </ul>
+    </section>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Reuniones agendadas</h3>
+  </div>
+
+  <p class="muted" *ngIf="cargandoReuniones()">Cargando reuniones…</p>
+  <p class="muted" *ngIf="!cargandoReuniones() && !reuniones().length">
+    Aún no tienes reuniones registradas.
+  </p>
+
+  <div class="tabla" *ngIf="!cargandoReuniones() && reuniones().length">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Horario</th>
+          <th>Modalidad</th>
+          <th>Motivo</th>
+          <th>Observaciones</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let reunion of reuniones()">
+          <td>{{ fechaCorta(reunion.fecha) }}</td>
+          <td>{{ horaCorta(reunion.horaInicio) }} - {{ horaCorta(reunion.horaTermino) }}</td>
+          <td>{{ modalidadLabel(reunion.modalidad) }}</td>
+          <td>{{ reunion.motivo }}</td>
+          <td>{{ reunion.observaciones || '—' }}</td>
+          <td>
+            <span class="estado"
+              [class.aprobada]="reunion.estado === 'aprobada'"
+              [class.finalizada]="reunion.estado === 'finalizada'"
+              [class.rechazada]="reunion.estado === 'no_realizada'"
+            >
+              {{ estadoReunionLabel(reunion.estado) }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
