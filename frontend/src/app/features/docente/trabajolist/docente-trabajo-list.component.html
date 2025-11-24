@@ -164,9 +164,13 @@
         <textarea [(ngModel)]="comentariosInput" name="comentarios" placeholder="Opcional, observaciones de la evaluación"></textarea>
       </div>
 
+      <p class="error" *ngIf="errorEvaluacion">{{ errorEvaluacion }}</p>
+
       <div class="actions full">
         <button type="button" class="btn light" (click)="cerrarEvalModal()">Cancelar</button>
-        <button type="submit" class="btn primary" [disabled]="notaInput==null">Guardar evaluación</button>
+        <button type="submit" class="btn primary" [disabled]="notaInput==null || guardandoEvaluacion">
+          {{ guardandoEvaluacion ? 'Guardando…' : 'Guardar evaluación' }}
+        </button>
       </div>
     </form>
   </div>

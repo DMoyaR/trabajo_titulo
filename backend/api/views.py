@@ -70,6 +70,7 @@ from .serializers import (
     ReunionCerrarSerializer,
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
+    DocenteEvaluacionEntregaUpdateSerializer,
     EvaluacionGrupoDocenteSerializer,
     EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
@@ -2568,6 +2569,11 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
         except (TypeError, ValueError):
             return None
         return alumno_id
+
+
+class DocenteEvaluacionEntregaUpdateView(generics.UpdateAPIView):
+    serializer_class = DocenteEvaluacionEntregaUpdateSerializer
+    queryset = EvaluacionEntregaAlumno.objects.select_related("evaluacion", "alumno")
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:

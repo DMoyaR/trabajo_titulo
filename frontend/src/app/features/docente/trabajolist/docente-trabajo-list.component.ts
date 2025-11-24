@@ -70,6 +70,8 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   showEvalModal = false;
   entregaEnRevision: Entrega | null = null;
+  guardandoEvaluacion = false;
+  errorEvaluacion: string | null = null;
   notaInput: number | null = null;
   comentariosInput = '';
   rubricaArchivo: File | null = null;
@@ -271,6 +273,8 @@ export class DocenteTrabajoListComponent implements OnInit {
   cerrarEvalModal() {
     this.showEvalModal = false;
     this.entregaEnRevision = null;
+    this.guardandoEvaluacion = false;
+    this.errorEvaluacion = null;
     this.notaInput = null;
     this.comentariosInput = '';
     this.rubricaArchivo = null;
@@ -278,36 +282,64 @@ export class DocenteTrabajoListComponent implements OnInit {
   }
 
   guardarEvaluacion() {
-    if (!this.entregaEnRevision || this.notaInput == null) {
+    if (!this.entregaEnRevision || this.notaInput == null || this.guardandoEvaluacion) {
       return;
     }
+
+    this.guardandoEvaluacion = true;
+    this.errorEvaluacion = null;
 
     const rubricaAdjunta = this.adjuntoDesdeArchivo(this.rubricaArchivo);
     const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
 
-    const indice = this.entregas.findIndex((entrega) => entrega.id === this.entregaEnRevision!.id);
-    if (indice >= 0) {
-      this.entregas[indice] = {
-        ...this.entregaEnRevision,
-        estado: 'evaluado',
-        fechaEntrega: this.formatearFecha(new Date()),
-        ordenFecha: Date.now(),
+    this.evaluacionesService
+      .actualizarEntrega(Number(this.entregaEnRevision.id), {
         nota: this.notaInput,
-        comentarios: this.comentariosInput || 'Sin comentarios adicionales.',
-        rubricaNombre: rubricaAdjunta?.nombre,
-        rubricaUrl: rubricaAdjunta?.url,
-        rubricaTipo: rubricaAdjunta?.tipo,
-        informeNombre: informeAdjunto?.nombre,
-        informeUrl: informeAdjunto?.url,
-        informeTipo: informeAdjunto?.tipo,
-      };
+        comentario: this.comentariosInput || 'Sin comentarios adicionales.',
+        estado_revision: 'revisada',
+      })
+      .subscribe({
+        next: (entregaActualizada) => {
+          const fechaEntrega =
+            this.parseFecha(entregaActualizada.actualizado_en) ||
+            this.parseFecha(entregaActualizada.creado_en) ||
+            new Date();
 
-      if (this.grupoSeleccionado) {
-        this.entregasPorGrupo.set(this.grupoSeleccionado.id, [...this.entregas]);
-      }
-    }
+          const indice = this.entregas.findIndex(
+            (entrega) => entrega.id === this.entregaEnRevision!.id,
+          );
 
-    this.cerrarEvalModal();
+          if (indice >= 0) {
+            this.entregas[indice] = {
+              ...this.entregaEnRevision,
+              estado: 'evaluado',
+              fechaEntrega: this.formatearFecha(fechaEntrega),
+              ordenFecha: fechaEntrega.getTime(),
+              nota: entregaActualizada.nota ?? this.notaInput,
+              comentarios: entregaActualizada.comentario || 'Sin comentarios adicionales.',
+              rubricaNombre: rubricaAdjunta?.nombre,
+              rubricaUrl: rubricaAdjunta?.url,
+              rubricaTipo: rubricaAdjunta?.tipo,
+              informeNombre: informeAdjunto?.nombre,
+              informeUrl: informeAdjunto?.url,
+              informeTipo: informeAdjunto?.tipo,
+            };
+
+            if (this.grupoSeleccionado) {
+              this.entregasPorGrupo.set(this.grupoSeleccionado.id, [...this.entregas]);
+            }
+          }
+
+          this.cerrarEvalModal();
+          this.guardandoEvaluacion = false;
+        },
+        error: (err) => {
+          console.error('No fue posible guardar la evaluación de la entrega', err);
+          this.errorEvaluacion =
+            'No pudimos guardar la evaluación. Revisa tu conexión e intenta nuevamente.';
+          this.guardandoEvaluacion = false;
+        },
+      });
   }
 
   toggleResumen(entrega: Entrega) {

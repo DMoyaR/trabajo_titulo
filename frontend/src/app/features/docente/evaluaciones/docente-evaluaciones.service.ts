@@ -62,6 +62,7 @@ export interface GrupoActivoDto {
 export class DocenteEvaluacionesService {
   private readonly baseUrl = 'http://localhost:8000/api/docentes/evaluaciones/';
   private readonly gruposActivosUrl = 'http://localhost:8000/api/docentes/grupos/activos/';
+  private readonly entregasUrl = 'http://localhost:8000/api/docentes/evaluaciones/entregas/';
 
   constructor(private readonly http: HttpClient) {}
 
@@ -128,5 +129,12 @@ export class DocenteEvaluacionesService {
 
     const options = params.keys().length ? { params } : {};
     return this.http.get<GrupoActivoDto[]>(this.gruposActivosUrl, options);
+  }
+
+  actualizarEntrega(
+    entregaId: number,
+    payload: Pick<EvaluacionEntregaDto, 'nota' | 'comentario' | 'estado_revision'>,
+  ): Observable<EvaluacionEntregaDto> {
+    return this.http.patch<EvaluacionEntregaDto>(`${this.entregasUrl}${entregaId}/`, payload);
   }
 }
