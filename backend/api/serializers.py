@@ -956,6 +956,10 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
 
 class DocenteEvaluacionEntregaUpdateSerializer(EvaluacionEntregaAlumnoSerializer):
     class Meta(EvaluacionEntregaAlumnoSerializer.Meta):
+        extra_kwargs = {
+            **EvaluacionEntregaAlumnoSerializer.Meta.extra_kwargs,
+            "archivo": {"read_only": True},
+        }
         read_only_fields = [
             "id",
             "evaluacion",
