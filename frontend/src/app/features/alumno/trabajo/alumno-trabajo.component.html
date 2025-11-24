@@ -8,6 +8,56 @@
     </div>
   </ng-template>
 
+  <div class="tema-asignado" *ngIf="nivelesDisponibles().length">
+    <ng-container *ngIf="temaAsignadoCargando(); else temaAsignadoEstado">
+      <div class="alert info">Cargando tu tema asignado...</div>
+    </ng-container>
+
+    <ng-template #temaAsignadoEstado>
+      <div *ngIf="temaAsignadoError(); else temaAsignadoContenido" class="alert warn">
+        {{ temaAsignadoError() }}
+      </div>
+    </ng-template>
+
+    <ng-template #temaAsignadoContenido>
+      <ng-container *ngIf="temaAsignado() as tema; else sinTemaAsignado">
+        <div class="tema-asignado-card">
+          <div class="tema-asignado-head">
+            <div>
+              <p class="tema-asignado-carrera">{{ tema.carrera }}</p>
+              <h3 class="tema-asignado-titulo">{{ tema.titulo }}</h3>
+              <p class="tema-asignado-descripcion">{{ tema.descripcion }}</p>
+            </div>
+            <div class="chips right">
+              <span class="chip">Cupos: {{ tema.cupos }}</span>
+              <span class="chip ghost" *ngIf="tema.cuposDisponibles != null">Disponibles: {{ tema.cuposDisponibles }}</span>
+            </div>
+          </div>
+
+          <div class="tema-asignado-profesor" *ngIf="profesorAsignado() as profesor">
+            <span class="tema-asignado-profesor-label">Profesor guía:</span>
+            <span class="tema-asignado-profesor-nombre">{{ profesor.nombre }}</span>
+            <span class="tema-asignado-profesor-extra" *ngIf="profesor.carrera">({{ profesor.carrera }})</span>
+          </div>
+
+          <div class="tema-asignado-integrantes" *ngIf="temaAsignadoIntegrantes().length">
+            <p class="tema-asignado-profesor-label">Integrantes:</p>
+            <ul>
+              <li *ngFor="let integrante of temaAsignadoIntegrantes()">
+                {{ integrante.nombre }} <span *ngIf="integrante.esResponsable">· Responsable</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="upload-actions">
+            <a class="btn link" routerLink="/alumno/temas">Gestionar tema</a>
+            <button class="btn primary" *ngIf="puedeGestionarCupos()" routerLink="/alumno/temas">Gestionar cupos</button>
+          </div>
+        </div>
+      </ng-container>
+    </ng-template>
+  </div>
+
   <ng-container *ngIf="nivelesDisponibles().length; else sinNiveles">
     <div class="tabs">
       <button *ngIf="tieneNivel('i')" [class.active]="nivelSeleccionado() === 'i'" (click)="seleccionarNivel('i')">
@@ -36,7 +86,7 @@
         <h3>{{ destacada.encabezado }}</h3>
         <span class="badge" [ngClass]="destacada.estado">{{ destacada.estadoEtiqueta }}</span>
       </div>
-      
+
       <div class="upload-content">
         <div class="upload-info">
           <p class="upload-title">{{ destacada.nombre }}</p>
@@ -45,7 +95,7 @@
             <button class="btn primary" routerLink="/alumno/entrega">Gestionar entregas</button>
           </div>
         </div>
-        
+
         <div class="chips right">
           <span class="chip">{{ destacada.fecha }}</span>
           <span class="chip ghost" *ngIf="destacada.proximoPaso">Próximo paso: {{ destacada.proximoPaso }}</span>
