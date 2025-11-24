@@ -237,6 +237,23 @@ select {
 }
 textarea { min-height:130px; resize:vertical; }
 
+.file-picker {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px dashed #dbe3ee;
+  border-radius:10px;
+  background:#fbfdff;
+  cursor:pointer;
+}
+
+.file-picker input[type="file"] {
+  display:none;
+}
+
+.file-picker span { font-weight:700; color:#1a3e6a; }
+
 input[type="text"]:focus,
 input[type="number"]:focus,
 textarea:focus,
@@ -344,6 +361,10 @@ select:focus {
 .hit-descr, .hit-meta { margin:4px 0 8px; }
 .hit-actions { display:flex; gap:10px; }
 .hit-resumen { margin-top:10px; border-top:1px dashed #e5edf7; padding-top:10px; color:#1f2937; }
+.hit-files { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.file-chip { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; background:#f4f7fb; border-radius:10px; border:1px solid #e2e8f0; width:fit-content; }
+.file-chip a { color:#1a3e6a; font-weight:700; text-decoration:none; }
+.file-chip a:hover { text-decoration:underline; }
 
 /* ===== Filtros ===== */
 .filtros-bar {

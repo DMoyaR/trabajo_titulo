@@ -31,6 +31,12 @@ type Entrega = {
   fechaEntrega?: string;
   nota?: number;
   comentarios?: string;
+  rubricaNombre?: string;
+  rubricaUrl?: string;
+  rubricaTipo?: string;
+  informeNombre?: string;
+  informeUrl?: string;
+  informeTipo?: string;
   expanded?: boolean;
   ordenFecha?: number;
 };
@@ -66,6 +72,8 @@ export class DocenteTrabajoListComponent implements OnInit {
   entregaEnRevision: Entrega | null = null;
   notaInput: number | null = null;
   comentariosInput = '';
+  rubricaArchivo: File | null = null;
+  informeArchivo: File | null = null;
 
   constructor(
     private readonly temaService: TemaService,
@@ -255,6 +263,8 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.entregaEnRevision = entrega;
     this.notaInput = null;
     this.comentariosInput = '';
+    this.rubricaArchivo = null;
+    this.informeArchivo = null;
     this.showEvalModal = true;
   }
 
@@ -263,12 +273,17 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.entregaEnRevision = null;
     this.notaInput = null;
     this.comentariosInput = '';
+    this.rubricaArchivo = null;
+    this.informeArchivo = null;
   }
 
   guardarEvaluacion() {
     if (!this.entregaEnRevision || this.notaInput == null) {
       return;
     }
+
+    const rubricaAdjunta = this.adjuntoDesdeArchivo(this.rubricaArchivo);
+    const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
 
     const indice = this.entregas.findIndex((entrega) => entrega.id === this.entregaEnRevision!.id);
     if (indice >= 0) {
@@ -279,6 +294,12 @@ export class DocenteTrabajoListComponent implements OnInit {
         ordenFecha: Date.now(),
         nota: this.notaInput,
         comentarios: this.comentariosInput || 'Sin comentarios adicionales.',
+        rubricaNombre: rubricaAdjunta?.nombre,
+        rubricaUrl: rubricaAdjunta?.url,
+        rubricaTipo: rubricaAdjunta?.tipo,
+        informeNombre: informeAdjunto?.nombre,
+        informeUrl: informeAdjunto?.url,
+        informeTipo: informeAdjunto?.tipo,
       };
 
       if (this.grupoSeleccionado) {
@@ -348,6 +369,30 @@ export class DocenteTrabajoListComponent implements OnInit {
     });
 
     return mapa;
+  }
+
+  onRubricaSeleccionada(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    this.rubricaArchivo = input?.files?.[0] ?? null;
+  }
+
+  onInformeSeleccionado(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    this.informeArchivo = input?.files?.[0] ?? null;
+  }
+
+  private adjuntoDesdeArchivo(archivo: File | null):
+    | { nombre: string; url: string; tipo: string }
+    | null {
+    if (!archivo) {
+      return null;
+    }
+
+    return {
+      nombre: archivo.name,
+      url: URL.createObjectURL(archivo),
+      tipo: archivo.type || 'Archivo',
+    };
   }
 
   private mapEntrega(entrega: EvaluacionEntregaDto, evaluacion: EvaluacionGrupoDto): Entrega {
