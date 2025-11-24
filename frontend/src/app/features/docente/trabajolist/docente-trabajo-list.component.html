@@ -43,6 +43,9 @@
         <div class="muted">{{ grupoSeleccionado?.integrantes?.join(' / ') }}</div>
       </div>
 
+      <p class="muted" *ngIf="cargandoEntregas">Cargando entregas…</p>
+      <p class="error" *ngIf="!cargandoEntregas && errorEntregas">{{ errorEntregas }}</p>
+
       <div class="filtros-bar">
         <select [(ngModel)]="filtroTipo">
           <option *ngFor="let t of tiposEntrega" [value]="t">{{ t }}</option>
@@ -50,7 +53,7 @@
         <input type="text" [(ngModel)]="filtroBusqueda" placeholder="Buscar entrega..." />
       </div>
 
-      <div class="entregas-grid">
+      <div class="entregas-grid" *ngIf="!cargandoEntregas">
         <div class="col">
           <h4 class="sec">Pendientes</h4>
           <ng-container *ngIf="hasPendientes; else noPend">
