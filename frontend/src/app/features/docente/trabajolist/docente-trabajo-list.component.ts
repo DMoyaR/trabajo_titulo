@@ -286,6 +286,8 @@ export class DocenteTrabajoListComponent implements OnInit {
       return;
     }
 
+    const entregaEnRevision = this.entregaEnRevision;
+
     this.guardandoEvaluacion = true;
     this.errorEvaluacion = null;
 
@@ -293,7 +295,7 @@ export class DocenteTrabajoListComponent implements OnInit {
     const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
 
     this.evaluacionesService
-      .actualizarEntrega(Number(this.entregaEnRevision.id), {
+      .actualizarEntrega(Number(entregaEnRevision.id), {
         nota: this.notaInput,
         comentario: this.comentariosInput || 'Sin comentarios adicionales.',
         estado_revision: 'revisada',
@@ -306,12 +308,12 @@ export class DocenteTrabajoListComponent implements OnInit {
             new Date();
 
           const indice = this.entregas.findIndex(
-            (entrega) => entrega.id === this.entregaEnRevision!.id,
+            (entrega) => entrega.id === entregaEnRevision.id,
           );
 
           if (indice >= 0) {
             this.entregas[indice] = {
-              ...this.entregaEnRevision,
+              ...entregaEnRevision,
               estado: 'evaluado',
               fechaEntrega: this.formatearFecha(fechaEntrega),
               ordenFecha: fechaEntrega.getTime(),
