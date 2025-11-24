@@ -295,11 +295,15 @@ export class DocenteTrabajoListComponent implements OnInit {
     const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
 
     this.evaluacionesService
-      .actualizarEntrega(Number(entregaEnRevision.id), {
-        nota: this.notaInput,
-        comentario: this.comentariosInput || 'Sin comentarios adicionales.',
-        estado_revision: 'revisada',
-      })
+      .actualizarEntrega(
+        Number(entregaEnRevision.id),
+        {
+          nota: this.notaInput,
+          comentario: this.comentariosInput || 'Sin comentarios adicionales.',
+          estado_revision: 'revisada',
+        },
+        { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
+      )
       .subscribe({
         next: (entregaActualizada) => {
           const fechaEntrega =
@@ -320,12 +324,18 @@ export class DocenteTrabajoListComponent implements OnInit {
               nota: entregaActualizada.nota ?? this.notaInput,
               comentarios:
                 entregaActualizada.comentario || 'Sin comentarios adicionales.',
-              rubricaNombre: rubricaAdjunta?.nombre ?? null,
-              rubricaUrl: rubricaAdjunta?.url ?? null,
-              rubricaTipo: rubricaAdjunta?.tipo ?? null,
-              informeNombre: informeAdjunto?.nombre ?? null,
-              informeUrl: informeAdjunto?.url ?? null,
-              informeTipo: informeAdjunto?.tipo ?? null,
+              rubricaNombre:
+                entregaActualizada.rubrica_docente_nombre || rubricaAdjunta?.nombre || null,
+              rubricaUrl:
+                entregaActualizada.rubrica_docente_url || rubricaAdjunta?.url || null,
+              rubricaTipo:
+                entregaActualizada.rubrica_docente_tipo || rubricaAdjunta?.tipo || null,
+              informeNombre:
+                entregaActualizada.informe_corregido_nombre || informeAdjunto?.nombre || null,
+              informeUrl:
+                entregaActualizada.informe_corregido_url || informeAdjunto?.url || null,
+              informeTipo:
+                entregaActualizada.informe_corregido_tipo || informeAdjunto?.tipo || null,
             };
 
             if (this.grupoSeleccionado) {
@@ -444,12 +454,12 @@ export class DocenteTrabajoListComponent implements OnInit {
       fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
       nota: entrega.nota ?? null,
       comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
-      rubricaNombre: null,
-      rubricaUrl: entrega.archivo_url,
-      rubricaTipo: entrega.archivo_tipo ?? null,
-      informeNombre: null,
-      informeUrl: null,
-      informeTipo: null,
+      rubricaNombre: entrega.rubrica_docente_nombre || null,
+      rubricaUrl: entrega.rubrica_docente_url || null,
+      rubricaTipo: entrega.rubrica_docente_tipo || null,
+      informeNombre: entrega.informe_corregido_nombre || null,
+      informeUrl: entrega.informe_corregido_url || null,
+      informeTipo: entrega.informe_corregido_tipo || null,
       ordenFecha,
     };
   }

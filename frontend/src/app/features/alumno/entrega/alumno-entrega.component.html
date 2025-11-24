@@ -164,6 +164,36 @@
         </div>
       </div>
 
+      <div class="row" *ngIf="ev.ultimaEntrega.rubricaUrl">
+        <div><b>Rúbrica corregida:</b></div>
+        <div>
+          📎
+          <a
+            [href]="ev.ultimaEntrega.rubricaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ ev.ultimaEntrega.rubricaNombre || 'Rúbrica' }}
+          </a>
+          <small class="muted" *ngIf="ev.ultimaEntrega.rubricaTipo">({{ ev.ultimaEntrega.rubricaTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="ev.ultimaEntrega.informeUrl">
+        <div><b>Informe corregido:</b></div>
+        <div>
+          📝
+          <a
+            [href]="ev.ultimaEntrega.informeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ ev.ultimaEntrega.informeNombre || 'Informe con anotaciones' }}
+          </a>
+          <small class="muted" *ngIf="ev.ultimaEntrega.informeTipo">({{ ev.ultimaEntrega.informeTipo }})</small>
+        </div>
+      </div>
+
       <div class="row">
         <div><b>Fecha envío:</b></div>
         <div>{{ ev.ultimaEntrega.fecha | date:'d MMM y, HH:mm' }}</div>

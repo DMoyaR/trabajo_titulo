@@ -2573,6 +2573,7 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
 
 class DocenteEvaluacionEntregaUpdateView(generics.UpdateAPIView):
     serializer_class = DocenteEvaluacionEntregaUpdateSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     queryset = EvaluacionEntregaAlumno.objects.select_related("evaluacion", "alumno")
 
 

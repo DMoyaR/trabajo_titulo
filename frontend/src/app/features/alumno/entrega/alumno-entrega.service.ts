@@ -9,6 +9,12 @@ export interface EvaluacionEntregaDto {
   archivo_url: string | null;
   archivo_nombre: string;
   archivo_tipo: string | null;
+  rubrica_docente_url: string | null;
+  rubrica_docente_nombre: string;
+  rubrica_docente_tipo: string | null;
+  informe_corregido_url: string | null;
+  informe_corregido_nombre: string;
+  informe_corregido_tipo: string | null;
   nota: number | null;
   estado_revision: 'pendiente' | 'revisada';
   creado_en: string;
