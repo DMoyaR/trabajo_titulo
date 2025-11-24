@@ -954,6 +954,22 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
         return tipo or "application/octet-stream"
 
 
+class DocenteEvaluacionEntregaUpdateSerializer(EvaluacionEntregaAlumnoSerializer):
+    class Meta(EvaluacionEntregaAlumnoSerializer.Meta):
+        read_only_fields = [
+            "id",
+            "evaluacion",
+            "alumno",
+            "archivo_url",
+            "archivo_nombre",
+            "archivo_tipo",
+            "creado_en",
+            "actualizado_en",
+            "archivo",
+            "titulo",
+        ]
+
+
 class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     docente = serializers.PrimaryKeyRelatedField(
         queryset=Usuario.objects.filter(rol="docente"),
