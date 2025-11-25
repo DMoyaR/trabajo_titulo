@@ -401,7 +401,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const nombreActivo =
       seleccionActual && gruposMap.has(seleccionActual)
         ? seleccionActual
-        : gruposOrdenados[0]?.nombre ?? null;
+        : null;
 
     this.grupoEntregasSeleccionado.set(nombreActivo);
     this.entregasPorGrupo.set(
@@ -435,9 +435,14 @@ export class DocenteEvaluacionesComponent implements OnInit {
   }
 
   seleccionarGrupoEntregas(nombre: string): void {
-    this.grupoEntregasSeleccionado.set(nombre);
+    const yaSeleccionado = this.grupoEntregasSeleccionado() === nombre;
+
+    this.grupoEntregasSeleccionado.set(yaSeleccionado ? null : nombre);
     this.entregasPorGrupo.update((grupos) =>
-      grupos.map((grupo) => ({ ...grupo, abierto: grupo.nombre === nombre }))
+      grupos.map((grupo) => ({
+        ...grupo,
+        abierto: yaSeleccionado ? false : grupo.nombre === nombre,
+      }))
     );
   }
 

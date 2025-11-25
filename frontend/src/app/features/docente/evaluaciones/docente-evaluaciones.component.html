@@ -164,13 +164,17 @@
 
       <ng-container *ngIf="entregasPorGrupo().length; else sinEntregas">
         <div class="entregas-grupos">
-          <article class="grupo-entrega-card" *ngFor="let grupo of entregasPorGrupo()">
+          <article
+            class="grupo-entrega-card"
+            *ngFor="let grupo of entregasPorGrupo()"
+            [class.cerrado]="!grupo.abierto"
+          >
             <button type="button" class="grupo-toggle" (click)="seleccionarGrupoEntregas(grupo.nombre)">
               <div class="grupo-titulo">
                 <h4>{{ grupo.nombre }}</h4>
-                <small>{{ grupo.pendientes.length + grupo.revisadas.length }} entregas</small>
+                <small *ngIf="grupo.abierto">{{ grupo.pendientes.length + grupo.revisadas.length }} entregas</small>
               </div>
-              <div class="grupo-resumen">
+              <div class="grupo-resumen" *ngIf="grupo.abierto">
                 <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
                 <span class="chip ok">{{ grupo.revisadas.length }} evaluadas</span>
               </div>

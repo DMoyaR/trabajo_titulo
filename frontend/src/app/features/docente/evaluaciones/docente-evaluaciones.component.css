@@ -316,6 +316,10 @@
   overflow: hidden;
 }
 
+.grupo-entrega-card.cerrado {
+  background: #f9fbff;
+}
+
 .grupo-toggle {
   width: 100%;
   display: grid;
@@ -327,6 +331,10 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+}
+
+.grupo-entrega-card.cerrado .grupo-toggle {
+  grid-template-columns: 1fr auto;
 }
 
 .grupo-titulo h4 {
