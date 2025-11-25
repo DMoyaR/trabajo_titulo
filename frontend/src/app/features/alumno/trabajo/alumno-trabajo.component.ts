@@ -23,6 +23,7 @@ type EntregaAlumno = {
   nombre: string;
   descripcion: string;
   fecha: string;
+  fechaOrden: string;
   estado: EstadoEntrega;
   badge: string;
   proximoPaso?: string;
@@ -100,6 +101,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         descripcion:
           'Entrega pendiente del informe final para el cierre completo de Trabajo de Título I.',
         fecha: 'Fecha límite: 22 dic 2025 · 23:59',
+        fechaOrden: '2025-12-22T23:59:00',
         estado: 'pendiente',
         badge: 'Avance final',
         proximoPaso: 'Revisar instrucciones y adjuntar el informe final',
@@ -109,6 +111,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Avance 2',
         descripcion: 'Entrega de avance pendiente en Aula Virtual.',
         fecha: 'Fecha límite: 15 dic 2025 · 23:59',
+        fechaOrden: '2025-12-15T23:59:00',
         estado: 'pendiente',
         badge: 'Avance',
         proximoPaso: 'Subir avances y evidencias de progreso',
@@ -119,6 +122,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Avance 3',
         descripcion: 'Entrega de avance intermedio pendiente de revisión docente.',
         fecha: 'Fecha límite: 15 dic 2025 · 23:59',
+        fechaOrden: '2025-12-15T23:59:00',
         estado: 'pendiente',
         badge: 'Avance',
         proximoPaso: 'Ajustar según observaciones previas',
@@ -128,6 +132,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Anteproyecto TT1',
         descripcion: 'Calificado. Revisa el informe corregido y las observaciones del docente.',
         fecha: 'Calificado el 02 nov 2025',
+        fechaOrden: '2025-11-02T00:00:00',
         estado: 'aprobado',
         badge: 'Calificada',
         proximoPaso: 'Aplicar retroalimentación al avance final',
@@ -139,6 +144,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Documento final · Borrador',
         descripcion: 'Primer borrador enviado. El revisor entregará feedback detallado.',
         fecha: 'Entregado 05 abr 2024',
+        fechaOrden: '2024-04-05T00:00:00',
         estado: 'enRevision',
         badge: 'Documento',
         proximoPaso: 'Incorporar correcciones de redacción',
@@ -149,6 +155,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Defensa simulada',
         descripcion: 'Preparar presentación y guion de 15 minutos.',
         fecha: 'Programar para la semana del 29 abr 2024',
+        fechaOrden: '2024-04-29T00:00:00',
         estado: 'pendiente',
         badge: 'Presentación',
         proximoPaso: 'Confirmar disponibilidad con el profesor guía',
@@ -158,6 +165,7 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Bitácora Integrada',
         descripcion: 'Bitácora aprobada con comentarios positivos sobre la validación.',
         fecha: 'Entregada 28 mar 2024',
+        fechaOrden: '2024-03-28T00:00:00',
         estado: 'aprobado',
         badge: 'Bitácora',
         proximoPaso: 'Actualizar métricas posteriores a la defensa simulada',
@@ -313,7 +321,11 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
     const nivel = this.nivelActual();
-    return nivel ? this.entregas()[nivel] : [];
+    if (!nivel) {
+      return [];
+    }
+
+    return this.ordenarEntregas(this.entregas()[nivel]);
   });
 
   readonly evaluacionesPorNivel = computed<EvaluacionGrupo[]>(() => {
@@ -385,6 +397,42 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   toggleResumen(entrega: EntregaAlumno) {
     entrega.expanded = !entrega.expanded;
+  }
+
+  private ordenarEntregas(entregas: EntregaAlumno[]): EntregaAlumno[] {
+    const ahora = Date.now();
+
+    return [...entregas].sort((a, b) => {
+      const fechaA = new Date(a.fechaOrden).getTime();
+      const fechaB = new Date(b.fechaOrden).getTime();
+
+      const fechaAInvalida = Number.isNaN(fechaA);
+      const fechaBInvalida = Number.isNaN(fechaB);
+
+      if (fechaAInvalida && fechaBInvalida) {
+        return 0;
+      }
+
+      if (fechaAInvalida) {
+        return 1;
+      }
+
+      if (fechaBInvalida) {
+        return -1;
+      }
+
+      const esPasadaA = fechaA < ahora;
+      const esPasadaB = fechaB < ahora;
+
+      if (esPasadaA !== esPasadaB) {
+        return esPasadaA ? 1 : -1;
+      }
+
+      const distanciaA = Math.abs(fechaA - ahora);
+      const distanciaB = Math.abs(fechaB - ahora);
+
+      return distanciaA - distanciaB;
+    });
   }
 
   private configurarNivelesDisponibles() {
