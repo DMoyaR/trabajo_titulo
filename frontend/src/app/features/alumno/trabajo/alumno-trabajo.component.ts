@@ -1,9 +1,10 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docente/trabajolist/tema.service';
+import { AlumnoEntregasService } from '../entrega/alumno-entrega.service';
 
 type Nivel = 'i' | 'ii';
 type EstadoEntrega = 'aprobado' | 'enRevision' | 'pendiente';
@@ -77,7 +78,7 @@ const CARRERAS_NIVEL_I_Y_II = new Set(
   templateUrl: './alumno-trabajo.component.html',
   styleUrls: ['./alumno-trabajo.component.css'],
 })
-export class AlumnoTrabajoComponent {
+export class AlumnoTrabajoComponent implements OnInit {
   readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
   readonly nivelSeleccionado = signal<Nivel>('i');
 
@@ -165,18 +166,16 @@ export class AlumnoTrabajoComponent {
   });
 
   readonly evaluaciones = signal<Record<Nivel, EvaluacionGrupo[]>>({
-    i: [
-      { titulo: 'Avance Final TT1', nota: null },
-      { titulo: 'Avance 2', nota: null },
-      { titulo: 'Avance 3', nota: null },
-      { titulo: 'Anteproyecto TT1', nota: 6.5 },
-    ],
+    i: [],
     ii: [
       { titulo: 'Documento final · Borrador', nota: 5.5 },
       { titulo: 'Defensa simulada', nota: 5.9 },
       { titulo: 'Bitácora Integrada', nota: 6.1 },
     ],
   });
+
+  readonly evaluacionesCargando = signal(false);
+  readonly evaluacionesError = signal<string | null>(null);
 
   readonly resumen = signal<Record<Nivel, ResumenNivel>>({
     i: {
@@ -363,9 +362,14 @@ export class AlumnoTrabajoComponent {
   constructor(
     private readonly currentUserService: CurrentUserService,
     private readonly temaService: TemaService,
+    private readonly entregasService: AlumnoEntregasService,
   ) {
     this.configurarNivelesDisponibles();
     this.cargarTemaAsignado();
+  }
+
+  ngOnInit(): void {
+    this.cargarEvaluaciones();
   }
 
   tieneNivel(nivel: Nivel): boolean {
@@ -445,5 +449,44 @@ export class AlumnoTrabajoComponent {
           this.temaAsignadoCargando.set(false);
         },
       });
+  }
+
+  private cargarEvaluaciones() {
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+
+    if (!alumnoId) {
+      this.evaluacionesError.set('No pudimos identificar al alumno actual para obtener sus evaluaciones.');
+      return;
+    }
+
+    this.evaluacionesCargando.set(true);
+    this.evaluacionesError.set(null);
+
+    this.entregasService.listarEvaluaciones(alumnoId).subscribe({
+      next: (evaluaciones) => {
+        const mapeadas = evaluaciones.map<EvaluacionGrupo>((evaluacion) => ({
+          titulo: evaluacion.titulo,
+          nota: evaluacion.ultima_entrega?.nota ?? null,
+        }));
+
+        this.evaluaciones.update((actual) => ({
+          ...actual,
+          i: mapeadas,
+        }));
+
+        this.evaluacionesCargando.set(false);
+      },
+      error: (error) => {
+        console.error('No se pudieron cargar las evaluaciones del alumno', error);
+        this.evaluacionesCargando.set(false);
+        const detalle = error?.error?.detail;
+        if (typeof detalle === 'string') {
+          this.evaluacionesError.set(detalle);
+        } else {
+          this.evaluacionesError.set('No pudimos cargar tus notas. Intenta nuevamente más tarde.');
+        }
+      },
+    });
   }
 }
