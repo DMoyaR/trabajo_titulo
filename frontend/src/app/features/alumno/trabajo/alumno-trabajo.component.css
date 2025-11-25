@@ -848,6 +848,74 @@ textarea {
   line-height: 1.45;
 }
 
+.evaluaciones-card {
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.evaluaciones-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.evaluaciones-header h4 {
+  margin: 0;
+  color: #1a3e6a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.tabla-evaluaciones {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.03);
+}
+
+.tabla-evaluaciones th,
+.tabla-evaluaciones td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tabla-evaluaciones thead {
+  background: #eef2ff;
+}
+
+.tabla-evaluaciones th {
+  color: #1a3e6a;
+  font-weight: 700;
+  border-bottom: 1px solid #dfe5ee;
+}
+
+.tabla-evaluaciones tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.tabla-evaluaciones tfoot {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.tabla-evaluaciones tfoot td,
+.tabla-evaluaciones tfoot th {
+  border-top: 1px solid #dfe5ee;
+  color: #1a3e6a;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

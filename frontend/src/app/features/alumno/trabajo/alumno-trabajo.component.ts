@@ -39,6 +39,11 @@ type Restriccion = {
   descripcion: string;
 };
 
+type EvaluacionGrupo = {
+  titulo: string;
+  nota: number | null;
+};
+
 const CARRERAS_SIN_TRABAJO_TITULO = new Set(
   [
     'Bachillerato en Ciencias de la Ingeniería',
@@ -146,6 +151,19 @@ export class AlumnoTrabajoComponent {
         badge: 'Bitácora',
         proximoPaso: 'Actualizar métricas posteriores a la defensa simulada',
       },
+    ],
+  });
+
+  readonly evaluaciones = signal<Record<Nivel, EvaluacionGrupo[]>>({
+    i: [
+      { titulo: 'Plan de trabajo', nota: 6.3 },
+      { titulo: 'Bitácora Semanal #5', nota: 5.8 },
+      { titulo: 'Reunión de seguimiento', nota: 6.0 },
+    ],
+    ii: [
+      { titulo: 'Documento final · Borrador', nota: 5.5 },
+      { titulo: 'Defensa simulada', nota: 5.9 },
+      { titulo: 'Bitácora Integrada', nota: 6.1 },
     ],
   });
 
@@ -286,6 +304,24 @@ export class AlumnoTrabajoComponent {
   readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
     const nivel = this.nivelActual();
     return nivel ? this.entregas()[nivel] : [];
+  });
+
+  readonly evaluacionesPorNivel = computed<EvaluacionGrupo[]>(() => {
+    const nivel = this.nivelActual();
+    return nivel ? this.evaluaciones()[nivel] : [];
+  });
+
+  readonly promedioEvaluaciones = computed<string | null>(() => {
+    const notas = this.evaluacionesPorNivel()
+      .map(evaluacion => evaluacion.nota)
+      .filter((nota): nota is number => nota !== null);
+
+    if (!notas.length) {
+      return null;
+    }
+
+    const promedio = notas.reduce((suma, nota) => suma + nota, 0) / notas.length;
+    return promedio.toFixed(2);
   });
 
   readonly entregaDestacada = computed<EntregaDestacada | null>(() => {
