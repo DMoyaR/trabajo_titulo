@@ -4,7 +4,12 @@
   <div class="tabs">
     <button [class.active]="tab() === 'temas'" (click)="tab.set('temas')">Temas disponibles</button>
     <button [class.active]="tab() === 'propuestas'" (click)="tab.set('propuestas')">Mis propuestas</button>
-    <button class="btn primary sm" type="button" (click)="togglePostulacion(true)">
+    <button
+      class="btn primary sm"
+      type="button"
+      (click)="togglePostulacion(true)"
+      [disabled]="tieneTemaAsignado()"
+    >
       + Postular / Proponer tema
     </button>
   </div>
@@ -12,6 +17,11 @@
   <ng-container [ngSwitch]="tab()">
     <ng-container *ngSwitchCase="'temas'">
       <p class="muted">Explora los temas disponibles para postular a tu trabajo de título.</p>
+
+      <div class="alert warning" *ngIf="tieneTemaAsignado()">
+        Ya cuentas con un tema inscrito. No puedes inscribir ni solicitar un nuevo tema.
+      </div>
+
 
       <ng-container *ngIf="temasCargando(); else temasContenido">
         <p class="muted" style="margin-top: 1rem">Cargando temas disponibles...</p>

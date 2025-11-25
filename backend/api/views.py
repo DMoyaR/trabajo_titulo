@@ -1386,6 +1386,19 @@ def reservar_tema(request, pk: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    inscripcion_activa = (
+        InscripcionTema.objects.filter(alumno=alumno, activo=True)
+        .exclude(tema=tema)
+        .exists()
+    )
+    if inscripcion_activa:
+        return Response(
+            {
+                "detail": "Ya cuentas con un tema inscrito. No puedes inscribir otro tema.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if alumno.carrera and not _carreras_compatibles(tema.carrera, alumno.carrera):
         return Response(
             {

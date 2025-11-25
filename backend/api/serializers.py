@@ -8,6 +8,7 @@ from .models import (
     PracticaDocumento,
     PracticaFirmaCoordinador,
     PropuestaTema,
+    InscripcionTema,
     Notificacion,
     SolicitudReunion,
     Reunion,
@@ -633,7 +634,18 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"cupos_requeridos": "Debes indicar al menos un cupo."}
             )
+        
 
+        if alumno and InscripcionTema.objects.filter(alumno=alumno, activo=True).exists():
+            raise serializers.ValidationError(
+                {
+                    "alumno_id": [
+                        "Ya cuentas con un tema inscrito. No puedes solicitar un nuevo tema.",
+                    ]
+                }
+            )
+        
+        
         correos_limpios = _procesar_correos_companeros(
             alumno,
             correos_companeros,

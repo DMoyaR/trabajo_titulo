@@ -44,6 +44,11 @@ export class AlumnoTemasComponent {
   readonly temasError = signal<string | null>(null);
   private temasCargados = false;
 
+  readonly tieneTemaAsignado = computed(() =>
+    this.temas().some((tema) => tema.tieneCupoPropio),
+  );
+
+
   readonly propuestas = signal<Propuesta[]>([]);
   readonly propuestasCargando = signal(false);
   readonly propuestasError = signal<string | null>(null);
@@ -325,6 +330,15 @@ export class AlumnoTemasComponent {
   }
 
   togglePostulacion(open: boolean) {
+
+    if (open && this.tieneTemaAsignado()) {
+      this.postulacionError.set(
+        'Ya cuentas con un tema inscrito. No puedes postular a un nuevo tema.',
+      );
+      return;
+    }
+
+
     this.showPostulacion.set(open);
     if (open) {
       this.cargarProfesores();
@@ -336,10 +350,19 @@ export class AlumnoTemasComponent {
   }
 
   puedePedirTema(tema: TemaDisponible): boolean {
+    if (this.tieneTemaAsignado()) {
+      return false;
+    }
+
     return tema.cuposDisponibles > 0 && !tema.tieneCupoPropio;
   }
 
   etiquetaPedirTema(tema: TemaDisponible): string {
+
+    if (this.tieneTemaAsignado()) {
+      return 'Ya tienes un tema inscrito';
+    }
+
     if (tema.tieneCupoPropio) {
       return 'Cupo reservado';
     }
@@ -841,6 +864,13 @@ export class AlumnoTemasComponent {
   }
 
   submitPostulacion() {
+    if (this.tieneTemaAsignado()) {
+      this.postulacionError.set(
+        'Ya cuentas con un tema inscrito. No puedes postular a un nuevo tema.',
+      );
+      return;
+    }
+    
     if (this.postulacionForm.invalid) {
       this.postulacionForm.markAllAsTouched();
       return;
