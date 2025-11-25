@@ -286,6 +286,16 @@ export class DocenteTrabajoListComponent implements OnInit {
       return;
     }
 
+    const notaNormalizada = this.normalizarNota(this.notaInput);
+
+    if (notaNormalizada == null) {
+      this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
+      return;
+    }
+
+    this.notaInput = notaNormalizada;
+
+
     const entregaEnRevision = this.entregaEnRevision;
 
     this.guardandoEvaluacion = true;
@@ -358,6 +368,28 @@ export class DocenteTrabajoListComponent implements OnInit {
   toggleResumen(entrega: Entrega) {
     entrega.expanded = !entrega.expanded;
   }
+
+  private normalizarNota(nota: number | null): number | null {
+    if (nota == null || Number.isNaN(nota)) {
+      return null;
+    }
+
+    const tieneMasDeUnDecimal = !Number.isInteger(nota * 10);
+
+    if (tieneMasDeUnDecimal) {
+      return null;
+    }
+
+    const notaRedondeada = Math.round(nota * 10) / 10;
+
+    if (notaRedondeada < 1 || notaRedondeada > 7) {
+      return null;
+    }
+
+    return notaRedondeada;
+  }
+
+
 
   private actualizarEntregasSeleccionadas(): void {
     if (!this.grupoSeleccionado) {
