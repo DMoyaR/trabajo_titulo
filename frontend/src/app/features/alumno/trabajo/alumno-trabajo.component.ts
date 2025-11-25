@@ -1,10 +1,9 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 import { TemaService, TemaDisponible, TemaInscripcionActiva } from '../../docente/trabajolist/tema.service';
-import { AlumnoEntregasService } from '../entrega/alumno-entrega.service';
 
 type Nivel = 'i' | 'ii';
 type EstadoEntrega = 'aprobado' | 'enRevision' | 'pendiente';
@@ -23,7 +22,6 @@ type EntregaAlumno = {
   nombre: string;
   descripcion: string;
   fecha: string;
-  fechaOrden: string;
   estado: EstadoEntrega;
   badge: string;
   proximoPaso?: string;
@@ -39,11 +37,6 @@ type EntregaDestacada = EntregaAlumno & {
 type Restriccion = {
   titulo: string;
   descripcion: string;
-};
-
-type EvaluacionGrupo = {
-  titulo: string;
-  nota: number | null;
 };
 
 const CARRERAS_SIN_TRABAJO_TITULO = new Set(
@@ -79,7 +72,7 @@ const CARRERAS_NIVEL_I_Y_II = new Set(
   templateUrl: './alumno-trabajo.component.html',
   styleUrls: ['./alumno-trabajo.component.css'],
 })
-export class AlumnoTrabajoComponent implements OnInit {
+export class AlumnoTrabajoComponent {
   readonly nivelesDisponibles = signal<Nivel[]>(['i', 'ii']);
   readonly nivelSeleccionado = signal<Nivel>('i');
 
@@ -97,45 +90,31 @@ export class AlumnoTrabajoComponent implements OnInit {
     i: [
       {
         id: 'i-1',
-        nombre: 'Avance Final TT1',
-        descripcion:
-          'Entrega pendiente del informe final para el cierre completo de Trabajo de Título I.',
-        fecha: 'Fecha límite: 22 dic 2025 · 23:59',
-        fechaOrden: '2025-12-22T23:59:00',
-        estado: 'pendiente',
-        badge: 'Avance final',
-        proximoPaso: 'Revisar instrucciones y adjuntar el informe final',
+        nombre: 'Hito 1 · Plan de trabajo',
+        descripcion: 'Aprobado. El plan quedó registrado en el repositorio el 10 de abril.',
+        fecha: 'Entregado 08 abr 2024',
+        estado: 'aprobado',
+        badge: 'Plan de trabajo',
+        proximoPaso: 'Bitácora semanal (20 abr)',
       },
       {
         id: 'i-2',
-        nombre: 'Avance 2',
-        descripcion: 'Entrega de avance pendiente en Aula Virtual.',
-        fecha: 'Fecha límite: 15 dic 2025 · 23:59',
-        fechaOrden: '2025-12-15T23:59:00',
-        estado: 'pendiente',
-        badge: 'Avance',
-        proximoPaso: 'Subir avances y evidencias de progreso',
-        alerta: 'Queda menos de una semana para el cierre',
+        nombre: 'Bitácora Semanal #5',
+        descripcion: 'En revisión por tu profesor guía. Responder comentarios pendientes.',
+        fecha: 'Enviada 15 abr 2024',
+        estado: 'enRevision',
+        badge: 'Bitácora',
+        proximoPaso: 'Ajustar actividades comprometidas',
+        alerta: 'Observaciones recibidas',
       },
       {
         id: 'i-3',
-        nombre: 'Avance 3',
-        descripcion: 'Entrega de avance intermedio pendiente de revisión docente.',
-        fecha: 'Fecha límite: 15 dic 2025 · 23:59',
-        fechaOrden: '2025-12-15T23:59:00',
+        nombre: 'Reunión de seguimiento',
+        descripcion: 'Agenda una reunión de 30 minutos para revisar el avance de la semana.',
+        fecha: 'Coordinar antes del 25 abr 2024',
         estado: 'pendiente',
-        badge: 'Avance',
-        proximoPaso: 'Ajustar según observaciones previas',
-      },
-      {
-        id: 'i-4',
-        nombre: 'Anteproyecto TT1',
-        descripcion: 'Calificado. Revisa el informe corregido y las observaciones del docente.',
-        fecha: 'Calificado el 02 nov 2025',
-        fechaOrden: '2025-11-02T00:00:00',
-        estado: 'aprobado',
-        badge: 'Calificada',
-        proximoPaso: 'Aplicar retroalimentación al avance final',
+        badge: 'Reunión',
+        proximoPaso: 'Proponer 3 horarios disponibles',
       },
     ],
     ii: [
@@ -144,7 +123,6 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Documento final · Borrador',
         descripcion: 'Primer borrador enviado. El revisor entregará feedback detallado.',
         fecha: 'Entregado 05 abr 2024',
-        fechaOrden: '2024-04-05T00:00:00',
         estado: 'enRevision',
         badge: 'Documento',
         proximoPaso: 'Incorporar correcciones de redacción',
@@ -155,7 +133,6 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Defensa simulada',
         descripcion: 'Preparar presentación y guion de 15 minutos.',
         fecha: 'Programar para la semana del 29 abr 2024',
-        fechaOrden: '2024-04-29T00:00:00',
         estado: 'pendiente',
         badge: 'Presentación',
         proximoPaso: 'Confirmar disponibilidad con el profesor guía',
@@ -165,7 +142,6 @@ export class AlumnoTrabajoComponent implements OnInit {
         nombre: 'Bitácora Integrada',
         descripcion: 'Bitácora aprobada con comentarios positivos sobre la validación.',
         fecha: 'Entregada 28 mar 2024',
-        fechaOrden: '2024-03-28T00:00:00',
         estado: 'aprobado',
         badge: 'Bitácora',
         proximoPaso: 'Actualizar métricas posteriores a la defensa simulada',
@@ -173,25 +149,13 @@ export class AlumnoTrabajoComponent implements OnInit {
     ],
   });
 
-  readonly evaluaciones = signal<Record<Nivel, EvaluacionGrupo[]>>({
-    i: [],
-    ii: [
-      { titulo: 'Documento final · Borrador', nota: 5.5 },
-      { titulo: 'Defensa simulada', nota: 5.9 },
-      { titulo: 'Bitácora Integrada', nota: 6.1 },
-    ],
-  });
-
-  readonly evaluacionesCargando = signal(false);
-  readonly evaluacionesError = signal<string | null>(null);
-
   readonly resumen = signal<Record<Nivel, ResumenNivel>>({
     i: {
-      avance: 48,
-      aprobadas: 1,
-      totales: 4,
-      proximoHito: 'Avance Final TT1 (22 dic 2025, 23:59)',
-      ultimoFeedback: 'Observaciones del Anteproyecto publicadas el 02 nov 2025',
+      avance: 65,
+      aprobadas: 3,
+      totales: 5,
+      proximoHito: 'Bitácora Semanal #6 (20 abr)',
+      ultimoFeedback: 'Retroalimentación general recibida el 15 abr',
       profesorGuia: 'Prof. Mauro Castillo',
     },
     ii: {
@@ -203,79 +167,6 @@ export class AlumnoTrabajoComponent implements OnInit {
       profesorGuia: 'Prof. Ana Díaz',
     },
   });
-
-  readonly restricciones = signal<Restriccion[]>([
-    {
-      titulo: 'Una postulación activa por alumno',
-      descripcion:
-        'Si ya tienes una postulación en estado pendiente, en revisión, aceptada o rechazada con observaciones no podrás crear otra hasta que se cierre la actual.',
-    },
-    {
-      titulo: 'Sin edición de postulación tras el envío',
-      descripcion:
-        'Una vez enviada la postulación queda bloqueada. Solo vuelve a estar editable si el docente la marca como “observada”.',
-    },
-    {
-      titulo: 'Contenido filtrado por carrera',
-      descripcion:
-        'Solo verás docentes, propuestas y temáticas asociadas a tu carrera (career_id/codigo_carrera) para asegurar la pertinencia del proceso.',
-    },
-    {
-      titulo: 'Entregas solo en etapas habilitadas',
-      descripcion:
-        'Cada entrega se habilita únicamente si la etapa está activa y dentro de las fechas publicadas por la coordinación.',
-    },
-    {
-      titulo: 'Entregas bloqueadas tras confirmar',
-      descripcion:
-        'Al confirmar una entrega el archivo queda protegido; el botón de edición se oculta para mantener la integridad documental.',
-    },
-    {
-      titulo: 'Evaluaciones docentes cuando están publicadas',
-      descripcion:
-        'Los comentarios y resultados del docente solo se muestran cuando visible == true, tras la publicación de la retroalimentación.',
-    },
-    {
-      titulo: 'Agendamiento condicionado a profesor guía',
-      descripcion:
-        'Solo puedes agendar reuniones si cuentas con profesor guía asignado y el calendario se encuentra publicado (docente_asignado y calendario_publicado).',
-    },
-    {
-      titulo: 'Validación de archivos al subir',
-      descripcion:
-        'El sistema acepta únicamente archivos .pdf, .docx o .zip con un máximo de 25 MB, validado tanto en frontend como en backend.',
-    },
-    {
-      titulo: 'Formularios completos',
-      descripcion:
-        'Las solicitudes y entregas se pueden enviar únicamente si todos los campos obligatorios están completos; no se permiten formularios incompletos.',
-    },
-    {
-      titulo: 'Certificados tras finalizar el proceso',
-      descripcion:
-        'El certificado de aprobación se habilita solo si status_proceso == "finalizado" y evaluacion_final == "aprobada".',
-    },
-    {
-      titulo: 'Descarga de actas validada',
-      descripcion:
-        'Las actas pueden descargarse únicamente cuando cuentan con la firma del docente (acta_firmada) y la validación de la coordinación.',
-    },
-    {
-      titulo: 'Integrantes fijos tras postular',
-      descripcion:
-        'Al enviar la postulación queda bloqueada la edición del grupo de trabajo para mantener consistencia en el registro de integrantes.',
-    },
-    {
-      titulo: 'Acceso restringido a otros grupos',
-      descripcion:
-        'No es posible visualizar documentos o procesos de otros estudiantes; el aislamiento se asegura por grupo_id desde el backend.',
-    },
-    {
-      titulo: 'Documentos internos protegidos',
-      descripcion:
-        'Las rúbricas internas, observaciones privadas y otros documentos de revisión docente o de coordinación no están disponibles para los estudiantes.',
-    },
-  ]);
 
   readonly nivelActual = computed<Nivel | null>(() => {
     const seleccionado = this.nivelSeleccionado();
@@ -321,36 +212,7 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   readonly entregasPorNivel = computed<EntregaAlumno[]>(() => {
     const nivel = this.nivelActual();
-    if (!nivel) {
-      return [];
-    }
-
-    return this.ordenarEntregas(this.entregas()[nivel]);
-  });
-
-  readonly evaluacionesPorNivel = computed<EvaluacionGrupo[]>(() => {
-    const nivel = this.nivelActual();
-    if (!nivel) {
-      return [];
-    }
-
-    const evaluaciones = this.evaluaciones()[nivel];
-    const entregas = this.entregasPorNivel();
-
-    return this.ordenarEvaluaciones(evaluaciones, entregas);
-  });
-
-  readonly promedioEvaluaciones = computed<string | null>(() => {
-    const notas = this.evaluacionesPorNivel()
-      .map(evaluacion => evaluacion.nota)
-      .filter((nota): nota is number => nota !== null);
-
-    if (!notas.length) {
-      return null;
-    }
-
-    const promedio = notas.reduce((suma, nota) => suma + nota, 0) / notas.length;
-    return promedio.toFixed(2);
+    return nivel ? this.entregas()[nivel] : [];
   });
 
   readonly entregaDestacada = computed<EntregaDestacada | null>(() => {
@@ -381,14 +243,9 @@ export class AlumnoTrabajoComponent implements OnInit {
   constructor(
     private readonly currentUserService: CurrentUserService,
     private readonly temaService: TemaService,
-    private readonly entregasService: AlumnoEntregasService,
   ) {
     this.configurarNivelesDisponibles();
     this.cargarTemaAsignado();
-  }
-
-  ngOnInit(): void {
-    this.cargarEvaluaciones();
   }
 
   tieneNivel(nivel: Nivel): boolean {
@@ -404,83 +261,6 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   toggleResumen(entrega: EntregaAlumno) {
     entrega.expanded = !entrega.expanded;
-  }
-
-  private ordenarEvaluaciones(
-    evaluaciones: EvaluacionGrupo[],
-    entregas: EntregaAlumno[],
-  ): EvaluacionGrupo[] {
-    const ordenEntregas = this.crearMapaOrden(entregas);
-
-    return [...evaluaciones].sort((a, b) => {
-      const indiceA = ordenEntregas.get(this.normalizarTitulo(a.titulo));
-      const indiceB = ordenEntregas.get(this.normalizarTitulo(b.titulo));
-
-      if (indiceA === undefined && indiceB === undefined) {
-        return 0;
-      }
-
-      if (indiceA === undefined) {
-        return 1;
-      }
-
-      if (indiceB === undefined) {
-        return -1;
-      }
-
-      return indiceA - indiceB;
-    });
-  }
-
-  private crearMapaOrden(entregas: EntregaAlumno[]): Map<string, number> {
-    return entregas.reduce((mapa, entrega, indice) => {
-      const clave = this.normalizarTitulo(entrega.nombre);
-      if (!mapa.has(clave)) {
-        mapa.set(clave, indice);
-      }
-
-      return mapa;
-    }, new Map<string, number>());
-  }
-
-  private normalizarTitulo(titulo: string): string {
-    return titulo.trim().toLowerCase();
-  }
-
-  private ordenarEntregas(entregas: EntregaAlumno[]): EntregaAlumno[] {
-    const ahora = Date.now();
-
-    return [...entregas].sort((a, b) => {
-      const fechaA = new Date(a.fechaOrden).getTime();
-      const fechaB = new Date(b.fechaOrden).getTime();
-
-      const fechaAInvalida = Number.isNaN(fechaA);
-      const fechaBInvalida = Number.isNaN(fechaB);
-
-      if (fechaAInvalida && fechaBInvalida) {
-        return 0;
-      }
-
-      if (fechaAInvalida) {
-        return 1;
-      }
-
-      if (fechaBInvalida) {
-        return -1;
-      }
-
-      const esPasadaA = fechaA < ahora;
-      const esPasadaB = fechaB < ahora;
-
-      if (esPasadaA !== esPasadaB) {
-        return esPasadaA ? 1 : -1;
-      }
-
-      const distanciaA = Math.abs(fechaA - ahora);
-      const distanciaB = Math.abs(fechaB - ahora);
-
-      return distanciaA - distanciaB;
-    });
   }
 
   private configurarNivelesDisponibles() {
@@ -545,44 +325,5 @@ export class AlumnoTrabajoComponent implements OnInit {
           this.temaAsignadoCargando.set(false);
         },
       });
-  }
-
-  private cargarEvaluaciones() {
-    const perfil = this.currentUserService.getProfile();
-    const alumnoId = perfil?.id ?? null;
-
-    if (!alumnoId) {
-      this.evaluacionesError.set('No pudimos identificar al alumno actual para obtener sus evaluaciones.');
-      return;
-    }
-
-    this.evaluacionesCargando.set(true);
-    this.evaluacionesError.set(null);
-
-    this.entregasService.listarEvaluaciones(alumnoId).subscribe({
-      next: (evaluaciones) => {
-        const mapeadas = evaluaciones.map<EvaluacionGrupo>((evaluacion) => ({
-          titulo: evaluacion.titulo,
-          nota: evaluacion.ultima_entrega?.nota ?? null,
-        }));
-
-        this.evaluaciones.update((actual) => ({
-          ...actual,
-          i: mapeadas,
-        }));
-
-        this.evaluacionesCargando.set(false);
-      },
-      error: (error) => {
-        console.error('No se pudieron cargar las evaluaciones del alumno', error);
-        this.evaluacionesCargando.set(false);
-        const detalle = error?.error?.detail;
-        if (typeof detalle === 'string') {
-          this.evaluacionesError.set(detalle);
-        } else {
-          this.evaluacionesError.set('No pudimos cargar tus notas. Intenta nuevamente más tarde.');
-        }
-      },
-    });
   }
 }

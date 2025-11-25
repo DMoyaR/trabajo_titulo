@@ -84,46 +84,6 @@
           </div>
         </li>
       </ul>
-
-      <div class="evaluaciones-card" *ngIf="evaluacionesPorNivel().length">
-        <div class="evaluaciones-header">
-          <h4>Notas del grupo</h4>
-          <p class="muted">Resumen de evaluaciones publicadas por el docente.</p>
-        </div>
-
-        <div class="table-wrapper">
-          <table class="tabla-evaluaciones" aria-label="Notas de evaluaciones recientes">
-            <thead>
-              <tr>
-                <th scope="col">Evaluación</th>
-                <th scope="col">Nota</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let evaluacion of evaluacionesPorNivel()">
-                <td>{{ evaluacion.titulo }}</td>
-                <td>
-                  <span *ngIf="evaluacion.nota !== null; else sinNota" class="nota-chip">
-                    {{ evaluacion.nota | number: '1.1-1' }}
-                  </span>
-                  <ng-template #sinNota>
-                    <span class="nota-pendiente">Pendiente</span>
-                  </ng-template>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <th scope="row">Promedio</th>
-                <td>
-                  <span *ngIf="promedioEvaluaciones(); else sinPromedio">{{ promedioEvaluaciones() }}</span>
-                  <ng-template #sinPromedio><span class="muted">Sin calificaciones disponibles</span></ng-template>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
     </ng-container>
 
     <ng-template #sinEntregas>
@@ -138,17 +98,4 @@
     </p>
   </ng-template>
 
-  <section class="restricciones" aria-labelledby="restricciones-titulo">
-    <h3 id="restricciones-titulo" class="section-title">Restricciones para estudiantes</h3>
-    <p class="muted">Estas políticas definen qué acciones están limitadas dentro del proceso de trabajo de título.</p>
-    <ul class="restricciones-list">
-      <li *ngFor="let item of restricciones()">
-        <span class="restriccion-icon" aria-hidden="true">⚠️</span>
-        <div class="restriccion-texto">
-          <h4>{{ item.titulo }}</h4>
-          <p>{{ item.descripcion }}</p>
-        </div>
-      </li>
-    </ul>
-  </section>
 </div>

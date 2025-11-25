@@ -45,7 +45,14 @@
 <div class="card solicitudes-card">
   <div class="card-head">
     <h3>Solicitudes de práctica</h3>
-    <button class="btn primary sm" (click)="openCarta()">+ Solicitar carta de práctica</button>
+    <button 
+      class="btn primary sm" 
+      (click)="openCarta()"
+      [disabled]="tieneSolicitudActivaOAprobada()"
+      [attr.aria-disabled]="tieneSolicitudActivaOAprobada()"
+    >
+      + Solicitar carta de práctica
+    </button>
   </div>
 
   <p class="muted" *ngIf="solicitudesLoading()">Cargando solicitudes…</p>
@@ -175,7 +182,7 @@
         <div>
           <label class="lbl req">Duración de práctica</label>
           <select formControlName="duracionHoras">
-            <option [ngValue]="160">378 horas</option>
+            <option [ngValue]="378">378 horas</option>
             <option [ngValue]="320">320 horas</option>
           </select>
           <small class="help" *ngIf="f('duracionHoras').invalid && f('duracionHoras').touched">Campo requerido.</small>
@@ -317,7 +324,7 @@
             <div class="c-web">{{firmaActual().institucion || 'Universidad Tecnológica Metropolitana'}}</div>
           </footer>
         </div>
-        <div class="hint">Vista previa referencial — se enviará a Coordinación</div>
+        <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
       </aside>
     </div>
   </div>

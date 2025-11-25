@@ -44,10 +44,10 @@ export class AlumnoTemasComponent {
   readonly temasError = signal<string | null>(null);
   private temasCargados = false;
 
+  // 👇 NUEVO: detecta si el alumno ya tiene un cupo propio
   readonly tieneTemaAsignado = computed(() =>
     this.temas().some((tema) => tema.tieneCupoPropio),
   );
-
 
   readonly propuestas = signal<Propuesta[]>([]);
   readonly propuestasCargando = signal(false);
@@ -329,6 +329,7 @@ export class AlumnoTemasComponent {
     return '';
   }
 
+  
   togglePostulacion(open: boolean) {
 
     if (open && this.tieneTemaAsignado()) {
@@ -337,7 +338,6 @@ export class AlumnoTemasComponent {
       );
       return;
     }
-
 
     this.showPostulacion.set(open);
     if (open) {
@@ -349,6 +349,7 @@ export class AlumnoTemasComponent {
     this.postulacionError.set(null);
   }
 
+  // 👇 Modificada: bloquea pedir tema si ya tiene uno
   puedePedirTema(tema: TemaDisponible): boolean {
     if (this.tieneTemaAsignado()) {
       return false;
@@ -357,6 +358,7 @@ export class AlumnoTemasComponent {
     return tema.cuposDisponibles > 0 && !tema.tieneCupoPropio;
   }
 
+  // 👇 Modificada: cambia etiqueta según si tiene tema
   etiquetaPedirTema(tema: TemaDisponible): string {
 
     if (this.tieneTemaAsignado()) {
@@ -863,6 +865,7 @@ export class AlumnoTemasComponent {
     }
   }
 
+  // 👇 Modificada: también valida que no puedas postular si ya tienes tema
   submitPostulacion() {
     if (this.tieneTemaAsignado()) {
       this.postulacionError.set(
