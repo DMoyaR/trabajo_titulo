@@ -95,31 +95,41 @@ export class AlumnoTrabajoComponent {
     i: [
       {
         id: 'i-1',
-        nombre: 'Hito 1 · Plan de trabajo',
-        descripcion: 'Aprobado. El plan quedó registrado en el repositorio el 10 de abril.',
-        fecha: 'Entregado 08 abr 2024',
-        estado: 'aprobado',
-        badge: 'Plan de trabajo',
-        proximoPaso: 'Bitácora semanal (20 abr)',
+        nombre: 'Avance Final TT1',
+        descripcion:
+          'Entrega pendiente del informe final para el cierre completo de Trabajo de Título I.',
+        fecha: 'Fecha límite: 22 dic 2025 · 23:59',
+        estado: 'pendiente',
+        badge: 'Avance final',
+        proximoPaso: 'Revisar instrucciones y adjuntar el informe final',
       },
       {
         id: 'i-2',
-        nombre: 'Bitácora Semanal #5',
-        descripcion: 'En revisión por tu profesor guía. Responder comentarios pendientes.',
-        fecha: 'Enviada 15 abr 2024',
-        estado: 'enRevision',
-        badge: 'Bitácora',
-        proximoPaso: 'Ajustar actividades comprometidas',
-        alerta: 'Observaciones recibidas',
+        nombre: 'Avance 2',
+        descripcion: 'Entrega de avance pendiente en Aula Virtual.',
+        fecha: 'Fecha límite: 15 dic 2025 · 23:59',
+        estado: 'pendiente',
+        badge: 'Avance',
+        proximoPaso: 'Subir avances y evidencias de progreso',
+        alerta: 'Queda menos de una semana para el cierre',
       },
       {
         id: 'i-3',
-        nombre: 'Reunión de seguimiento',
-        descripcion: 'Agenda una reunión de 30 minutos para revisar el avance de la semana.',
-        fecha: 'Coordinar antes del 25 abr 2024',
+        nombre: 'Avance 3',
+        descripcion: 'Entrega de avance intermedio pendiente de revisión docente.',
+        fecha: 'Fecha límite: 15 dic 2025 · 23:59',
         estado: 'pendiente',
-        badge: 'Reunión',
-        proximoPaso: 'Proponer 3 horarios disponibles',
+        badge: 'Avance',
+        proximoPaso: 'Ajustar según observaciones previas',
+      },
+      {
+        id: 'i-4',
+        nombre: 'Anteproyecto TT1',
+        descripcion: 'Calificado. Revisa el informe corregido y las observaciones del docente.',
+        fecha: 'Calificado el 02 nov 2025',
+        estado: 'aprobado',
+        badge: 'Calificada',
+        proximoPaso: 'Aplicar retroalimentación al avance final',
       },
     ],
     ii: [
@@ -156,9 +166,10 @@ export class AlumnoTrabajoComponent {
 
   readonly evaluaciones = signal<Record<Nivel, EvaluacionGrupo[]>>({
     i: [
-      { titulo: 'Plan de trabajo', nota: 6.3 },
-      { titulo: 'Bitácora Semanal #5', nota: 5.8 },
-      { titulo: 'Reunión de seguimiento', nota: 6.0 },
+      { titulo: 'Avance Final TT1', nota: null },
+      { titulo: 'Avance 2', nota: null },
+      { titulo: 'Avance 3', nota: null },
+      { titulo: 'Anteproyecto TT1', nota: 6.5 },
     ],
     ii: [
       { titulo: 'Documento final · Borrador', nota: 5.5 },
@@ -169,11 +180,11 @@ export class AlumnoTrabajoComponent {
 
   readonly resumen = signal<Record<Nivel, ResumenNivel>>({
     i: {
-      avance: 65,
-      aprobadas: 3,
-      totales: 5,
-      proximoHito: 'Bitácora Semanal #6 (20 abr)',
-      ultimoFeedback: 'Retroalimentación general recibida el 15 abr',
+      avance: 48,
+      aprobadas: 1,
+      totales: 4,
+      proximoHito: 'Avance Final TT1 (22 dic 2025, 23:59)',
+      ultimoFeedback: 'Observaciones del Anteproyecto publicadas el 02 nov 2025',
       profesorGuia: 'Prof. Mauro Castillo',
     },
     ii: {
