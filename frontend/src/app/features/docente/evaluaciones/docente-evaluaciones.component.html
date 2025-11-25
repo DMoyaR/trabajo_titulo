@@ -147,6 +147,14 @@
             Revisa los archivos subidos por tus estudiantes para cada evaluación registrada.
           </p>
         </div>
+        <button
+          type="button"
+          class="btn export"
+          (click)="exportarNotasCsv()"
+          [disabled]="!entregasRevisadas().length"
+        >
+          Exportar notas CSV
+        </button>
       </header>
 
       <div class="entregas-grid">

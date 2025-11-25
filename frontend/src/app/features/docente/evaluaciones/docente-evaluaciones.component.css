@@ -131,6 +131,18 @@
   background: #0f2f52;
 }
 
+.btn.export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f766e;
+  box-shadow: 0 10px 25px rgba(15, 118, 110, 0.18);
+}
+
+.btn.export:hover {
+  background: #0b5f59;
+}
+
 .btn.link {
   background: transparent;
   color: #1a3e6a;
