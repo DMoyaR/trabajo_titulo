@@ -63,6 +63,46 @@
       </div>
     </ng-template>
 
+      <div class="evaluaciones-card" *ngIf="evaluacionesPorNivel().length">
+        <div class="evaluaciones-header">
+          <h4>Notas del grupo</h4>
+          <p class="muted">Resumen de evaluaciones publicadas por el docente.</p>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="tabla-evaluaciones" aria-label="Notas de evaluaciones recientes">
+            <thead>
+              <tr>
+                <th scope="col">Evaluación</th>
+                <th scope="col">Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let evaluacion of evaluacionesPorNivel()">
+                <td>{{ evaluacion.titulo }}</td>
+                <td>
+                  <span *ngIf="evaluacion.nota !== null; else sinNota" class="nota-chip">
+                    {{ evaluacion.nota | number: '1.1-1' }}
+                  </span>
+                  <ng-template #sinNota>
+                    <span class="nota-pendiente">Pendiente</span>
+                  </ng-template>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Promedio</th>
+                <td>
+                  <span *ngIf="promedioEvaluaciones(); else sinPromedio">{{ promedioEvaluaciones() }}</span>
+                  <ng-template #sinPromedio><span class="muted">Sin calificaciones disponibles</span></ng-template>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
     <h3 class="section-title">Entregas e hitos recientes</h3>
 
     <ng-container *ngIf="entregasPorNivel().length; else sinEntregas">
@@ -84,6 +124,7 @@
           </div>
         </li>
       </ul>
+
     </ng-container>
 
     <ng-template #sinEntregas>

@@ -450,6 +450,95 @@
   margin-top: 8px;
 }
 
+.evaluaciones-card {
+  margin-top: 20px;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+}
+
+.evaluaciones-header {
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.evaluaciones-header h4 {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  padding: 0 18px 16px;
+}
+
+.tabla-evaluaciones {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+
+.tabla-evaluaciones thead {
+  background: #f3f6fb;
+}
+
+.tabla-evaluaciones th,
+.tabla-evaluaciones td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.tabla-evaluaciones th {
+  font-weight: 700;
+  color: #1a3e6a;
+  letter-spacing: 0.1px;
+}
+
+.tabla-evaluaciones tbody tr:nth-child(even) td {
+  background: #f9fafb;
+}
+
+.tabla-evaluaciones tbody tr:hover td {
+  background: #eef2ff;
+}
+
+.tabla-evaluaciones tfoot {
+  background: #f8fafc;
+}
+
+.tabla-evaluaciones tfoot th,
+.tabla-evaluaciones tfoot td {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.nota-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #047857;
+  font-weight: 700;
+  border: 1px solid #bbf7d0;
+}
+
+.nota-pendiente {
+  color: #6b7280;
+  font-weight: 600;
+}
+
 .mis-propuestas {
   margin: 24px 0;
   display: flex;
@@ -846,6 +935,74 @@ textarea {
   color: #475569;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.evaluaciones-card {
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.evaluaciones-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.evaluaciones-header h4 {
+  margin: 0;
+  color: #1a3e6a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.tabla-evaluaciones {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.03);
+}
+
+.tabla-evaluaciones th,
+.tabla-evaluaciones td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tabla-evaluaciones thead {
+  background: #eef2ff;
+}
+
+.tabla-evaluaciones th {
+  color: #1a3e6a;
+  font-weight: 700;
+  border-bottom: 1px solid #dfe5ee;
+}
+
+.tabla-evaluaciones tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.tabla-evaluaciones tfoot {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.tabla-evaluaciones tfoot td,
+.tabla-evaluaciones tfoot th {
+  border-top: 1px solid #dfe5ee;
+  color: #1a3e6a;
 }
 
 @media (max-width: 860px) {
