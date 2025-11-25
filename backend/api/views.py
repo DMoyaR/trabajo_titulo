@@ -12,11 +12,14 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value, Prefetch
+from django.db.models import Q, Value, Prefetch, Count, Avg
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
+from django.http import QueryDict
+
+
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
@@ -74,6 +77,7 @@ from .serializers import (
     EvaluacionGrupoDocenteSerializer,
     EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
+    PromedioGrupoTituloSerializer,
 )
 
 
@@ -1244,26 +1248,13 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
         if usuario:
             if usuario.rol == "alumno":
                 if usuario.carrera:
-                    filtrado = _filtrar_queryset_por_carrera(
+                    return _filtrar_queryset_por_carrera(
                         queryset,
                         usuario.carrera,
                         permitir_equivalencias=False,
                     )
-                    if filtrado.exists():
-                        return filtrado
-                return queryset
 
-            if usuario.carrera:
-                filtrado = _filtrar_queryset_por_carrera(
-                    queryset,
-                    usuario.carrera,
-                    permitir_equivalencias=usuario.rol != "docente",
-                )
-                if usuario.rol == "docente":
-                    return filtrado
-                if filtrado.exists():
-                    return filtrado
-            return queryset
+                return queryset.none()
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
@@ -1380,6 +1371,19 @@ def reservar_tema(request, pk: int):
     if alumno.rol != "alumno":
         return Response(
             {"detail": "Solo estudiantes pueden reservar un tema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    inscripcion_activa = (
+        InscripcionTema.objects.filter(alumno=alumno, activo=True)
+        .exclude(tema=tema)
+        .exists()
+    )
+    if inscripcion_activa:
+        return Response(
+            {
+                "detail": "Ya cuentas con un tema inscrito. No puedes inscribir otro tema.",
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -2445,8 +2449,23 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
         return queryset.filter(docente_id=docente_id_int)
 
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        if data.get("fecha") in ("", None):
+        # Evitar QueryDict.copy() porque intenta hacer deepcopy de los archivos
+        raw_data = request.data
+
+        if isinstance(raw_data, QueryDict):
+            # Convierte a dict plano sin deepcopy (mantiene los UploadedFile tal cual)
+            data = raw_data.dict()
+            # Ojo: .dict() se queda con un solo valor por clave (lo normal en este caso)
+            # y sigue incluyendo los archivos como valores cuando corresponda.
+            for key in raw_data:
+                if key not in data or isinstance(raw_data.get(key), list):
+                    # Si hay archivos u otros valores que no quieres perder,
+                    # fuerza a tomar directamente el valor original
+                    data[key] = raw_data.get(key)
+        else:
+            data = dict(raw_data)
+
+        if data.get("fecha") in ("", None, "null"):
             data["fecha"] = None
 
         if not data.get("docente"):
@@ -2467,6 +2486,30 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class CoordinacionPromediosTituloView(generics.ListAPIView):
+    serializer_class = PromedioGrupoTituloSerializer
+
+    def get_queryset(self):
+        return (
+            EvaluacionGrupoDocente.objects.select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
+            .annotate(
+                promedio_nota=Avg("entregas__nota"),
+                entregas_con_nota=Count("entregas__nota"),
+            )
+            .filter(entregas_con_nota__gt=0)
+            .order_by("grupo_nombre")
+        )
 
 
 class AlumnoEvaluacionListView(generics.ListAPIView):

@@ -117,6 +117,12 @@ export const routes: Routes = [
             .then(m => m.PracticasComponent),
       },
       {
+        path: 'titulo',
+        loadComponent: () =>
+          import('./features/coordinacion/titulo/titulo.component')
+            .then(m => m.CoordinacionTituloComponent),
+      },
+      {
         path: 'perfil',
         loadComponent: () =>
           import('./features/coordinacion/Perfil/perfil.component')

@@ -8,6 +8,7 @@ from .models import (
     PracticaDocumento,
     PracticaFirmaCoordinador,
     PropuestaTema,
+    InscripcionTema,
     Notificacion,
     SolicitudReunion,
     Reunion,
@@ -633,7 +634,18 @@ class PropuestaTemaCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"cupos_requeridos": "Debes indicar al menos un cupo."}
             )
+        
 
+        if alumno and InscripcionTema.objects.filter(alumno=alumno, activo=True).exists():
+            raise serializers.ValidationError(
+                {
+                    "alumno_id": [
+                        "Ya cuentas con un tema inscrito. No puedes solicitar un nuevo tema.",
+                    ]
+                }
+            )
+        
+        
         correos_limpios = _procesar_correos_companeros(
             alumno,
             correos_companeros,
@@ -1236,6 +1248,61 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             tema.docente_responsable_id == docente.id
             or tema.created_by_id == docente.id
         )
+
+class PromedioGrupoTituloSerializer(serializers.ModelSerializer):
+    promedio = serializers.DecimalField(
+        source="promedio_nota", max_digits=4, decimal_places=2, read_only=True
+    )
+    cantidad_entregas = serializers.IntegerField(read_only=True)
+    docente_nombre = serializers.SerializerMethodField()
+    grupo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EvaluacionGrupoDocente
+        fields = [
+            "id",
+            "grupo_nombre",
+            "titulo",
+            "docente",
+            "docente_nombre",
+            "promedio",
+            "cantidad_entregas",
+            "grupo",
+        ]
+        read_only_fields = fields
+
+    def get_docente_nombre(self, obj: EvaluacionGrupoDocente) -> str | None:
+        if obj.docente and obj.docente.nombre_completo:
+            return obj.docente.nombre_completo
+        return None
+
+    def get_grupo(self, obj: EvaluacionGrupoDocente):
+        tema = obj.tema
+        if not tema:
+            return None
+
+        inscripciones = getattr(tema, "inscripciones_activas", None)
+        if inscripciones is None:
+            inscripciones = (
+                tema.inscripciones.filter(activo=True)
+                .select_related("alumno")
+                .order_by("created_at")
+            )
+
+        integrantes: list[str] = []
+        for inscripcion in inscripciones:
+            alumno = getattr(inscripcion, "alumno", None)
+            if alumno and alumno.nombre_completo:
+                integrantes.append(alumno.nombre_completo)
+
+        return {
+            "id": tema.id,
+            "nombre": tema.titulo,
+            "integrantes": integrantes,
+        }
+
+
+
 
 
 class DocenteGrupoActivoSerializer(serializers.ModelSerializer):

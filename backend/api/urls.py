@@ -26,6 +26,7 @@ from .views import (
     DocenteEvaluacionListCreateView,
     DocenteEvaluacionEntregaUpdateView,
     DocenteGruposActivosListView,
+    CoordinacionPromediosTituloView,
     AlumnoEvaluacionListView,
     AlumnoEvaluacionEntregaListCreateView,
 )
@@ -104,6 +105,11 @@ urlpatterns = [
         "coordinacion/practicas/documentos/<int:pk>/",
         eliminar_documento_practica,
         name="eliminar-documento-practica",
+    ),
+    path(
+    "coordinacion/titulo/promedios/",
+    CoordinacionPromediosTituloView.as_view(),
+    name="coordinacion-promedios-titulo",
     ),
     path(
         "practicas/documentos/",
