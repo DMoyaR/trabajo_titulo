@@ -273,10 +273,28 @@
             <button class="btn primary" type="submit">Aprobar y Firmar</button>
           </form>
 
-          <form [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
-            <input type="text" placeholder="Motivo rechazo" formControlName="motivo">
+        <form class="rechazar-form" [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
+
+          <!-- fila con botón a la izquierda e input a la derecha -->
+          <div class="rechazar-row">
             <button class="btn danger" type="submit">Rechazar</button>
-          </form>
+
+            <input
+              type="text"
+              placeholder="Motivo rechazo"
+              formControlName="motivo"
+            />
+          </div>
+
+          <!-- mensaje de error en rojo debajo -->
+          <div
+            class="help error"
+            *ngIf="rechazarForm.get('motivo')?.invalid && rechazarForm.get('motivo')?.touched"
+          >
+            *Debes agregar un comentario antes de rechazar la solicitud.
+          </div>
+        </form>
+
         </div>
       </div>
 

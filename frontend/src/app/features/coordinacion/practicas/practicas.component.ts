@@ -719,25 +719,41 @@ export class PracticasComponent {
       });
   }
 
-  rechazar() {
-    const c = this.current();
-    if (!c) return;
+rechazar() {
+  const c = this.current();
+  if (!c) return;
 
-    if (this.rechazarForm.invalid) {
-      this.rechazarForm.markAllAsTouched();
-      return;
-    }
+  const motivoCtrl = this.rechazarForm.get('motivo');
+  if (!motivoCtrl) return;
 
-    const body = { motivo: this.rechazarForm.value.motivo || '' };
-    this.http.post(`/api/coordinacion/solicitudes-carta/${c.id}/rechazar`, body).subscribe({
-      next: () => {
-        this.toast.set('Solicitud rechazada.');
-        this.actualizarEstadoLocal(c.id, 'rechazado', null, body.motivo);
-        this.cerrarDetalle();
-      },
-      error: () => this.toast.set('Error al rechazar solicitud.'),
-    });
+  // Limpiar espacios en blanco
+  const raw = motivoCtrl.value ?? '';
+  const trimmed = raw.trim();
+
+  // Si está vacío o son solo espacios, marcamos como tocado y dejamos que el HTML muestre el mensaje
+  if (!trimmed) {
+    motivoCtrl.setValue(''); // limpia espacios
+    motivoCtrl.markAsTouched();
+    return;
   }
+
+  // Por si hay otros validadores en el futuro
+  if (this.rechazarForm.invalid) {
+    this.rechazarForm.markAllAsTouched();
+    return;
+  }
+
+  const body = { motivo: trimmed };
+
+  this.http.post(`/api/coordinacion/solicitudes-carta/${c.id}/rechazar`, body).subscribe({
+    next: () => {
+      this.toast.set('Solicitud rechazada.');
+      this.actualizarEstadoLocal(c.id, 'rechazado', null, body.motivo);
+      this.cerrarDetalle();
+    },
+    error: () => this.toast.set('Error al rechazar solicitud.'),
+  });
+}
 
   actualizarEstadoLocal(id: string, estado: Estado, url?: string | null, motivo?: string | null) {
     const arr = this.solicitudes();

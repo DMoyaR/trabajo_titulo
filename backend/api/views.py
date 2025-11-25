@@ -12,7 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value, Prefetch
+from django.db.models import Q, Value, Prefetch, Count, Avg
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -77,6 +77,7 @@ from .serializers import (
     EvaluacionGrupoDocenteSerializer,
     EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
+    PromedioGrupoTituloSerializer,
 )
 
 
@@ -2485,6 +2486,30 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class CoordinacionPromediosTituloView(generics.ListAPIView):
+    serializer_class = PromedioGrupoTituloSerializer
+
+    def get_queryset(self):
+        return (
+            EvaluacionGrupoDocente.objects.select_related("docente", "tema")
+            .prefetch_related(
+                Prefetch(
+                    "tema__inscripciones",
+                    queryset=InscripcionTema.objects.filter(activo=True)
+                    .select_related("alumno")
+                    .order_by("created_at"),
+                    to_attr="inscripciones_activas",
+                )
+            )
+            .annotate(
+                promedio_nota=Avg("entregas__nota"),
+                entregas_con_nota=Count("entregas__nota"),
+            )
+            .filter(entregas_con_nota__gt=0)
+            .order_by("grupo_nombre")
+        )
 
 
 class AlumnoEvaluacionListView(generics.ListAPIView):

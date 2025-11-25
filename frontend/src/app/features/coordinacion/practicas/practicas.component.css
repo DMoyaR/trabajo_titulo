@@ -38,7 +38,57 @@
 .list-head, .row { display:grid; grid-template-columns:1.4fr 1.4fr 1.2fr .6fr .6fr .6fr; gap:8px; align-items:center; }
 .list-head { font-weight:800; color:#0a244d; }
 .row { border-top:1px solid #eef2f7; padding:8px 0; }
+
+
 .actions { text-align:right; }
+.actions .rechazar-form {
+  flex-direction: column;    /* input, botón y mensaje en columna */
+  align-items: flex-end;     /* alinea botón y texto a la derecha */
+  gap: 6px;
+}
+
+.actions .rechazar-form input {
+  width: 100%;
+}
+
+.actions .rechazar-form .help.error {
+  text-align: right;
+}
+
+/* Formulario de rechazo: input grande como el de URL */
+.actions .rechazar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.actions .rechazar-form .rechazar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions .rechazar-form .rechazar-row .btn.danger {
+  flex: 0 0 auto;
+}
+
+/* El input ocupa todo el espacio restante, como el de "URL PDF firmado" */
+.actions .rechazar-form .rechazar-row input {
+  flex: 1 1 auto;
+}
+
+/* Que el input tenga el mismo ancho que el de "URL PDF firmado" */
+.actions .rechazar-form input {
+  flex: 0 0 auto;  /* que no intente crecer verticalmente */
+  width: 80%;     /* ocupa todo el ancho */
+}
+
+/* Botón alineado a la derecha, como antes */
+.actions .rechazar-form .btn.danger {
+  align-self: flex-end;
+}
+
 
 .btn { border:0; border-radius:8px; padding:6px 12px; font-weight:700; cursor:pointer; }
 .btn.primary { background:#1976d2; color:#fff; }
@@ -267,4 +317,12 @@
   font-size: 1rem;
   padding: 10px 24px;
   min-width: 260px;             /* ancho mínimo más grande */
+}
+
+/* Misma altura para los botones de aprobar y rechazar */
+
+.actions .rechazar-form .btn.danger {
+  height: 40px;           /* mismo alto que el input de URL */
+  display: inline-flex;
+  align-items: center;    /* centra el texto verticalmente */
 }

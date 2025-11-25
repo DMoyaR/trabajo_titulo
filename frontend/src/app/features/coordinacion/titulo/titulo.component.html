@@ -1,0 +1,57 @@
+<section class="page">
+  <header class="page__header">
+    <div>
+      <p class="eyebrow">Coordinación</p>
+      <h1>Trabajo de título</h1>
+      <p class="subtitle">Revisa los promedios de las entregas y descárgalos en CSV.</p>
+    </div>
+    <button class="btn" type="button" (click)="descargarCsv()" [disabled]="!promedios.length || loading">
+      Descargar CSV
+    </button>
+  </header>
+
+  <div class="card">
+    <div class="card__body">
+      <div *ngIf="loading" class="feedback">Cargando promedios...</div>
+      <div *ngIf="error" class="feedback feedback--error">{{ error }}</div>
+      <div *ngIf="!loading && !error && !promedios.length" class="feedback">
+        No hay promedios disponibles por ahora.
+      </div>
+
+      <div *ngIf="promedios.length" class="table-wrapper">
+        <table>
+            <thead>
+            <tr>
+                <th>Grupo</th>
+                <th>Título</th>
+                <th>Docente</th>
+                <th>Integrantes</th>
+                <th>Nota</th>
+            </tr>
+            </thead>
+          <tbody>
+            <tr *ngFor="let promedio of promedios">
+              <td class="cell-strong">
+                <div>{{ promedio.grupo_nombre }}</div>
+                <small *ngIf="promedio.grupo?.id" class="muted">  ID grupo: {{ promedio.grupo?.id }}</small>
+
+              </td>
+              <td>{{ promedio.titulo }}</td>
+              <td>{{ promedio.docente_nombre || 'Sin docente asignado' }}</td>
+              <td>
+                <ul class="integrantes" *ngIf="promedio.grupo?.integrantes?.length; else sinIntegrantes">
+                  <li *ngFor="let integrante of promedio.grupo?.integrantes">{{ integrante }}</li>
+                </ul>
+                <ng-template #sinIntegrantes>
+                  <span class="muted">Sin integrantes registrados</span>
+                </ng-template>
+              </td>
+                <td class="center promedio">{{ promedio.promedio | number: '1.2-2' }}
+                </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

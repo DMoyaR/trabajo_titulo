@@ -55,8 +55,14 @@ export class CoordinacionLayoutComponent implements OnDestroy {
     {
       route: 'practicas',
       label: 'Prácticas',
-      icon: 'assets/Procesos.png',
+      icon: 'assets/Reportes.png',
       alt: 'Gestión de prácticas',
+    },
+        {
+      route: 'titulo',
+      label: 'Trabajo de título',
+      icon: 'assets/Procesos.png',
+      alt: 'Promedios de trabajo de título',
     },
     { route: 'perfil', label: 'Perfil', icon: 'assets/Perfil.png', alt: 'Perfil de coordinación' },
   ];
