@@ -37,6 +37,13 @@ type EntregaDocente = {
   nota: number | null;
 };
 
+type EntregasPorGrupo = {
+  nombre: string;
+  pendientes: EntregaDocente[];
+  revisadas: EntregaDocente[];
+  abierto: boolean;
+};
+
 @Component({
   selector: 'app-evaluaciones',
   standalone: true,
@@ -63,6 +70,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
   entregasPendientes = signal<EntregaDocente[]>([]);
   entregasRevisadas = signal<EntregaDocente[]>([]);
+  entregasPorGrupo = signal<EntregasPorGrupo[]>([]);
+  grupoEntregasSeleccionado = signal<string | null>(null);
 
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
@@ -350,24 +359,56 @@ export class DocenteEvaluacionesComponent implements OnInit {
   private actualizarEntregas(evaluaciones: EvaluacionGrupoDto[]): void {
     const pendientes: EntregaDocente[] = [];
     const revisadas: EntregaDocente[] = [];
+    const gruposMap = new Map<string, { pendientes: EntregaDocente[]; revisadas: EntregaDocente[] }>();
 
     for (const evaluacion of evaluaciones) {
       const grupoNombre = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
       for (const entrega of evaluacion.entregas ?? []) {
         const mapeada = this.mapEntregaDocente(entrega, evaluacion, grupoNombre);
+        const coleccion = gruposMap.get(grupoNombre) ?? { pendientes: [], revisadas: [] };
+
         if (entrega.estado_revision === 'revisada') {
           revisadas.push(mapeada);
+          coleccion.revisadas.push(mapeada);
         } else {
           pendientes.push(mapeada);
+          coleccion.pendientes.push(mapeada);
         }
+
+        gruposMap.set(grupoNombre, coleccion);
       }
     }
 
-    pendientes.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
-    revisadas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+    const ordenar = (a: EntregaDocente, b: EntregaDocente) => b.fecha.getTime() - a.fecha.getTime();
+
+    pendientes.sort(ordenar);
+    revisadas.sort(ordenar);
 
     this.entregasPendientes.set(pendientes);
     this.entregasRevisadas.set(revisadas);
+
+    const seleccionActual = this.grupoEntregasSeleccionado();
+    const gruposOrdenados = Array.from(gruposMap.entries())
+      .map(([nombre, coleccion]) => ({
+        nombre,
+        pendientes: [...coleccion.pendientes].sort(ordenar),
+        revisadas: [...coleccion.revisadas].sort(ordenar),
+        abierto: false,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+
+    const nombreActivo =
+      seleccionActual && gruposMap.has(seleccionActual)
+        ? seleccionActual
+        : gruposOrdenados[0]?.nombre ?? null;
+
+    this.grupoEntregasSeleccionado.set(nombreActivo);
+    this.entregasPorGrupo.set(
+      gruposOrdenados.map((grupo) => ({
+        ...grupo,
+        abierto: nombreActivo ? grupo.nombre === nombreActivo : false,
+      }))
+    );
   }
 
   private mapEntregaDocente(
@@ -390,6 +431,13 @@ export class DocenteEvaluacionesComponent implements OnInit {
       estadoRevision: entrega.estado_revision,
       nota: entrega.nota,
     };
+  }
+
+  seleccionarGrupoEntregas(nombre: string): void {
+    this.grupoEntregasSeleccionado.set(nombre);
+    this.entregasPorGrupo.update((grupos) =>
+      grupos.map((grupo) => ({ ...grupo, abierto: grupo.nombre === nombre }))
+    );
   }
 
   descargarEntrega(entrega: EntregaDocente): void {

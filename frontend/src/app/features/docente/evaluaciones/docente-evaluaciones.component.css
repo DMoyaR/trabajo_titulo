@@ -285,6 +285,86 @@
   gap: 20px;
 }
 
+.entregas-grupos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.grupo-entrega-card {
+  background: #fff;
+  border: 1px solid #dbe3f3;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(26, 62, 106, 0.06);
+  overflow: hidden;
+}
+
+.grupo-toggle {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.grupo-titulo h4 {
+  margin: 0;
+  color: #1a3e6a;
+}
+
+.grupo-titulo small {
+  color: #6b7280;
+}
+
+.grupo-resumen {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.chip.warn {
+  background: #fff4e6;
+  color: #b45309;
+}
+
+.chip.ok {
+  background: #def7ec;
+  color: #047857;
+}
+
+.caret {
+  color: #1a3e6a;
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.caret.open {
+  transform: rotate(180deg);
+}
+
+.grupo-detalle {
+  border-top: 1px solid #e5e7eb;
+  padding: 14px 16px 16px;
+  background: linear-gradient(180deg, #f9fbff 0%, #fff 100%);
+}
+
 .entregas-header {
   display: flex;
   justify-content: space-between;
@@ -302,9 +382,26 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.detalle-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
 .entregas-col h4 {
   margin: 0 0 12px;
   color: #1f2a37;
+}
+
+.entregas-col h5 {
+  margin: 0;
+  color: #1f2a37;
+}
+
+.col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .entrega-card {
@@ -333,6 +430,24 @@
 
 .entrega-card small {
   color: #4b5563;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 24px;
+  border-radius: 8px;
+  background: #e5edff;
+  color: #1a3e6a;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.pill.empty {
+  background: #f3f4f6;
+  color: #9ca3af;
 }
 
 .tag {
