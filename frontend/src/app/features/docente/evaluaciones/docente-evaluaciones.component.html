@@ -139,7 +139,7 @@
       </section>
     </div>
 
-    <section class="entregas-panel">
+    <section class="entregas-panel" *ngIf="mostrarPanelEntregas(); else panelOculto">
       <header class="entregas-header">
         <div>
           <h3>Entregas recibidas</h3>
@@ -147,14 +147,19 @@
             Revisa los archivos subidos por tus estudiantes para cada evaluación registrada.
           </p>
         </div>
-        <button
-          type="button"
-          class="btn export"
-          (click)="exportarNotasCsv()"
-          [disabled]="!entregasRevisadas().length"
-        >
-          Exportar notas CSV
-        </button>
+        <div class="entregas-actions">
+          <button type="button" class="btn ghost" (click)="mostrarPanelEntregas.set(false)">
+            Ocultar panel
+          </button>
+          <button
+            type="button"
+            class="btn export"
+            (click)="exportarNotasCsv()"
+            [disabled]="!entregasRevisadas().length"
+          >
+            Exportar notas CSV
+          </button>
+        </div>
       </header>
 
       <ng-container *ngIf="entregasPorGrupo().length; else sinEntregas">
@@ -248,6 +253,26 @@
         <p class="muted">Aún no hay entregas registradas para tus grupos.</p>
       </ng-template>
     </section>
+
+    <ng-template #panelOculto>
+      <section class="entregas-panel collapsed">
+        <header class="entregas-header">
+          <div>
+            <h3>Entregas recibidas</h3>
+            <p class="muted">Panel oculto para simplificar la vista de grupos.</p>
+          </div>
+          <div class="entregas-actions">
+            <div class="panel-resumen" *ngIf="entregasPendientes().length || entregasRevisadas().length">
+              <span class="chip warn">{{ entregasPendientes().length }} pendientes</span>
+              <span class="chip ok">{{ entregasRevisadas().length }} evaluadas</span>
+            </div>
+            <button type="button" class="btn ghost" (click)="mostrarPanelEntregas.set(true)">
+              Mostrar panel
+            </button>
+          </div>
+        </header>
+      </section>
+    </ng-template>
   </ng-container>
 </ng-container>
 
