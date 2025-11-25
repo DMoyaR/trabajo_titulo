@@ -355,7 +355,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
-    def test_list_temas_disponibles_alumno_con_carrera_sin_coincidencias_entrega_todos(self):
+    def test_list_temas_disponibles_alumno_con_carrera_sin_coincidencias_entrega_vacio(self):
         TemaDisponible.objects.create(
             titulo="Tema carrera",
             carrera="Ingeniería Industrial",
@@ -384,7 +384,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         response = self.client.get(self.list_url, {"alumno": alumno.pk}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), 0)
 
     def test_list_temas_disponibles_docente_con_carrera_sin_coincidencias_entrega_vacio(self):
         TemaDisponible.objects.create(
@@ -409,7 +409,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
-    def test_list_temas_disponibles_alumno_sin_carrera_no_filtra(self):
+    def test_list_temas_disponibles_alumno_sin_carrera_no_entrega_temas(self):
         TemaDisponible.objects.create(
             titulo="Tema carrera",
             carrera="Ingeniería Industrial",
@@ -430,7 +430,7 @@ class TemaDisponibleAPITestCase(APITestCase):
         response = self.client.get(self.list_url, {"alumno": alumno.pk}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data), 0)
 
     def test_list_temas_disponibles_usuario_sin_carrera_no_filtra(self):
         TemaDisponible.objects.create(
