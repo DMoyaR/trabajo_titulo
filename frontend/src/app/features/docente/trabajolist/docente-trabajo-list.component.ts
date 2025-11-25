@@ -9,6 +9,11 @@ type EstadoEntrega = 'pendiente' | 'evaluado';
 
 import { CurrentUserService } from '../../../shared/services/current-user.service';
 import { TemaDisponible, TemaService } from './tema.service';
+import {
+  DocenteEvaluacionesService,
+  EvaluacionEntregaDto,
+  EvaluacionGrupoDto,
+} from '../evaluaciones/docente-evaluaciones.service';
 
 type Grupo = {
   id: string;
@@ -22,11 +27,18 @@ type Entrega = {
   titulo: string;
   tipo: string;
   estado: EstadoEntrega;
-  fechaLimite?: string;
-  fechaEntrega?: string;
-  nota?: number;
-  comentarios?: string;
+  fechaLimite: string | null;
+  fechaEntrega: string | null;
+  nota: number | null;
+  comentarios: string | null;
+  rubricaNombre: string | null;
+  rubricaUrl: string | null;
+  rubricaTipo: string | null;
+  informeNombre: string | null;
+  informeUrl: string | null;
+  informeTipo: string | null;
   expanded?: boolean;
+  ordenFecha?: number;
 };
 
 @Component({
@@ -44,32 +56,46 @@ export class DocenteTrabajoListComponent implements OnInit {
   cargandoGrupos = false;
   errorGrupos: string | null = null;
 
+  docenteId: number | null = null;
+
   grupoSeleccionado: Grupo | null = null;
   entregas: Entrega[] = [];
+  entregasPorGrupo = new Map<string, Entrega[]>();
+  cargandoEntregas = false;
+  errorEntregas: string | null = null;
 
-  tiposEntrega = ['Todos', 'Plan de trabajo', 'Bitácora', 'Reunión', 'Informe'];
+  tiposEntrega = ['Todos'];
   filtroTipo = 'Todos';
   filtroBusqueda = '';
 
   showEvalModal = false;
   entregaEnRevision: Entrega | null = null;
+  guardandoEvaluacion = false;
+  errorEvaluacion: string | null = null;
   notaInput: number | null = null;
   comentariosInput = '';
+  rubricaArchivo: File | null = null;
+  informeArchivo: File | null = null;
 
   constructor(
     private readonly temaService: TemaService,
     private readonly currentUserService: CurrentUserService,
+    private readonly evaluacionesService: DocenteEvaluacionesService,
   ) {}
 
   ngOnInit(): void {
+    const perfil = this.currentUserService.getProfile();
+    this.docenteId = perfil?.id ?? null;
+
     this.cargarGrupos();
+
+    if (this.docenteId) {
+      this.cargarEntregas(this.docenteId);
+    }
   }
 
   private cargarGrupos(): void {
-    const perfil = this.currentUserService.getProfile();
-    const docenteId = perfil?.id ?? null;
-
-    if (!docenteId) {
+    if (!this.docenteId) {
       this.gruposTitulo1 = [];
       this.gruposTitulo2 = [];
       this.errorGrupos = 'No se encontró información del docente.';
@@ -79,13 +105,13 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.cargandoGrupos = true;
     this.errorGrupos = null;
 
-    this.temaService.getTemas({ usuarioId: docenteId }).subscribe({
+    this.temaService.getTemas({ usuarioId: this.docenteId }).subscribe({
       next: temas => {
         const gruposTitulo1: Grupo[] = [];
         const gruposTitulo2: Grupo[] = [];
 
         temas
-          .filter(tema => this.esTemaDelDocente(tema, docenteId))
+          .filter(tema => this.esTemaDelDocente(tema, this.docenteId!))
           .forEach(tema => {
             const integrantes = (tema.inscripcionesActivas ?? [])
               .map(inscripcion => inscripcion.nombre)
@@ -120,6 +146,27 @@ export class DocenteTrabajoListComponent implements OnInit {
         this.gruposTitulo1 = [];
         this.gruposTitulo2 = [];
         this.cargandoGrupos = false;
+      },
+    });
+  }
+
+  private cargarEntregas(docenteId: number): void {
+    this.cargandoEntregas = true;
+    this.errorEntregas = null;
+
+    this.evaluacionesService.listar(docenteId).subscribe({
+      next: evaluaciones => {
+        this.entregasPorGrupo = this.mapearEntregasPorGrupo(evaluaciones);
+        this.actualizarEntregasSeleccionadas();
+        this.cargandoEntregas = false;
+      },
+      error: err => {
+        console.error('No fue posible cargar las entregas de los alumnos', err);
+        this.errorEntregas = 'No pudimos obtener las entregas registradas.';
+        this.entregasPorGrupo = new Map();
+        this.entregas = [];
+        this.actualizarTiposEntrega();
+        this.cargandoEntregas = false;
       },
     });
   }
@@ -185,45 +232,13 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.filtroTipo = 'Todos';
     this.filtroBusqueda = '';
 
-    this.entregas = [
-      {
-        id: 'e1',
-        titulo: 'Hito 1 · Plan de trabajo',
-        tipo: 'Plan de trabajo',
-        estado: 'evaluado',
-        fechaEntrega: '08 abr 2024',
-        nota: 6.5,
-        comentarios: 'Buen alcance y cronograma claro. Ajustar sección de riesgos.',
-      },
-      {
-        id: 'e2',
-        titulo: 'Bitácora Semanal #5',
-        tipo: 'Bitácora',
-        estado: 'pendiente',
-        fechaLimite: '02 may 2024',
-      },
-      {
-        id: 'e3',
-        titulo: 'Reunión de seguimiento',
-        tipo: 'Reunión',
-        estado: 'pendiente',
-        fechaLimite: '25 abr 2024',
-      },
-      {
-        id: 'e4',
-        titulo: 'Informe intermedio',
-        tipo: 'Informe',
-        estado: 'evaluado',
-        fechaEntrega: '10 may 2024',
-        nota: 6.0,
-        comentarios: 'Buen análisis, profundizar en el marco comparativo.',
-      },
-    ];
+    this.actualizarEntregasSeleccionadas();
   }
 
   volverAListaGrupos() {
     this.grupoSeleccionado = null;
     this.entregas = [];
+    this.actualizarTiposEntrega();
   }
 
   get entregasFiltradas(): Entrega[] {
@@ -233,7 +248,7 @@ export class DocenteTrabajoListComponent implements OnInit {
       const coincideBusqueda =
         !texto ||
         entrega.titulo.toLowerCase().includes(texto) ||
-        entrega.tipo.toLowerCase().includes(texto);
+        (entrega.tipo ?? '').toLowerCase().includes(texto);
       return coincideTipo && coincideBusqueda;
     });
   }
@@ -250,40 +265,225 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.entregaEnRevision = entrega;
     this.notaInput = null;
     this.comentariosInput = '';
+    this.rubricaArchivo = null;
+    this.informeArchivo = null;
     this.showEvalModal = true;
   }
 
   cerrarEvalModal() {
     this.showEvalModal = false;
     this.entregaEnRevision = null;
+    this.guardandoEvaluacion = false;
+    this.errorEvaluacion = null;
     this.notaInput = null;
     this.comentariosInput = '';
+    this.rubricaArchivo = null;
+    this.informeArchivo = null;
   }
 
   guardarEvaluacion() {
-    if (!this.entregaEnRevision || this.notaInput == null) {
+    if (!this.entregaEnRevision || this.notaInput == null || this.guardandoEvaluacion) {
       return;
     }
 
-    const indice = this.entregas.findIndex((entrega) => entrega.id === this.entregaEnRevision!.id);
-    if (indice >= 0) {
-      this.entregas[indice] = {
-        ...this.entregaEnRevision,
-        estado: 'evaluado',
-        fechaEntrega: new Date().toLocaleDateString('es-CL', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }),
-        nota: this.notaInput,
-        comentarios: this.comentariosInput || 'Sin comentarios adicionales.',
-      };
-    }
+    const entregaEnRevision = this.entregaEnRevision;
 
-    this.cerrarEvalModal();
+    this.guardandoEvaluacion = true;
+    this.errorEvaluacion = null;
+
+    const rubricaAdjunta = this.adjuntoDesdeArchivo(this.rubricaArchivo);
+    const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
+
+    this.evaluacionesService
+      .actualizarEntrega(
+        Number(entregaEnRevision.id),
+        {
+          nota: this.notaInput,
+          comentario: this.comentariosInput || 'Sin comentarios adicionales.',
+          estado_revision: 'revisada',
+        },
+        { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
+      )
+      .subscribe({
+        next: (entregaActualizada) => {
+          const fechaEntrega =
+            this.parseFecha(entregaActualizada.actualizado_en) ||
+            this.parseFecha(entregaActualizada.creado_en) ||
+            new Date();
+
+          const indice = this.entregas.findIndex(
+            (entrega) => entrega.id === entregaEnRevision.id,
+          );
+
+          if (indice >= 0) {
+            this.entregas[indice] = {
+              ...entregaEnRevision,
+              estado: 'evaluado',
+              fechaEntrega: this.formatearFecha(fechaEntrega),
+              ordenFecha: fechaEntrega.getTime(),
+              nota: entregaActualizada.nota ?? this.notaInput,
+              comentarios:
+                entregaActualizada.comentario || 'Sin comentarios adicionales.',
+              rubricaNombre:
+                entregaActualizada.rubrica_docente_nombre || rubricaAdjunta?.nombre || null,
+              rubricaUrl:
+                entregaActualizada.rubrica_docente_url || rubricaAdjunta?.url || null,
+              rubricaTipo:
+                entregaActualizada.rubrica_docente_tipo || rubricaAdjunta?.tipo || null,
+              informeNombre:
+                entregaActualizada.informe_corregido_nombre || informeAdjunto?.nombre || null,
+              informeUrl:
+                entregaActualizada.informe_corregido_url || informeAdjunto?.url || null,
+              informeTipo:
+                entregaActualizada.informe_corregido_tipo || informeAdjunto?.tipo || null,
+            };
+
+            if (this.grupoSeleccionado) {
+              this.entregasPorGrupo.set(this.grupoSeleccionado.id, [...this.entregas]);
+            }
+          }
+
+          this.cerrarEvalModal();
+          this.guardandoEvaluacion = false;
+        },
+        error: (err) => {
+          console.error('No fue posible guardar la evaluación de la entrega', err);
+          this.errorEvaluacion =
+            'No pudimos guardar la evaluación. Revisa tu conexión e intenta nuevamente.';
+          this.guardandoEvaluacion = false;
+        },
+      });
   }
 
   toggleResumen(entrega: Entrega) {
     entrega.expanded = !entrega.expanded;
+  }
+
+  private actualizarEntregasSeleccionadas(): void {
+    if (!this.grupoSeleccionado) {
+      this.entregas = [];
+      this.actualizarTiposEntrega();
+      return;
+    }
+
+    const entregasGrupo = this.entregasPorGrupo.get(this.grupoSeleccionado.id) ?? [];
+    this.entregas = [...entregasGrupo];
+    this.actualizarTiposEntrega();
+  }
+
+  private actualizarTiposEntrega(): void {
+    const tipos = new Set<string>();
+    this.entregas.forEach((entrega) => {
+      const tipo = entrega.tipo?.trim();
+      if (tipo) {
+        tipos.add(tipo);
+      }
+    });
+
+    this.tiposEntrega = [
+      'Todos',
+      ...Array.from(tipos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
+    ];
+
+    if (!this.tiposEntrega.includes(this.filtroTipo)) {
+      this.filtroTipo = 'Todos';
+    }
+  }
+
+  private mapearEntregasPorGrupo(
+    evaluaciones: EvaluacionGrupoDto[],
+  ): Map<string, Entrega[]> {
+    const mapa = new Map<string, Entrega[]>();
+
+    evaluaciones.forEach((evaluacion) => {
+      const clave = this.claveGrupo(evaluacion.tema ?? evaluacion.grupo?.id ?? null);
+      if (!clave) {
+        return;
+      }
+
+      const entregasActuales = mapa.get(clave) ?? [];
+      const nuevas = (evaluacion.entregas ?? []).map((entrega) =>
+        this.mapEntrega(entrega, evaluacion),
+      );
+
+      const combinadas = [...entregasActuales, ...nuevas].sort(
+        (a, b) => (b.ordenFecha ?? 0) - (a.ordenFecha ?? 0),
+      );
+
+      mapa.set(clave, combinadas);
+    });
+
+    return mapa;
+  }
+
+  onRubricaSeleccionada(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    this.rubricaArchivo = input?.files?.[0] ?? null;
+  }
+
+  onInformeSeleccionado(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    this.informeArchivo = input?.files?.[0] ?? null;
+  }
+
+  private adjuntoDesdeArchivo(archivo: File | null):
+    | { nombre: string; url: string; tipo: string }
+    | null {
+    if (!archivo) {
+      return null;
+    }
+
+    return {
+      nombre: archivo.name,
+      url: URL.createObjectURL(archivo),
+      tipo: archivo.type || 'Archivo',
+    };
+  }
+
+  private mapEntrega(entrega: EvaluacionEntregaDto, evaluacion: EvaluacionGrupoDto): Entrega {
+    const fechaEntrega = this.parseFecha(entrega.creado_en);
+    const fechaLimite = this.parseFecha(evaluacion.fecha ?? null);
+    const ordenFecha = fechaEntrega?.getTime() ?? fechaLimite?.getTime() ?? 0;
+
+    return {
+      id: String(entrega.id),
+      titulo: entrega.titulo || evaluacion.titulo || 'Entrega',
+      tipo: evaluacion.titulo || 'Evaluación',
+      estado: entrega.estado_revision === 'revisada' ? 'evaluado' : 'pendiente',
+      fechaLimite: fechaLimite ? this.formatearFecha(fechaLimite) : null,
+      fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
+      nota: entrega.nota ?? null,
+      comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
+      rubricaNombre: entrega.rubrica_docente_nombre || null,
+      rubricaUrl: entrega.rubrica_docente_url || null,
+      rubricaTipo: entrega.rubrica_docente_tipo || null,
+      informeNombre: entrega.informe_corregido_nombre || null,
+      informeUrl: entrega.informe_corregido_url || null,
+      informeTipo: entrega.informe_corregido_tipo || null,
+      ordenFecha,
+    };
+  }
+
+  private claveGrupo(temaId: number | null | undefined): string | null {
+    if (temaId == null) {
+      return null;
+    }
+    return `tema-${temaId}`;
+  }
+
+  private parseFecha(valor: string | null | undefined): Date | null {
+    if (!valor) {
+      return null;
+    }
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  private formatearFecha(fecha: Date): string {
+    return fecha.toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   }
 }

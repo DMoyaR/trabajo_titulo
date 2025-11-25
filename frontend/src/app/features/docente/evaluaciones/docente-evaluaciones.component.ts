@@ -37,6 +37,13 @@ type EntregaDocente = {
   nota: number | null;
 };
 
+type EntregasPorGrupo = {
+  nombre: string;
+  pendientes: EntregaDocente[];
+  revisadas: EntregaDocente[];
+  abierto: boolean;
+};
+
 @Component({
   selector: 'app-evaluaciones',
   standalone: true,
@@ -63,6 +70,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
 
   entregasPendientes = signal<EntregaDocente[]>([]);
   entregasRevisadas = signal<EntregaDocente[]>([]);
+  entregasPorGrupo = signal<EntregasPorGrupo[]>([]);
+  grupoEntregasSeleccionado = signal<string | null>(null);
+  mostrarPanelEntregas = signal(true);
 
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');
@@ -350,24 +360,56 @@ export class DocenteEvaluacionesComponent implements OnInit {
   private actualizarEntregas(evaluaciones: EvaluacionGrupoDto[]): void {
     const pendientes: EntregaDocente[] = [];
     const revisadas: EntregaDocente[] = [];
+    const gruposMap = new Map<string, { pendientes: EntregaDocente[]; revisadas: EntregaDocente[] }>();
 
     for (const evaluacion of evaluaciones) {
       const grupoNombre = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
       for (const entrega of evaluacion.entregas ?? []) {
         const mapeada = this.mapEntregaDocente(entrega, evaluacion, grupoNombre);
+        const coleccion = gruposMap.get(grupoNombre) ?? { pendientes: [], revisadas: [] };
+
         if (entrega.estado_revision === 'revisada') {
           revisadas.push(mapeada);
+          coleccion.revisadas.push(mapeada);
         } else {
           pendientes.push(mapeada);
+          coleccion.pendientes.push(mapeada);
         }
+
+        gruposMap.set(grupoNombre, coleccion);
       }
     }
 
-    pendientes.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
-    revisadas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+    const ordenar = (a: EntregaDocente, b: EntregaDocente) => b.fecha.getTime() - a.fecha.getTime();
+
+    pendientes.sort(ordenar);
+    revisadas.sort(ordenar);
 
     this.entregasPendientes.set(pendientes);
     this.entregasRevisadas.set(revisadas);
+
+    const seleccionActual = this.grupoEntregasSeleccionado();
+    const gruposOrdenados = Array.from(gruposMap.entries())
+      .map(([nombre, coleccion]) => ({
+        nombre,
+        pendientes: [...coleccion.pendientes].sort(ordenar),
+        revisadas: [...coleccion.revisadas].sort(ordenar),
+        abierto: false,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+
+    const nombreActivo =
+      seleccionActual && gruposMap.has(seleccionActual)
+        ? seleccionActual
+        : null;
+
+    this.grupoEntregasSeleccionado.set(nombreActivo);
+    this.entregasPorGrupo.set(
+      gruposOrdenados.map((grupo) => ({
+        ...grupo,
+        abierto: nombreActivo ? grupo.nombre === nombreActivo : false,
+      }))
+    );
   }
 
   private mapEntregaDocente(
@@ -390,6 +432,18 @@ export class DocenteEvaluacionesComponent implements OnInit {
       estadoRevision: entrega.estado_revision,
       nota: entrega.nota,
     };
+  }
+
+  seleccionarGrupoEntregas(nombre: string): void {
+    const yaSeleccionado = this.grupoEntregasSeleccionado() === nombre;
+
+    this.grupoEntregasSeleccionado.set(yaSeleccionado ? null : nombre);
+    this.entregasPorGrupo.update((grupos) =>
+      grupos.map((grupo) => ({
+        ...grupo,
+        abierto: yaSeleccionado ? false : grupo.nombre === nombre,
+      }))
+    );
   }
 
   descargarEntrega(entrega: EntregaDocente): void {
@@ -418,6 +472,78 @@ export class DocenteEvaluacionesComponent implements OnInit {
     }
     const fecha = new Date(valor);
     return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  exportarNotasCsv(): void {
+    const revisadas = this.entregasRevisadas();
+
+    if (!revisadas.length || typeof window === 'undefined') {
+      return;
+    }
+
+    const encabezados = [
+      'Grupo',
+      'Evaluación',
+      'Alumno',
+      'Correo',
+      'Fecha de entrega',
+      'Nota',
+      'Comentario',
+      'Estado',
+    ];
+
+    const filas = revisadas.map((entrega) => [
+      entrega.grupo,
+      entrega.evaluacionTitulo,
+      entrega.alumnoNombre,
+      entrega.alumnoCorreo ?? '',
+      this.formatearFechaCsv(entrega.fecha),
+      entrega.nota != null ? String(entrega.nota) : '',
+      entrega.comentario ?? '',
+      entrega.estadoRevision,
+    ]);
+
+    const csv = [encabezados, ...filas]
+      .map((fila) => fila.map((valor) => this.sanitizarCsv(valor)).join(';'))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+
+    enlace.href = url;
+    enlace.download = `notas_grupos_${this.obtenerSufijoArchivo()}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private sanitizarCsv(valor: string | number | null | undefined): string {
+    const texto = valor ?? '';
+    const textoPlano = String(texto);
+
+    if (/([";\n])/u.test(textoPlano)) {
+      return `"${textoPlano.replace(/"/gu, '""')}"`;
+    }
+
+    return textoPlano;
+  }
+
+  private formatearFechaCsv(fecha: Date): string {
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(fecha);
+  }
+
+  private obtenerSufijoArchivo(): string {
+    const ahora = new Date();
+    const fecha = ahora.toISOString().slice(0, 10);
+    const hora = ahora
+      .toISOString()
+      .slice(11, 16)
+      .replace(':', '');
+
+    return `${fecha}_${hora}`;
   }
 
   calcularEstadoPorFecha(fecha: string | null): string {

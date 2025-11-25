@@ -241,6 +241,7 @@ class SolicitudCartaPractica(models.Model):
         upload_to="practicas/cartas/%Y/%m/%d",
         blank=True,
         null=True,
+        max_length=255,
     )
     url_documento = models.URLField(blank=True, null=True)
     motivo_rechazo = models.TextField(blank=True, null=True)
@@ -432,7 +433,12 @@ class EvaluacionGrupoDocente(models.Model):
     grupo_nombre = models.CharField(max_length=160)
     titulo = models.CharField(max_length=200)
     comentario = models.TextField(blank=True, null=True)
-    rubrica = models.FileField(upload_to=evaluacion_rubrica_upload_to, blank=True, null=True)
+    rubrica = models.FileField(
+        upload_to=evaluacion_rubrica_upload_to,
+        blank=True,
+        null=True,
+        max_length=255,
+    )
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -497,7 +503,19 @@ class EvaluacionEntregaAlumno(models.Model):
     )
     titulo = models.CharField(max_length=180)
     comentario = models.TextField(blank=True, null=True)
-    archivo = models.FileField(upload_to=evaluacion_entrega_upload_to)
+    archivo = models.FileField(upload_to=evaluacion_entrega_upload_to, max_length=255)
+    rubrica_docente = models.FileField(
+        upload_to=evaluacion_entrega_upload_to,
+        blank=True,
+        null=True,
+        max_length=255,
+    )
+    informe_corregido = models.FileField(
+        upload_to=evaluacion_entrega_upload_to,
+        blank=True,
+        null=True,
+        max_length=255,
+    )
     nota = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
     estado_revision = models.CharField(
         max_length=20,
@@ -526,6 +544,18 @@ class EvaluacionEntregaAlumno(models.Model):
         if not self.archivo:
             return ""
         return Path(self.archivo.name).name
+
+    @property
+    def rubrica_docente_nombre(self) -> str:
+        if not self.rubrica_docente:
+            return ""
+        return Path(self.rubrica_docente.name).name
+
+    @property
+    def informe_corregido_nombre(self) -> str:
+        if not self.informe_corregido:
+            return ""
+        return Path(self.informe_corregido.name).name
 
 
 class PropuestaTema(models.Model):
@@ -621,7 +651,7 @@ class PracticaDocumento(models.Model):
     )
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
-    archivo = models.FileField(upload_to="practicas/documentos/%Y/%m/%d")
+    archivo = models.FileField(upload_to="practicas/documentos/%Y/%m/%d", max_length=255)
     uploaded_by = models.ForeignKey(
         Usuario,
         on_delete=models.SET_NULL,
@@ -647,7 +677,7 @@ class PracticaFirmaCoordinador(models.Model):
         choices=Usuario.CARRERA_CHOICES,
         unique=True,
     )
-    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d")
+    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d", max_length=255)
     uploaded_by = models.ForeignKey(
         Usuario,
         on_delete=models.SET_NULL,

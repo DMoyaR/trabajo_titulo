@@ -43,6 +43,9 @@
         <div class="muted">{{ grupoSeleccionado?.integrantes?.join(' / ') }}</div>
       </div>
 
+      <p class="muted" *ngIf="cargandoEntregas">Cargando entregas…</p>
+      <p class="error" *ngIf="!cargandoEntregas && errorEntregas">{{ errorEntregas }}</p>
+
       <div class="filtros-bar">
         <select [(ngModel)]="filtroTipo">
           <option *ngFor="let t of tiposEntrega" [value]="t">{{ t }}</option>
@@ -50,7 +53,7 @@
         <input type="text" [(ngModel)]="filtroBusqueda" placeholder="Buscar entrega..." />
       </div>
 
-      <div class="entregas-grid">
+      <div class="entregas-grid" *ngIf="!cargandoEntregas">
         <div class="col">
           <h4 class="sec">Pendientes</h4>
           <ng-container *ngIf="hasPendientes; else noPend">
@@ -91,6 +94,23 @@
               <div class="hit-resumen" *ngIf="e.expanded">
                 <p class="muted"><b>Comentarios:</b></p>
                 <p>{{ e.comentarios }}</p>
+                <div class="hit-files" *ngIf="e.rubricaUrl || e.informeUrl">
+                  <p class="muted"><b>Archivos adjuntos</b></p>
+                  <div class="file-chip" *ngIf="e.rubricaUrl">
+                    📎
+                    <a [href]="e.rubricaUrl" target="_blank" rel="noopener noreferrer">
+                      {{ e.rubricaNombre || 'Rúbrica' }}
+                    </a>
+                    <small class="muted" *ngIf="e.rubricaTipo">({{ e.rubricaTipo }})</small>
+                  </div>
+                  <div class="file-chip" *ngIf="e.informeUrl">
+                    📝
+                    <a [href]="e.informeUrl" target="_blank" rel="noopener noreferrer">
+                      {{ e.informeNombre || 'Informe corregido' }}
+                    </a>
+                    <small class="muted" *ngIf="e.informeTipo">({{ e.informeTipo }})</small>
+                  </div>
+                </div>
               </div>
             </div>
           </ng-container>
@@ -121,14 +141,36 @@
         <input type="number" min="1" max="7" step="0.1" [(ngModel)]="notaInput" name="nota" required />
       </div>
 
+      <div class="field">
+        <label>Rúbrica con puntaje</label>
+        <label class="file-picker">
+          <input type="file" accept="application/pdf,.pdf" (change)="onRubricaSeleccionada($event)" />
+          <span>{{ rubricaArchivo?.name || 'Subir rúbrica (PDF)' }}</span>
+        </label>
+        <small class="muted">Adjunta la rúbrica completa con el desglose de puntaje.</small>
+      </div>
+
+      <div class="field">
+        <label>Informe con correcciones</label>
+        <label class="file-picker">
+          <input type="file" (change)="onInformeSeleccionado($event)" />
+          <span>{{ informeArchivo?.name || 'Subir informe corregido' }}</span>
+        </label>
+        <small class="muted">Archivo con las observaciones y correcciones para el alumno.</small>
+      </div>
+
       <div class="field full">
         <label>Comentarios</label>
         <textarea [(ngModel)]="comentariosInput" name="comentarios" placeholder="Opcional, observaciones de la evaluación"></textarea>
       </div>
 
+      <p class="error" *ngIf="errorEvaluacion">{{ errorEvaluacion }}</p>
+
       <div class="actions full">
         <button type="button" class="btn light" (click)="cerrarEvalModal()">Cancelar</button>
-        <button type="submit" class="btn primary" [disabled]="notaInput==null">Guardar evaluación</button>
+        <button type="submit" class="btn primary" [disabled]="notaInput==null || guardandoEvaluacion">
+          {{ guardandoEvaluacion ? 'Guardando…' : 'Guardar evaluación' }}
+        </button>
       </div>
     </form>
   </div>

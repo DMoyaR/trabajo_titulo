@@ -24,6 +24,7 @@ from .views import (
     eliminar_documento_practica,
     gestionar_firma_coordinador_practica,
     DocenteEvaluacionListCreateView,
+    DocenteEvaluacionEntregaUpdateView,
     DocenteGruposActivosListView,
     AlumnoEvaluacionListView,
     AlumnoEvaluacionEntregaListCreateView,
@@ -153,5 +154,10 @@ urlpatterns = [
         "alumnos/evaluaciones/<int:pk>/entregas/",
         AlumnoEvaluacionEntregaListCreateView.as_view(),
         name="alumno-evaluacion-entregas",
+    ),
+    path(
+        "docentes/evaluaciones/entregas/<int:pk>/",
+        DocenteEvaluacionEntregaUpdateView.as_view(),
+        name="docente-evaluacion-actualizar-entrega",
     ),
 ]

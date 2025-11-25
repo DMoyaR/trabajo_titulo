@@ -17,6 +17,9 @@ from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
+from django.http import QueryDict
+
+
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
@@ -70,6 +73,7 @@ from .serializers import (
     ReunionCerrarSerializer,
     TemaDisponibleSerializer,
     UsuarioResumenSerializer,
+    DocenteEvaluacionEntregaUpdateSerializer,
     EvaluacionGrupoDocenteSerializer,
     EvaluacionEntregaAlumnoSerializer,
     DocenteGrupoActivoSerializer,
@@ -2444,8 +2448,23 @@ class DocenteEvaluacionListCreateView(generics.ListCreateAPIView):
         return queryset.filter(docente_id=docente_id_int)
 
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        if data.get("fecha") in ("", None):
+        # Evitar QueryDict.copy() porque intenta hacer deepcopy de los archivos
+        raw_data = request.data
+
+        if isinstance(raw_data, QueryDict):
+            # Convierte a dict plano sin deepcopy (mantiene los UploadedFile tal cual)
+            data = raw_data.dict()
+            # Ojo: .dict() se queda con un solo valor por clave (lo normal en este caso)
+            # y sigue incluyendo los archivos como valores cuando corresponda.
+            for key in raw_data:
+                if key not in data or isinstance(raw_data.get(key), list):
+                    # Si hay archivos u otros valores que no quieres perder,
+                    # fuerza a tomar directamente el valor original
+                    data[key] = raw_data.get(key)
+        else:
+            data = dict(raw_data)
+
+        if data.get("fecha") in ("", None, "null"):
             data["fecha"] = None
 
         if not data.get("docente"):
@@ -2568,6 +2587,12 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
         except (TypeError, ValueError):
             return None
         return alumno_id
+
+
+class DocenteEvaluacionEntregaUpdateView(generics.UpdateAPIView):
+    serializer_class = DocenteEvaluacionEntregaUpdateSerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    queryset = EvaluacionEntregaAlumno.objects.select_related("evaluacion", "alumno")
 
 
 def _docente_en_preferencias(docente_id: int, preferencias) -> bool:

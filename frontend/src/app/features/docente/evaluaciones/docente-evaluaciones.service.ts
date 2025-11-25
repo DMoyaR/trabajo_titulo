@@ -9,6 +9,12 @@ export interface EvaluacionEntregaDto {
   archivo_url: string | null;
   archivo_nombre: string;
   archivo_tipo: string | null;
+  rubrica_docente_url: string | null;
+  rubrica_docente_nombre: string;
+  rubrica_docente_tipo: string | null;
+  informe_corregido_url: string | null;
+  informe_corregido_nombre: string;
+  informe_corregido_tipo: string | null;
   nota: number | null;
   estado_revision: 'pendiente' | 'revisada';
   creado_en: string;
@@ -62,6 +68,7 @@ export interface GrupoActivoDto {
 export class DocenteEvaluacionesService {
   private readonly baseUrl = 'http://localhost:8000/api/docentes/evaluaciones/';
   private readonly gruposActivosUrl = 'http://localhost:8000/api/docentes/grupos/activos/';
+  private readonly entregasUrl = 'http://localhost:8000/api/docentes/evaluaciones/entregas/';
 
   constructor(private readonly http: HttpClient) {}
 
@@ -128,5 +135,32 @@ export class DocenteEvaluacionesService {
 
     const options = params.keys().length ? { params } : {};
     return this.http.get<GrupoActivoDto[]>(this.gruposActivosUrl, options);
+  }
+
+  actualizarEntrega(
+    entregaId: number,
+    payload: Pick<EvaluacionEntregaDto, 'nota' | 'comentario' | 'estado_revision'>,
+    archivos?: { rubrica?: File | null; informe?: File | null },
+  ): Observable<EvaluacionEntregaDto> {
+    const usarFormData = Boolean(archivos?.rubrica || archivos?.informe);
+
+    if (!usarFormData) {
+      return this.http.patch<EvaluacionEntregaDto>(`${this.entregasUrl}${entregaId}/`, payload);
+    }
+
+    const form = new FormData();
+    form.append('nota', String(payload.nota ?? ''));
+    form.append('comentario', payload.comentario ?? '');
+    form.append('estado_revision', payload.estado_revision);
+
+    if (archivos?.rubrica instanceof File) {
+      form.append('rubrica_docente', archivos.rubrica);
+    }
+
+    if (archivos?.informe instanceof File) {
+      form.append('informe_corregido', archivos.informe);
+    }
+
+    return this.http.patch<EvaluacionEntregaDto>(`${this.entregasUrl}${entregaId}/`, form);
   }
 }
