@@ -103,9 +103,11 @@
               <tr *ngFor="let evaluacion of evaluacionesPorNivel()">
                 <td>{{ evaluacion.titulo }}</td>
                 <td>
-                  <span *ngIf="evaluacion.nota !== null; else sinNota">{{ evaluacion.nota | number: '1.1-1' }}</span>
+                  <span *ngIf="evaluacion.nota !== null; else sinNota" class="nota-chip">
+                    {{ evaluacion.nota | number: '1.1-1' }}
+                  </span>
                   <ng-template #sinNota>
-                    <span class="muted">Pendiente</span>
+                    <span class="nota-pendiente">Pendiente</span>
                   </ng-template>
                 </td>
               </tr>

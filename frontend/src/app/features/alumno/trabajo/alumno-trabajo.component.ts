@@ -330,7 +330,14 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   readonly evaluacionesPorNivel = computed<EvaluacionGrupo[]>(() => {
     const nivel = this.nivelActual();
-    return nivel ? this.evaluaciones()[nivel] : [];
+    if (!nivel) {
+      return [];
+    }
+
+    const evaluaciones = this.evaluaciones()[nivel];
+    const entregas = this.entregasPorNivel();
+
+    return this.ordenarEvaluaciones(evaluaciones, entregas);
   });
 
   readonly promedioEvaluaciones = computed<string | null>(() => {
@@ -397,6 +404,47 @@ export class AlumnoTrabajoComponent implements OnInit {
 
   toggleResumen(entrega: EntregaAlumno) {
     entrega.expanded = !entrega.expanded;
+  }
+
+  private ordenarEvaluaciones(
+    evaluaciones: EvaluacionGrupo[],
+    entregas: EntregaAlumno[],
+  ): EvaluacionGrupo[] {
+    const ordenEntregas = this.crearMapaOrden(entregas);
+
+    return [...evaluaciones].sort((a, b) => {
+      const indiceA = ordenEntregas.get(this.normalizarTitulo(a.titulo));
+      const indiceB = ordenEntregas.get(this.normalizarTitulo(b.titulo));
+
+      if (indiceA === undefined && indiceB === undefined) {
+        return 0;
+      }
+
+      if (indiceA === undefined) {
+        return 1;
+      }
+
+      if (indiceB === undefined) {
+        return -1;
+      }
+
+      return indiceA - indiceB;
+    });
+  }
+
+  private crearMapaOrden(entregas: EntregaAlumno[]): Map<string, number> {
+    return entregas.reduce((mapa, entrega, indice) => {
+      const clave = this.normalizarTitulo(entrega.nombre);
+      if (!mapa.has(clave)) {
+        mapa.set(clave, indice);
+      }
+
+      return mapa;
+    }, new Map<string, number>());
+  }
+
+  private normalizarTitulo(titulo: string): string {
+    return titulo.trim().toLowerCase();
   }
 
   private ordenarEntregas(entregas: EntregaAlumno[]): EntregaAlumno[] {
