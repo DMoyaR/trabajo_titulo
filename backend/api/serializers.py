@@ -879,6 +879,12 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     archivo_url = serializers.SerializerMethodField()
     archivo_nombre = serializers.CharField(read_only=True)
     archivo_tipo = serializers.SerializerMethodField()
+    rubrica_docente_url = serializers.SerializerMethodField()
+    rubrica_docente_nombre = serializers.CharField(read_only=True)
+    rubrica_docente_tipo = serializers.SerializerMethodField()
+    informe_corregido_url = serializers.SerializerMethodField()
+    informe_corregido_nombre = serializers.CharField(read_only=True)
+    informe_corregido_tipo = serializers.SerializerMethodField()
 
     MAX_ARCHIVO_MB = 50
 
@@ -894,6 +900,14 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "archivo_url",
             "archivo_nombre",
             "archivo_tipo",
+            "rubrica_docente",
+            "rubrica_docente_url",
+            "rubrica_docente_nombre",
+            "rubrica_docente_tipo",
+            "informe_corregido",
+            "informe_corregido_url",
+            "informe_corregido_nombre",
+            "informe_corregido_tipo",
             "nota",
             "estado_revision",
             "creado_en",
@@ -906,6 +920,14 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "archivo_url",
             "archivo_nombre",
             "archivo_tipo",
+            "rubrica_docente",
+            "rubrica_docente_url",
+            "rubrica_docente_nombre",
+            "rubrica_docente_tipo",
+            "informe_corregido",
+            "informe_corregido_url",
+            "informe_corregido_nombre",
+            "informe_corregido_tipo",
             "nota",
             "estado_revision",
             "creado_en",
@@ -953,12 +975,49 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
         tipo, _ = mimetypes.guess_type(obj.archivo.name)
         return tipo or "application/octet-stream"
 
+    def get_rubrica_docente_url(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        return self._get_file_url(obj.rubrica_docente)
+
+    def get_rubrica_docente_tipo(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        return self._get_file_tipo(obj.rubrica_docente)
+
+    def get_informe_corregido_url(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        return self._get_file_url(obj.informe_corregido)
+
+    def get_informe_corregido_tipo(self, obj: EvaluacionEntregaAlumno) -> str | None:
+        return self._get_file_tipo(obj.informe_corregido)
+
+    def _get_file_url(self, archivo) -> str | None:
+        if not archivo:
+            return None
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        url = archivo.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+    def _get_file_tipo(self, archivo) -> str | None:
+        if not archivo:
+            return None
+        tipo, _ = mimetypes.guess_type(archivo.name)
+        return tipo or "application/octet-stream"
+
 
 class DocenteEvaluacionEntregaUpdateSerializer(EvaluacionEntregaAlumnoSerializer):
     class Meta(EvaluacionEntregaAlumnoSerializer.Meta):
         extra_kwargs = {
             **EvaluacionEntregaAlumnoSerializer.Meta.extra_kwargs,
             "archivo": {"read_only": True},
+            "rubrica_docente": {
+                "required": False,
+                "allow_null": True,
+                "write_only": True,
+            },
+            "informe_corregido": {
+                "required": False,
+                "allow_null": True,
+                "write_only": True,
+            },
         }
         read_only_fields = [
             "id",
@@ -967,6 +1026,12 @@ class DocenteEvaluacionEntregaUpdateSerializer(EvaluacionEntregaAlumnoSerializer
             "archivo_url",
             "archivo_nombre",
             "archivo_tipo",
+            "rubrica_docente_url",
+            "rubrica_docente_nombre",
+            "rubrica_docente_tipo",
+            "informe_corregido_url",
+            "informe_corregido_nombre",
+            "informe_corregido_tipo",
             "creado_en",
             "actualizado_en",
             "archivo",

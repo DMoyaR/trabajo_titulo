@@ -19,6 +19,12 @@ interface Entrega {
   archivoNombre: string;
   archivoTipo: string;
   archivoUrl?: string | null;
+  rubricaNombre?: string | null;
+  rubricaTipo?: string | null;
+  rubricaUrl?: string | null;
+  informeNombre?: string | null;
+  informeTipo?: string | null;
+  informeUrl?: string | null;
   fecha: string | Date;
   nota?: number | null;
 }
@@ -177,6 +183,12 @@ export class AlumnoEntregaComponent implements OnInit {
       archivoNombre: dto.archivo_nombre,
       archivoTipo: dto.archivo_tipo ?? 'application/octet-stream',
       archivoUrl: dto.archivo_url,
+      rubricaNombre: dto.rubrica_docente_nombre || null,
+      rubricaTipo: dto.rubrica_docente_tipo || null,
+      rubricaUrl: dto.rubrica_docente_url || null,
+      informeNombre: dto.informe_corregido_nombre || null,
+      informeTipo: dto.informe_corregido_tipo || null,
+      informeUrl: dto.informe_corregido_url || null,
       fecha: this.parseFecha(dto.creado_en) ?? dto.creado_en,
       nota: dto.nota,
     };

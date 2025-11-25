@@ -498,6 +498,16 @@ class EvaluacionEntregaAlumno(models.Model):
     titulo = models.CharField(max_length=180)
     comentario = models.TextField(blank=True, null=True)
     archivo = models.FileField(upload_to=evaluacion_entrega_upload_to)
+    rubrica_docente = models.FileField(
+        upload_to=evaluacion_entrega_upload_to,
+        blank=True,
+        null=True,
+    )
+    informe_corregido = models.FileField(
+        upload_to=evaluacion_entrega_upload_to,
+        blank=True,
+        null=True,
+    )
     nota = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
     estado_revision = models.CharField(
         max_length=20,
@@ -526,6 +536,18 @@ class EvaluacionEntregaAlumno(models.Model):
         if not self.archivo:
             return ""
         return Path(self.archivo.name).name
+
+    @property
+    def rubrica_docente_nombre(self) -> str:
+        if not self.rubrica_docente:
+            return ""
+        return Path(self.rubrica_docente.name).name
+
+    @property
+    def informe_corregido_nombre(self) -> str:
+        if not self.informe_corregido:
+            return ""
+        return Path(self.informe_corregido.name).name
 
 
 class PropuestaTema(models.Model):
