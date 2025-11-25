@@ -420,6 +420,78 @@ export class DocenteEvaluacionesComponent implements OnInit {
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
+  exportarNotasCsv(): void {
+    const revisadas = this.entregasRevisadas();
+
+    if (!revisadas.length || typeof window === 'undefined') {
+      return;
+    }
+
+    const encabezados = [
+      'Grupo',
+      'Evaluación',
+      'Alumno',
+      'Correo',
+      'Fecha de entrega',
+      'Nota',
+      'Comentario',
+      'Estado',
+    ];
+
+    const filas = revisadas.map((entrega) => [
+      entrega.grupo,
+      entrega.evaluacionTitulo,
+      entrega.alumnoNombre,
+      entrega.alumnoCorreo ?? '',
+      this.formatearFechaCsv(entrega.fecha),
+      entrega.nota != null ? String(entrega.nota) : '',
+      entrega.comentario ?? '',
+      entrega.estadoRevision,
+    ]);
+
+    const csv = [encabezados, ...filas]
+      .map((fila) => fila.map((valor) => this.sanitizarCsv(valor)).join(';'))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+
+    enlace.href = url;
+    enlace.download = `notas_grupos_${this.obtenerSufijoArchivo()}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private sanitizarCsv(valor: string | number | null | undefined): string {
+    const texto = valor ?? '';
+    const textoPlano = String(texto);
+
+    if (/([";\n])/u.test(textoPlano)) {
+      return `"${textoPlano.replace(/"/gu, '""')}"`;
+    }
+
+    return textoPlano;
+  }
+
+  private formatearFechaCsv(fecha: Date): string {
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(fecha);
+  }
+
+  private obtenerSufijoArchivo(): string {
+    const ahora = new Date();
+    const fecha = ahora.toISOString().slice(0, 10);
+    const hora = ahora
+      .toISOString()
+      .slice(11, 16)
+      .replace(':', '');
+
+    return `${fecha}_${hora}`;
+  }
+
   calcularEstadoPorFecha(fecha: string | null): string {
     if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       return this.estados[0];
