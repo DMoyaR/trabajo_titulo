@@ -267,18 +267,28 @@ export class AlumnoTrabajoComponent implements OnInit {
     return this.ordenarEvaluaciones(evaluaciones, entregas);
   });
 
-  readonly promedioEvaluaciones = computed<string | null>(() => {
-    const notas = this.evaluacionesPorNivel()
-      .map(evaluacion => evaluacion.nota)
-      .filter((nota): nota is number => nota !== null);
+readonly promedioEvaluaciones = computed<string | null>(() => {
+  const notas = this.evaluacionesPorNivel()
+    .map(evaluacion => evaluacion.nota)
+    // Convertimos a número (soporta number o string)
+    .map(nota => nota == null ? NaN : Number(nota))
+    // Nos quedamos solo con números válidos
+    .filter(nota => !Number.isNaN(nota));
 
-    if (!notas.length) {
-      return null;
-    }
+  if (!notas.length) {
+    return null;
+  }
 
-    const promedio = notas.reduce((suma, nota) => suma + nota, 0) / notas.length;
-    return promedio.toFixed(2);
-  });
+  const suma = notas.reduce((acum, nota) => acum + nota, 0);
+  const promedio = suma / notas.length;
+
+  if (!Number.isFinite(promedio)) {
+    return null;
+  }
+
+  // 1 decimal: 5,8 / 6,1 / etc.
+  return promedio.toFixed(1);
+});
 
   readonly entregaDestacada = computed<EntregaDestacada | null>(() => {
     const items = this.entregasPorNivel();
