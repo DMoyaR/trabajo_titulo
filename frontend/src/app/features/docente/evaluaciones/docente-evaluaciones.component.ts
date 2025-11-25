@@ -72,6 +72,7 @@ export class DocenteEvaluacionesComponent implements OnInit {
   entregasRevisadas = signal<EntregaDocente[]>([]);
   entregasPorGrupo = signal<EntregasPorGrupo[]>([]);
   grupoEntregasSeleccionado = signal<string | null>(null);
+  mostrarPanelEntregas = signal(true);
 
   grupoSeleccionadoId = signal<number | null>(null);
   evaluacionTitulo = signal('');

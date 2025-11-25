@@ -155,6 +155,18 @@
   color: #0f2f52;
 }
 
+.btn.ghost {
+  background: #eef2f7;
+  color: #1a3e6a;
+  border: 1px solid #c7d5eb;
+  box-shadow: none;
+}
+
+.btn.ghost:hover {
+  background: #e2e8f0;
+  color: #0f2f52;
+}
+
 .groups {
   display: grid;
   gap: 16px;
@@ -285,6 +297,11 @@
   gap: 20px;
 }
 
+.entregas-panel.collapsed {
+  background: #fffefb;
+  border-style: dashed;
+}
+
 .entregas-grupos {
   display: flex;
   flex-direction: column;
@@ -349,6 +366,12 @@
   color: #047857;
 }
 
+.panel-resumen {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .caret {
   color: #1a3e6a;
   font-size: 18px;
@@ -369,6 +392,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.entregas-actions {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .entregas-header h3 {
