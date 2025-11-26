@@ -122,139 +122,6 @@
   </div>
 </section>
 
-<!-- Panel detalle bitácora -->
-<section class="card" *ngIf="seleccionBitacora() as b">
-  <div class="detail-head">
-    <h3>Detalle — Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</h3>
-    <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
-  </div>
-
-  <p class="muted bitacora-sub">Bitácora: {{ b.titulo }}</p>
-
-  <div class="instrucciones detail">
-    <div class="ins-head">
-      <b>Bitácora</b>
-    </div>
-    <p class="muted">Revisa las indicaciones de tu docente en la evaluación asociada antes de subir tu bitácora.</p>
-  </div>
-
-  <div class="info-row">
-    <span class="chip" [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
-    <span class="muted">Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
-  </div>
-
-  <div class="instrucciones detail" *ngIf="evaluacionAsociada(b) as evRef">
-    <div class="ins-head">
-      <b>Detalles de la evaluación</b>
-      <span class="tag">{{ evRef.tipo | titlecase }}</span>
-    </div>
-    <p class="muted">{{ evRef.descripcion || 'Revisa las indicaciones originales de la evaluación antes de subir tu bitácora.' }}</p>
-    <div class="meta eval-meta">
-      <span [ngClass]="estadoClase(evRef.estado)" class="chip">{{ evRef.estado }}</span>
-      <ng-container *ngIf="evRef.fechaLimite">Fecha límite: {{ evRef.fechaLimite | date:'d MMM y, HH:mm' }}</ng-container>
-      <ng-container *ngIf="evRef.ultimaEntrega?.nota != null">Nota última entrega: <b>{{ evRef.ultimaEntrega?.nota }}</b></ng-container>
-    </div>
-  </div>
-
-  <div class="docente-detail">
-    <div class="docente-head">
-      <b>Detalles del docente</b>
-      <span class="muted">Información que acompaña a la bitácora</span>
-    </div>
-
-    <div class="row">
-      <div><b>Evaluación asociada:</b></div>
-      <div class="eval-link" (click)="openEvaluacion(b.evaluacionId)">
-        <span class="link">Detalles</span>
-        <span class="muted">{{ b.evaluacionTitulo }}</span>
-      </div>
-    </div>
-  </div>
-
-  <div *ngIf="b.estado === 'pendiente'; else bitacoraEntrega">
-    <p class="muted">Esta bitácora está pendiente. Debes subir tu archivo para completar la entrega.</p>
-    <button class="btn primary" (click)="openUploadBitacora(b)">Subir archivo</button>
-  </div>
-
-  <ng-template #bitacoraEntrega>
-    <div *ngIf="b.entrega; else sinEntregaBitacora" class="entrega">
-      <div class="row">
-        <div><b>Título:</b></div>
-        <div>{{ b.entrega?.titulo }}</div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.comentario">
-        <div><b>Comentario:</b></div>
-        <div>{{ b.entrega?.comentario }}</div>
-      </div>
-
-      <div class="row">
-        <div><b>Archivo:</b></div>
-        <div>
-          📄
-          <ng-container *ngIf="b.entrega?.archivoUrl; else archivoSinLinkBitacora">
-            <a
-              [href]="b.entrega?.archivoUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {{ b.entrega?.archivoNombre }}
-            </a>
-          </ng-container>
-          <ng-template #archivoSinLinkBitacora>
-            {{ b.entrega?.archivoNombre }}
-          </ng-template>
-          <small class="muted">({{ b.entrega?.archivoTipo }})</small>
-        </div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.rubricaUrl">
-        <div><b>Rúbrica corregida:</b></div>
-        <div>
-          📎
-          <a
-            [href]="b.entrega?.rubricaUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ b.entrega?.rubricaNombre || 'Rúbrica' }}
-          </a>
-          <small class="muted" *ngIf="b.entrega?.rubricaTipo">({{ b.entrega?.rubricaTipo }})</small>
-        </div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.informeUrl">
-        <div><b>Informe corregido:</b></div>
-        <div>
-          📝
-          <a
-            [href]="b.entrega?.informeUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ b.entrega?.informeNombre || 'Informe con anotaciones' }}
-          </a>
-          <small class="muted" *ngIf="b.entrega?.informeTipo">({{ b.entrega?.informeTipo }})</small>
-        </div>
-      </div>
-
-      <div class="row">
-        <div><b>Fecha envío:</b></div>
-        <div>{{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.nota != null">
-        <div><b>Nota:</b></div>
-        <div><span class="nota">{{ b.entrega?.nota }}</span></div>
-      </div>
-    </div>
-
-    <ng-template #sinEntregaBitacora>
-      <p class="muted">Aún no existe registro de entrega.</p>
-    </ng-template>
-  </ng-template>
-</section>
-
 <!-- Panel detalle evaluación -->
 <section class="card" *ngIf="seleccionada() as ev">
   <div class="detail-head">
@@ -397,6 +264,139 @@
     </div>
 
     <ng-template #sinEntrega>
+      <p class="muted">Aún no existe registro de entrega.</p>
+    </ng-template>
+  </ng-template>
+</section>
+
+<!-- Panel detalle bitácora -->
+<section class="card" *ngIf="seleccionBitacora() as b">
+  <div class="detail-head">
+    <h3>Detalle — Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</h3>
+    <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
+  </div>
+
+  <p class="muted bitacora-sub">Bitácora: {{ b.titulo }}</p>
+
+  <div class="instrucciones detail">
+    <div class="ins-head">
+      <b>Bitácora</b>
+    </div>
+    <p class="muted">Revisa las indicaciones de tu docente en la evaluación asociada antes de subir tu bitácora.</p>
+  </div>
+
+  <div class="info-row">
+    <span class="chip" [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
+    <span class="muted">Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+  </div>
+
+  <div class="instrucciones detail" *ngIf="evaluacionAsociada(b) as evRef">
+    <div class="ins-head">
+      <b>Detalles de la evaluación</b>
+      <span class="tag">{{ evRef.tipo | titlecase }}</span>
+    </div>
+    <p class="muted">{{ evRef.descripcion || 'Revisa las indicaciones originales de la evaluación antes de subir tu bitácora.' }}</p>
+    <div class="meta eval-meta">
+      <span [ngClass]="estadoClase(evRef.estado)" class="chip">{{ evRef.estado }}</span>
+      <ng-container *ngIf="evRef.fechaLimite">Fecha límite: {{ evRef.fechaLimite | date:'d MMM y, HH:mm' }}</ng-container>
+      <ng-container *ngIf="evRef.ultimaEntrega?.nota != null">Nota última entrega: <b>{{ evRef.ultimaEntrega?.nota }}</b></ng-container>
+    </div>
+  </div>
+
+  <div class="docente-detail">
+    <div class="docente-head">
+      <b>Detalles del docente</b>
+      <span class="muted">Información que acompaña a la bitácora</span>
+    </div>
+
+    <div class="row">
+      <div><b>Evaluación asociada:</b></div>
+      <div class="eval-link" (click)="openEvaluacion(b.evaluacionId)">
+        <span class="link">Detalles</span>
+        <span class="muted">{{ b.evaluacionTitulo }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="b.estado === 'pendiente'; else bitacoraEntrega">
+    <p class="muted">Esta bitácora está pendiente. Debes subir tu archivo para completar la entrega.</p>
+    <button class="btn primary" (click)="openUploadBitacora(b)">Subir archivo</button>
+  </div>
+
+  <ng-template #bitacoraEntrega>
+    <div *ngIf="b.entrega; else sinEntregaBitacora" class="entrega">
+      <div class="row">
+        <div><b>Título:</b></div>
+        <div>{{ b.entrega?.titulo }}</div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.comentario">
+        <div><b>Comentario:</b></div>
+        <div>{{ b.entrega?.comentario }}</div>
+      </div>
+
+      <div class="row">
+        <div><b>Archivo:</b></div>
+        <div>
+          📄
+          <ng-container *ngIf="b.entrega?.archivoUrl; else archivoSinLinkBitacora">
+            <a
+              [href]="b.entrega?.archivoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ b.entrega?.archivoNombre }}
+            </a>
+          </ng-container>
+          <ng-template #archivoSinLinkBitacora>
+            {{ b.entrega?.archivoNombre }}
+          </ng-template>
+          <small class="muted">({{ b.entrega?.archivoTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.rubricaUrl">
+        <div><b>Rúbrica corregida:</b></div>
+        <div>
+          📎
+          <a
+            [href]="b.entrega?.rubricaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ b.entrega?.rubricaNombre || 'Rúbrica' }}
+          </a>
+          <small class="muted" *ngIf="b.entrega?.rubricaTipo">({{ b.entrega?.rubricaTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.informeUrl">
+        <div><b>Informe corregido:</b></div>
+        <div>
+          📝
+          <a
+            [href]="b.entrega?.informeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ b.entrega?.informeNombre || 'Informe con anotaciones' }}
+          </a>
+          <small class="muted" *ngIf="b.entrega?.informeTipo">({{ b.entrega?.informeTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row">
+        <div><b>Fecha envío:</b></div>
+        <div>{{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.nota != null">
+        <div><b>Nota:</b></div>
+        <div><span class="nota">{{ b.entrega?.nota }}</span></div>
+      </div>
+    </div>
+
+    <ng-template #sinEntregaBitacora>
       <p class="muted">Aún no existe registro de entrega.</p>
     </ng-template>
   </ng-template>
