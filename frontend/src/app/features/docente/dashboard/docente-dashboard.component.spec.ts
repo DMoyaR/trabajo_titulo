@@ -160,7 +160,7 @@ describe('DocenteDashboardComponent', () => {
 
     expect(component.aprobarForm.controls.fecha.disabled).toBeTrue();
     expect(component.aprobarForm.controls.horaInicio.disabled).toBeTrue();
-    expect(component.aprobarForm.controls.modalidad.disabled).toBeTrue();
+    expect(component.aprobarForm.controls.modalidad.disabled).toBeFalse();
 
     component.aprobarForm.controls.duracion.setValue(45);
     expect(component.aprobarForm.controls.horaTermino.value).toBe('10:45');

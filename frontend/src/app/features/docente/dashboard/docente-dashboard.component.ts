@@ -375,11 +375,9 @@ export class DocenteDashboardComponent implements OnInit {
     if (fijos) {
       this.aprobarForm.controls.fecha.disable(opciones);
       this.aprobarForm.controls.horaInicio.disable(opciones);
-      this.aprobarForm.controls.modalidad.disable(opciones);
     } else {
       this.aprobarForm.controls.fecha.enable(opciones);
       this.aprobarForm.controls.horaInicio.enable(opciones);
-      this.aprobarForm.controls.modalidad.enable(opciones);
     }
 
     this.aprobarForm.updateValueAndValidity(opciones);

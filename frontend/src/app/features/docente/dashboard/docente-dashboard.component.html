@@ -164,6 +164,16 @@
         <p class="muted" *ngIf="fechaHoraFija">
           Fecha y hora solicitadas por el alumno. Solo selecciona la duración y agrega comentarios.
         </p>
+        <div class="horario-fijo" *ngIf="fechaHoraFija">
+          <div>
+            <span class="etiqueta">Fecha</span>
+            <strong>{{ aprobarForm.controls.fecha.value | date: 'dd/MM/yyyy' }}</strong>
+          </div>
+          <div>
+            <span class="etiqueta">Horario</span>
+            <strong>{{ aprobarForm.controls.horaInicio.value }} - {{ aprobarForm.controls.horaTermino.value }}</strong>
+          </div>
+        </div>
         <div class="grid form-grid">
           <label>
             Fecha
@@ -199,7 +209,7 @@
           </label>
           <label>
             Modalidad
-            <select formControlName="modalidad" [disabled]="fechaHoraFija">
+            <select formControlName="modalidad">
               <option value="presencial">Presencial</option>
               <option value="online">Online</option>
             </select>
