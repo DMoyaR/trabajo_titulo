@@ -243,6 +243,21 @@ export class CalendarioComponent implements OnInit {
   form: Omit<Evento, 'id'> = { titulo: '', hora: '10:00', lugar: '', descripcion: '' };
   editId: string | null = null;
 
+  private proyectosSet = new Set<string>();
+  proyectosDisponibles: string[] = [];
+
+  private registrarProyecto(nombre?: string | null) {
+    const normalizado = nombre?.trim();
+    if (!normalizado) {
+      return;
+    }
+
+    if (!this.proyectosSet.has(normalizado)) {
+      this.proyectosSet.add(normalizado);
+      this.proyectosDisponibles = Array.from(this.proyectosSet).sort((a, b) => a.localeCompare(b));
+    }
+  }
+
   openDayModal() {
     this.showDayModal.set(true);
     this.resetForm();
@@ -285,6 +300,7 @@ export class CalendarioComponent implements OnInit {
   singleForm = {
     fecha: this.toInputDate(new Date()),
     hora: '10:00',
+    proyecto: '',
     titulo: '',
     lugar: '',
     descripcion: ''
@@ -296,6 +312,7 @@ export class CalendarioComponent implements OnInit {
       this.singleForm.fecha = this.toInputDate(new Date(this.year(), this.month(), this.selectedDay()!));
     }
     this.singleForm.hora = '10:00';
+    this.singleForm.proyecto = '';
     this.singleForm.titulo = '';
     this.singleForm.lugar = '';
     this.singleForm.descripcion = '';
@@ -308,8 +325,11 @@ export class CalendarioComponent implements OnInit {
     // CORRECCIÓN: Pasar la fecha completa al keyFor
     const key = this.keyFor(d.getDate(), d);
     if (!key) return;
+    const proyecto = this.singleForm.proyecto?.trim() || null;
+    this.registrarProyecto(proyecto);
     const evento: Evento = {
       id: (crypto as any).randomUUID?.() ?? Math.random().toString(36).slice(2),
+      proyecto,
       titulo: this.singleForm.titulo,
       hora: this.singleForm.hora,
       lugar: this.singleForm.lugar,
@@ -329,6 +349,7 @@ export class CalendarioComponent implements OnInit {
     dias: new Set<number>([(new Date().getDay() + 6) % 7]),
     intervaloSemanas: 1,
     hora: '10:00',
+    proyecto: '',
     titulo: '',
     lugar: '',
     descripcion: ''
@@ -344,6 +365,7 @@ export class CalendarioComponent implements OnInit {
     }
     this.recurForm.intervaloSemanas = 1;
     this.recurForm.hora = '10:00';
+    this.recurForm.proyecto = '';
     this.recurForm.titulo = '';
     this.recurForm.lugar = '';
     this.recurForm.descripcion = '';
@@ -363,6 +385,9 @@ export class CalendarioComponent implements OnInit {
     const fin = new Date(this.recurForm.fin);
     if (isNaN(inicio.getTime()) || isNaN(fin.getTime()) || fin < inicio || this.recurForm.dias.size === 0) return;
 
+    const proyecto = this.recurForm.proyecto?.trim() || null;
+    this.registrarProyecto(proyecto);
+
     // Genera ocurrencias día por día, pero valida semana / intervalo
     const firstMondayBasedIndex = (d: Date) => Math.floor((d.getTime() - inicio.getTime()) / (7 * 24 * 3600 * 1000));
     
@@ -381,6 +406,7 @@ export class CalendarioComponent implements OnInit {
 
       const evento: Evento = {
         id: (crypto as any).randomUUID?.() ?? Math.random().toString(36).slice(2),
+        proyecto,
         titulo: this.recurForm.titulo,
         hora: this.recurForm.hora,
         lugar: this.recurForm.lugar,
@@ -497,6 +523,7 @@ export class CalendarioComponent implements OnInit {
     this.reunionesService.listarSolicitudes({ docente: this.docenteId }).subscribe({
       next: (items) => {
         this.solicitudes = items;
+        items.forEach((item) => this.registrarProyecto(item.proyectoNombre));
         this.solicitudesCargando = false;
       },
       error: (err) => {
@@ -669,7 +696,10 @@ export class CalendarioComponent implements OnInit {
     this.reunionesService.listarReuniones({ docente: this.docenteId }).subscribe({
       next: (items) => {
         const mapa: Record<string, Evento[]> = {};
-        items.forEach((reunion) => this.agregarReunionAlCalendario(reunion, mapa));
+        items.forEach((reunion) => {
+          this.registrarProyecto(reunion.proyectoNombre);
+          this.agregarReunionAlCalendario(reunion, mapa);
+        });
         this._events.set(mapa);
       },
       error: (err) => {
@@ -684,6 +714,8 @@ export class CalendarioComponent implements OnInit {
     if (!key) {
       return;
     }
+
+    this.registrarProyecto(reunion.proyectoNombre);
 
     const evento: Evento = {
       id: `reunion-${reunion.id}`,
