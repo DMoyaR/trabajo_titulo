@@ -261,6 +261,98 @@
   margin: 0;
 }
 
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chip.warning {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.chip.state {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+}
+
+.reuniones-card {
+  grid-column: 1 / -1;
+}
+
+.solicitudes-pendientes,
+.historial-reuniones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.solicitud-row,
+.historial-list li {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #f9fafb;
+}
+
+.solicitud-titulo,
+.evento-titulo {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.solicitud-detalle,
+.evento-detalle {
+  margin: 2px 0 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.historial-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.historial-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evento-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.evento-fecha {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.empty-box {
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  color: #475569;
+  background: #fff;
+}
+
 @media (max-width: 860px) {
   .grid {
     grid-template-columns: 1fr;

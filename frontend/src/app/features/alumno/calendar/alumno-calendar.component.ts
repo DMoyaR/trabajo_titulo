@@ -362,13 +362,20 @@ export class AlumnoCalendarComponent implements OnInit {
     const hora = this.horaDesdeDisponibilidad(solicitud.disponibilidadSugerida) ?? this.solicitudForm.hora;
     const key = this.keyFor(fecha.getDate(), fecha);
 
+    const estado: EstadoEvento =
+      solicitud.estado === 'aprobada'
+        ? 'Confirmada'
+        : solicitud.estado === 'rechazada'
+          ? 'Rechazada'
+          : 'Pendiente';
+
     const e: Evento = {
       id: `sol-${solicitud.id}`,
       titulo: 'Solicitud de reunión',
       hora,
       lugar: solicitud.disponibilidadSugerida ?? '',
       descripcion: solicitud.motivo,
-      estado: solicitud.estado === 'rechazada' ? 'Rechazada' : 'Pendiente',
+      estado,
     };
 
     const list = [...(this._events()[key] ?? []).filter((ev) => !ev.id.startsWith(`sol-${solicitud.id}`)), e];
