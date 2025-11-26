@@ -186,7 +186,7 @@ export class AlumnoEntregaComponent implements OnInit {
           titulo: bitacora.titulo,
           comentario: bitacora.comentario,
           fechaLimite: this.parseFecha(bitacora.fecha) ?? bitacora.fecha,
-          estado: (bitacora.estado as EstadoBitacora) || 'pendiente',
+          estado: this.mapEstadoBitacora(bitacora.estado),
           entrega: bitacora.entrega ? this.mapEntregaDto(bitacora.entrega) : null,
         }))
       )
@@ -214,6 +214,17 @@ export class AlumnoEntregaComponent implements OnInit {
     }
     if (normalizado === 'en progreso') {
       return 'pendiente';
+    }
+    return 'pendiente';
+  }
+
+  private mapEstadoBitacora(estado: string | null | undefined): EstadoBitacora {
+    const normalizado = (estado ?? '').trim().toLowerCase();
+    if (normalizado === 'entregada') {
+      return 'entregada';
+    }
+    if (normalizado === 'calificada' || normalizado === 'evaluada') {
+      return 'calificada';
     }
     return 'pendiente';
   }
@@ -298,7 +309,7 @@ export class AlumnoEntregaComponent implements OnInit {
     entrega: Entrega,
   ) {
     const indice = destino.bitacora?.indice ?? entrega.bitacoraIndice ?? null;
-    if (!indice) return;
+    if (indice == null) return;
 
     this._bitacoras.set(
       this._bitacoras().map(b => {
