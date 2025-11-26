@@ -139,7 +139,7 @@
         <div class="solicitud-card" *ngFor="let solicitud of solicitudesPendientes">
           <header>
             <div>
-              <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+              <h4>{{ solicitud.proyectoNombre || solicitud.alumno?.nombre || 'Alumno' }}</h4>
               <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
             </div>
             <span class="estado pend">{{ estadoSolicitudLabel(solicitud.estado) }}</span>
@@ -229,7 +229,7 @@
         <div class="solicitud-card" *ngFor="let solicitud of solicitudesResueltas">
           <header>
             <div>
-              <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+              <h4>{{ solicitud.proyectoNombre || solicitud.alumno?.nombre || 'Alumno' }}</h4>
               <small class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</small>
             </div>
             <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
@@ -263,7 +263,9 @@
           </div>
         </div>
         <div class="ev-meta">
-          <span class="chip subtle" *ngIf="ev.alumno">Alumno: {{ ev.alumno }}</span>
+          <span class="chip subtle" *ngIf="ev.proyecto || ev.alumno">
+            Proyecto: {{ ev.proyecto || ev.alumno }}
+          </span>
           <span class="chip subtle" *ngIf="ev.grupo">Grupo: {{ ev.grupo }}</span>
           <span class="chip status" *ngIf="ev.estado">{{ estadoReunionLabel(ev.estado) }}</span>
         </div>

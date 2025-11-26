@@ -127,7 +127,7 @@
     <div class="solicitud" *ngFor="let solicitud of solicitudesPendientes">
       <header>
         <div>
-          <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+          <h4>{{ solicitud.proyectoNombre || solicitud.alumno?.nombre || 'Alumno' }}</h4>
           <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
         </div>
         <span
@@ -258,7 +258,7 @@
     <ul class="historial-lista" *ngIf="mostrarHistorial">
       <li *ngFor="let solicitud of historialPaginado">
         <div>
-          <strong>{{ solicitud.alumno?.nombre || 'Alumno' }}</strong>
+          <strong>{{ solicitud.proyectoNombre || solicitud.alumno?.nombre || 'Alumno' }}</strong>
           <p class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</p>
         </div>
         <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
