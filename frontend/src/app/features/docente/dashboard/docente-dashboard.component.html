@@ -171,6 +171,7 @@
               type="date"
               formControlName="fecha"
               [attr.readonly]="fechaHoraFija ? '' : null"
+              [disabled]="fechaHoraFija"
               [class.readonly]="fechaHoraFija"
             />
           </label>
@@ -180,6 +181,7 @@
               type="time"
               formControlName="horaInicio"
               [attr.readonly]="fechaHoraFija ? '' : null"
+              [disabled]="fechaHoraFija"
               [class.readonly]="fechaHoraFija"
             />
           </label>
@@ -197,7 +199,7 @@
           </label>
           <label>
             Modalidad
-            <select formControlName="modalidad">
+            <select formControlName="modalidad" [disabled]="fechaHoraFija">
               <option value="presencial">Presencial</option>
               <option value="online">Online</option>
             </select>

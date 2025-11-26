@@ -138,18 +138,24 @@ export class DocenteDashboardComponent implements OnInit {
     this.modo = 'aprobar';
     this.solicitudesMensaje = null;
     this.solicitudesError = null;
+
     const duracion = this.aprobarForm.controls.duracion.value ?? 30;
     const fecha = solicitud.fechaSugerida ?? '';
     const horaInicio = solicitud.horaSugerida ?? '';
     const horaTermino = horaInicio ? this.calcularHoraTermino(horaInicio, duracion) : '';
+    const modalidad = solicitud.modalidadSugerida ?? 'presencial';
+    const horarioFijo = Boolean(fecha && horaInicio);
+
     this.aprobarForm.reset({
       fecha,
       horaInicio,
       horaTermino,
-      modalidad: solicitud.modalidadSugerida ?? 'presencial',
+      modalidad,
       duracion,
       comentario: solicitud.disponibilidadSugerida ?? '',
     });
+
+    this.actualizarControlesFijos(horarioFijo);
   }
 
   abrirRechazo(solicitud: SolicitudReunion): void {
@@ -172,6 +178,7 @@ export class DocenteDashboardComponent implements OnInit {
       comentario: '',
     });
     this.rechazoForm.reset({ comentario: '' });
+    this.actualizarControlesFijos(false);
   }
 
   confirmarAprobacion(): void {
@@ -360,5 +367,21 @@ export class DocenteDashboardComponent implements OnInit {
     const minutoFin = totalMinutos % 60;
 
     return `${horaFin.toString().padStart(2, '0')}:${minutoFin.toString().padStart(2, '0')}`;
+  }
+
+  private actualizarControlesFijos(fijos: boolean): void {
+    const opciones = { emitEvent: false } as const;
+
+    if (fijos) {
+      this.aprobarForm.controls.fecha.disable(opciones);
+      this.aprobarForm.controls.horaInicio.disable(opciones);
+      this.aprobarForm.controls.modalidad.disable(opciones);
+    } else {
+      this.aprobarForm.controls.fecha.enable(opciones);
+      this.aprobarForm.controls.horaInicio.enable(opciones);
+      this.aprobarForm.controls.modalidad.enable(opciones);
+    }
+
+    this.aprobarForm.updateValueAndValidity(opciones);
   }
 }
