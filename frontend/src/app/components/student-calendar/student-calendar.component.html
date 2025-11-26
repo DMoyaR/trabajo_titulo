@@ -1,0 +1,60 @@
+<section class="layout">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Agenda del alumno</p>
+      <h1>Solicita una reunión con tu docente guía</h1>
+      <p class="lead">
+        Ingresa fecha, hora y detalles para que tu profesor pueda aprobar la solicitud desde su perfil.
+      </p>
+    </div>
+    <div class="summary-card">
+      <h3>Últimas solicitudes</h3>
+      <p class="muted" *ngIf="lastRequests().length === 0">Aún no has enviado solicitudes.</p>
+      <ul>
+        <li *ngFor="let request of lastRequests()">
+          <div>
+            <strong>{{ request.title }}</strong>
+            <p class="muted">{{ request.date }} · {{ request.time }}</p>
+          </div>
+          <span class="status" [class.pending]="request.status === 'Pendiente'" [class.approved]="request.status === 'Aprobada'" [class.rejected]="request.status === 'Rechazada'">
+            {{ request.status }}
+          </span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <form (ngSubmit)="submit()" class="card">
+    <h2>Solicitar reunión</h2>
+    <div class="grid">
+      <label>
+        Nombre del alumno
+        <input type="text" [ngModel]="formModel().studentName" (ngModelChange)="updateField('studentName', $event)" name="studentName" required />
+      </label>
+      <label>
+        Fecha
+        <input type="date" [ngModel]="formModel().date" (ngModelChange)="updateField('date', $event)" name="date" required />
+      </label>
+      <label>
+        Hora
+        <input type="time" [ngModel]="formModel().time" (ngModelChange)="updateField('time', $event)" name="time" required />
+      </label>
+      <label>
+        Título
+        <input type="text" [ngModel]="formModel().title" (ngModelChange)="updateField('title', $event)" name="title" placeholder="Revisión de avance" required />
+      </label>
+      <label>
+        Lugar
+        <input type="text" [ngModel]="formModel().location" (ngModelChange)="updateField('location', $event)" name="location" placeholder="Sala 201 o videollamada" />
+      </label>
+    </div>
+    <label>
+      Descripción
+      <textarea rows="4" [ngModel]="formModel().description" (ngModelChange)="updateField('description', $event)" name="description" placeholder="Incluye los temas a revisar"></textarea>
+    </label>
+    <div class="actions">
+      <button type="submit">Enviar solicitud</button>
+      <span class="success" *ngIf="submitted()">Solicitud enviada al docente.</span>
+    </div>
+  </form>
+</section>

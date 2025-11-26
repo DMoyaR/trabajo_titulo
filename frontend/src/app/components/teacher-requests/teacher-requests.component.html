@@ -1,0 +1,52 @@
+<section class="layout">
+  <div class="header">
+    <div>
+      <p class="eyebrow">Panel del docente guía</p>
+      <h1>Solicitudes recibidas de tus alumnos</h1>
+      <p class="muted">Aprueba o rechaza cada solicitud y acompaña el proceso del proyecto.</p>
+    </div>
+  </div>
+
+  <div class="columns">
+    <div class="card">
+      <h2>Pendientes</h2>
+      <p class="muted" *ngIf="requestsByStatus().pending.length === 0">Sin solicitudes pendientes.</p>
+      <ul>
+        <li *ngFor="let request of requestsByStatus().pending">
+          <div class="info">
+            <strong>{{ request.title }}</strong>
+            <p class="muted">{{ request.studentName }} · {{ request.date }} · {{ request.time }}</p>
+            <p class="detail">{{ request.description || 'Sin descripción' }}</p>
+          </div>
+          <div class="actions">
+            <button class="approve" (click)="changeStatus(request.id, 'Aprobada')">Aprobar</button>
+            <button class="reject" (click)="changeStatus(request.id, 'Rechazada')">Rechazar</button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card secondary">
+      <h2>Historial</h2>
+      <p class="muted" *ngIf="requestsByStatus().approved.length === 0 && requestsByStatus().rejected.length === 0">
+        Sin cambios recientes.
+      </p>
+      <ul>
+        <li *ngFor="let request of requestsByStatus().approved">
+          <div>
+            <strong>{{ request.title }}</strong>
+            <p class="muted">{{ request.studentName }} · {{ request.date }} · {{ request.time }}</p>
+          </div>
+          <span class="status approved">Aprobada</span>
+        </li>
+        <li *ngFor="let request of requestsByStatus().rejected">
+          <div>
+            <strong>{{ request.title }}</strong>
+            <p class="muted">{{ request.studentName }} · {{ request.date }} · {{ request.time }}</p>
+          </div>
+          <span class="status rejected">Rechazada</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>

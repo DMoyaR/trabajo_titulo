@@ -1,0 +1,122 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.header h1 {
+  margin: 0.2rem 0;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  padding: 1.1rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+}
+
+.card.secondary {
+  background: #0f172a;
+  color: #fff;
+}
+
+.card.secondary .muted {
+  color: #cbd5e1;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  border-bottom: 1px solid #e4e7ec;
+  padding-bottom: 0.75rem;
+}
+
+.card.secondary li {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.muted {
+  color: #475467;
+  margin: 0;
+}
+
+.detail {
+  color: #1f2937;
+  margin: 0.2rem 0 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.approve {
+  background: #16a34a;
+  color: #fff;
+}
+
+.reject {
+  background: #ef4444;
+  color: #fff;
+}
+
+.status {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.status.approved {
+  background: rgba(22, 163, 74, 0.18);
+  color: #16a34a;
+}
+
+.status.rejected {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}

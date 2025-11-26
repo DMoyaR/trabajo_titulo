@@ -1,0 +1,153 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  align-items: center;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: #2c7be5;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0.2rem 0 0.4rem;
+}
+
+.lead {
+  color: #42526e;
+  line-height: 1.4;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+input,
+textarea {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #0f172a;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+button {
+  background: linear-gradient(135deg, #2c7be5, #5a67d8);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(44, 123, 229, 0.25);
+}
+
+.success {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.summary-card {
+  background: #0f172a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 12px 25px rgba(15, 23, 42, 0.35);
+}
+
+.summary-card h3 {
+  margin: 0 0 0.5rem;
+}
+
+.summary-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-card li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.muted {
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.status {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.status.pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fbbf24;
+}
+
+.status.approved {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status.rejected {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
