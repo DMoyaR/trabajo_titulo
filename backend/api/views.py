@@ -2641,7 +2641,36 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
                 }
             )
 
-        serializer.save(evaluacion=evaluacion, alumno_id=alumno_id)
+        indice_bitacora = self._obtener_bitacora_indice(serializer.initial_data)
+        if indice_bitacora:
+            total_requeridas = evaluacion.bitacoras_requeridas or 0
+            if indice_bitacora > total_requeridas:
+                raise ValidationError(
+                    {
+                        "bitacora_indice": [
+                            "La bitácora seleccionada no corresponde al plan de esta evaluación.",
+                        ]
+                    }
+                )
+
+        serializer.save(
+            evaluacion=evaluacion,
+            alumno_id=alumno_id,
+            es_bitacora=bool(indice_bitacora),
+            bitacora_indice=indice_bitacora,
+        )
+
+    def _obtener_bitacora_indice(self, data) -> int | None:
+        if not data:
+            return None
+        indice_param = data.get("bitacora_indice")
+        try:
+            indice = int(indice_param)
+        except (TypeError, ValueError):
+            return None
+        if indice <= 0:
+            return None
+        return indice
 
     def _obtener_alumno_id(self, usar_post: bool = False) -> int | None:
         if usar_post:
