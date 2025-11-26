@@ -28,21 +28,23 @@
 }
 
 .filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   gap: 12px;
   margin-bottom: 20px;
-  align-items: center;
+  align-items: end;
   background: white;
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  width: 100%;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .filter-label {
@@ -59,7 +61,8 @@ input[type='text'] {
   background: #fff;
   font-size: 0.9rem;
   color: #495057;
-  min-width: 140px;
+  min-width: 0;
+  width: 100%;
 }
 
 select:focus,

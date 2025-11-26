@@ -62,6 +62,7 @@ export class DocenteDashboardComponent implements OnInit {
   estudiantesFiltrados: ResumenEstudiante[] = [];
   carrerasDisponibles: string[] = [];
   procesosDisponibles: string[] = [];
+  proyectosDisponibles: string[] = [];
 
   filtros = {
     carrera: '',
@@ -201,13 +202,10 @@ export class DocenteDashboardComponent implements OnInit {
   }
 
   aplicarFiltros(): void {
-    const proyectoFiltro = this.filtros.proyecto.trim().toLowerCase();
-
     this.estudiantesFiltrados = this.estudiantes.filter((estudiante) => {
       const carreraOk = !this.filtros.carrera || estudiante.carrera === this.filtros.carrera;
       const procesoOk = !this.filtros.proceso || estudiante.proceso === this.filtros.proceso;
-      const proyectoOk =
-        !proyectoFiltro || estudiante.proyecto.toLowerCase().includes(proyectoFiltro);
+      const proyectoOk = !this.filtros.proyecto || estudiante.proyecto === this.filtros.proyecto;
       const avanceOk = this.coincideAvance(estudiante.avance, this.filtros.avance);
 
       return carreraOk && procesoOk && proyectoOk && avanceOk;
@@ -628,6 +626,7 @@ export class DocenteDashboardComponent implements OnInit {
   private actualizarOpcionesFiltros(): void {
     const carreras = new Set<string>();
     const procesos = new Set<string>();
+    const proyectos = new Set<string>();
 
     for (const estudiante of this.estudiantes) {
       if (estudiante.carrera) {
@@ -636,12 +635,18 @@ export class DocenteDashboardComponent implements OnInit {
       if (estudiante.proceso) {
         procesos.add(estudiante.proceso);
       }
+      if (estudiante.proyecto) {
+        proyectos.add(estudiante.proyecto);
+      }
     }
 
     this.carrerasDisponibles = Array.from(carreras).sort((a, b) =>
       a.localeCompare(b, 'es', { sensitivity: 'base' }),
     );
     this.procesosDisponibles = Array.from(procesos).sort((a, b) =>
+      a.localeCompare(b, 'es', { sensitivity: 'base' }),
+    );
+    this.proyectosDisponibles = Array.from(proyectos).sort((a, b) =>
       a.localeCompare(b, 'es', { sensitivity: 'base' }),
     );
   }
