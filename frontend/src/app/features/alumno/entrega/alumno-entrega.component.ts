@@ -109,6 +109,8 @@ export class AlumnoEntregaComponent implements OnInit {
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
   completadas = () => this._evaluaciones().filter(e => e.estado !== 'pendiente');
   bitacoras = () => this._bitacoras();
+  bitacorasPendientes = () => this._bitacoras().filter(b => b.estado === 'pendiente');
+  bitacorasCompletadas = () => this._bitacoras().filter(b => b.estado !== 'pendiente');
   destinoSubida = () => this._destinoSubida();
 
   seleccionada = () => this._seleccion();
@@ -303,6 +305,7 @@ export class AlumnoEntregaComponent implements OnInit {
 
   onBitacoraClick(bitacora: BitacoraProgramada) {
     this.seleccionarBitacora(bitacora);
+    this._destinoSubida.set(null);
   }
 
   private actualizarBitacoraEntregada(
@@ -570,5 +573,10 @@ export class AlumnoEntregaComponent implements OnInit {
           this._errorMsg.set('No pudimos subir tu entrega. Intenta nuevamente.');
         },
       });
+  }
+
+  evaluacionAsociada(bitacora: BitacoraProgramada | null): Evaluacion | null {
+    if (!bitacora) return null;
+    return this._evaluaciones().find(ev => ev.id === bitacora.evaluacionId) ?? null;
   }
 }

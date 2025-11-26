@@ -7,28 +7,63 @@
       <h3>Bitácoras</h3>
       <p class="muted">Seguimiento semanal solicitado por tu docente.</p>
     </div>
-    <span class="chip warn">{{ bitacoras().filter(b => b.estado === 'pendiente').length }} pendientes</span>
+    <span class="chip warn">{{ bitacorasPendientes().length }} pendientes</span>
   </div>
 
-  <div class="grid bitacoras-grid">
-    <article class="item clickable" *ngFor="let b of bitacoras()" (click)="onBitacoraClick(b)">
-      <div class="top">
-        <div class="bitacora-title">
-          <b class="title">{{ b.titulo }}</b>
-          <small class="muted">Evaluación: {{ b.evaluacionTitulo }}</small>
-        </div>
-        <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
+  <div class="split bitacoras-split">
+    <div>
+      <h4 class="sec">Pendientes</h4>
+      <div class="grid bitacoras-grid" *ngIf="bitacorasPendientes().length; else noBitPend">
+        <article class="item clickable bitacora-card" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
+          <div class="top">
+            <div class="bitacora-title">
+              <small class="tag ghost">Evaluación</small>
+              <b class="title">{{ b.evaluacionTitulo }}</b>
+              <span class="sub muted">Bitácora {{ b.indice + 1 }} • {{ b.titulo }}</span>
+            </div>
+            <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
+          </div>
+          <p class="desc">{{ b.comentario || 'Sigue el progreso semanal de tu trabajo.' }}</p>
+          <div class="meta">
+            <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+          </div>
+          <div class="bitacora-actions">
+            <button class="btn primary" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
+          </div>
+        </article>
       </div>
-      <p class="desc">{{ b.comentario || 'Sigue el progreso semanal de tu trabajo.' }}</p>
-      <div class="meta">
-        <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
-        <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
+      <ng-template #noBitPend>
+        <p class="muted">No tienes bitácoras pendientes.</p>
+      </ng-template>
+    </div>
+
+    <div>
+      <h4 class="sec">Completadas</h4>
+      <div class="grid bitacoras-grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
+        <article class="item clickable bitacora-card done" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
+          <div class="top">
+            <div class="bitacora-title">
+              <small class="tag ghost">Evaluación</small>
+              <b class="title">{{ b.evaluacionTitulo }}</b>
+              <span class="sub muted">Bitácora {{ b.indice + 1 }} • {{ b.titulo }}</span>
+            </div>
+            <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
+          </div>
+          <p class="desc">{{ b.comentario || 'Revisa los comentarios del docente sobre tu avance.' }}</p>
+          <div class="meta">
+            <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
+            <span *ngIf="b.entrega?.nota != null">Nota: <b>{{ b.entrega?.nota }}</b></span>
+          </div>
+          <div class="bitacora-actions">
+            <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
+            <a *ngIf="b.entrega?.informeUrl" [href]="b.entrega?.informeUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver correcciones</a>
+          </div>
+        </article>
       </div>
-      <div class="bitacora-actions">
-        <button class="btn primary" *ngIf="b.estado === 'pendiente'" (click)="seleccionarBitacora(b); openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
-        <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
-      </div>
-    </article>
+      <ng-template #noBitComp>
+        <p class="muted">Aún no tienes bitácoras entregadas.</p>
+      </ng-template>
+    </div>
   </div>
 </section>
 
@@ -114,6 +149,19 @@
   <div class="info-row">
     <span class="chip" [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
     <span class="muted">Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+  </div>
+
+  <div class="instrucciones detail" *ngIf="evaluacionAsociada(b) as evRef">
+    <div class="ins-head">
+      <b>Detalles de la evaluación</b>
+      <span class="tag">{{ evRef.tipo | titlecase }}</span>
+    </div>
+    <p class="muted">{{ evRef.descripcion || 'Revisa las indicaciones originales de la evaluación antes de subir tu bitácora.' }}</p>
+    <div class="meta eval-meta">
+      <span [ngClass]="estadoClase(evRef.estado)" class="chip">{{ evRef.estado }}</span>
+      <ng-container *ngIf="evRef.fechaLimite">Fecha límite: {{ evRef.fechaLimite | date:'d MMM y, HH:mm' }}</ng-container>
+      <ng-container *ngIf="evRef.ultimaEntrega?.nota != null">Nota última entrega: <b>{{ evRef.ultimaEntrega?.nota }}</b></ng-container>
+    </div>
   </div>
 
   <div class="docente-detail">
