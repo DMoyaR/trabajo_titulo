@@ -17,9 +17,8 @@
         <article class="item clickable bitacora-card" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
           <div class="top">
             <div class="bitacora-title">
-              <small class="tag ghost">Evaluación</small>
-              <b class="title">{{ b.evaluacionTitulo }}</b>
-              <span class="sub muted">Bitácora {{ b.indice + 1 }} • {{ b.titulo }}</span>
+              <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
+              <span class="sub muted">Bitácora: {{ b.titulo }}</span>
             </div>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
@@ -29,7 +28,7 @@
           </div>
           <div class="bitacora-actions">
             <button class="btn primary" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
-            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Ver evaluación</button>
+            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Detalles</button>
           </div>
         </article>
       </div>
@@ -44,9 +43,8 @@
         <article class="item clickable bitacora-card done" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
           <div class="top">
             <div class="bitacora-title">
-              <small class="tag ghost">Evaluación</small>
-              <b class="title">{{ b.evaluacionTitulo }}</b>
-              <span class="sub muted">Bitácora {{ b.indice + 1 }} • {{ b.titulo }}</span>
+              <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
+              <span class="sub muted">Bitácora: {{ b.titulo }}</span>
             </div>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
@@ -58,7 +56,7 @@
           <div class="bitacora-actions">
             <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
             <a *ngIf="b.entrega?.informeUrl" [href]="b.entrega?.informeUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver correcciones</a>
-            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Ver evaluación</button>
+            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Detalles</button>
           </div>
         </article>
       </div>
@@ -136,14 +134,15 @@
 <!-- Panel detalle bitácora -->
 <section class="card" *ngIf="seleccionBitacora() as b">
   <div class="detail-head">
-    <h3>Detalle — {{ b.titulo }}</h3>
+    <h3>Detalle — Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</h3>
     <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
   </div>
+
+  <p class="muted bitacora-sub">Bitácora: {{ b.titulo }}</p>
 
   <div class="instrucciones detail">
     <div class="ins-head">
       <b>Bitácora</b>
-      <span class="tag">Para: {{ b.evaluacionTitulo }}</span>
     </div>
     <p class="muted">Revisa las indicaciones de tu docente en la evaluación asociada antes de subir tu bitácora.</p>
   </div>
@@ -175,7 +174,8 @@
     <div class="row">
       <div><b>Evaluación asociada:</b></div>
       <div class="eval-link" (click)="openEvaluacion(b.evaluacionId)">
-        <span class="link">{{ b.evaluacionTitulo }}</span>
+        <span class="link">Detalles</span>
+        <span class="muted">{{ b.evaluacionTitulo }}</span>
       </div>
     </div>
   </div>
