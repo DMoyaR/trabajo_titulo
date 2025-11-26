@@ -59,6 +59,16 @@ export class DocenteDashboardComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   estudiantes: ResumenEstudiante[] = [];
+  estudiantesFiltrados: ResumenEstudiante[] = [];
+  carrerasDisponibles: string[] = [];
+  procesosDisponibles: string[] = [];
+
+  filtros = {
+    carrera: '',
+    proyecto: '',
+    proceso: '',
+    avance: '',
+  };
   cargandoEstudiantes = false;
   errorEstudiantes: string | null = null;
 
@@ -176,6 +186,8 @@ export class DocenteDashboardComponent implements OnInit {
     this.temaService.getTemas({ usuarioId: this.docenteId }).subscribe({
       next: (temas) => {
         this.estudiantes = this.mapearEstudiantes(temas);
+        this.actualizarOpcionesFiltros();
+        this.aplicarFiltros();
         this.cargandoEstudiantes = false;
       },
       error: (err) => {
@@ -185,6 +197,30 @@ export class DocenteDashboardComponent implements OnInit {
         this.cargandoEstudiantes = false;
       },
     });
+  }
+
+  aplicarFiltros(): void {
+    const proyectoFiltro = this.filtros.proyecto.trim().toLowerCase();
+
+    this.estudiantesFiltrados = this.estudiantes.filter((estudiante) => {
+      const carreraOk = !this.filtros.carrera || estudiante.carrera === this.filtros.carrera;
+      const procesoOk = !this.filtros.proceso || estudiante.proceso === this.filtros.proceso;
+      const proyectoOk =
+        !proyectoFiltro || estudiante.proyecto.toLowerCase().includes(proyectoFiltro);
+      const avanceOk = this.coincideAvance(estudiante.avance, this.filtros.avance);
+
+      return carreraOk && procesoOk && proyectoOk && avanceOk;
+    });
+  }
+
+  limpiarFiltros(): void {
+    this.filtros = {
+      carrera: '',
+      proyecto: '',
+      proceso: '',
+      avance: '',
+    };
+    this.aplicarFiltros();
   }
 
   abrirAprobacion(solicitud: SolicitudReunion): void {
@@ -501,6 +537,7 @@ export class DocenteDashboardComponent implements OnInit {
     for (const tema of temas) {
       const proyecto = tema.titulo || 'Proyecto sin título';
       const carreraTema = tema.carrera || '—';
+      const proceso = this.normalizarProceso(tema.rama);
 
       for (const inscripcion of tema.inscripcionesActivas ?? []) {
         if (!inscripcion.nombre) {
@@ -511,7 +548,7 @@ export class DocenteDashboardComponent implements OnInit {
         estudiantes.push({
           nombre: inscripcion.nombre,
           carrera: inscripcion.carrera || carreraTema,
-          proceso: 'Trabajo de Título',
+          proceso,
           proyecto,
           avance: this.calcularAvanceDesdeCorreo(correoNormalizado),
           correo: inscripcion.correo ?? null,
@@ -520,6 +557,24 @@ export class DocenteDashboardComponent implements OnInit {
     }
 
     return estudiantes;
+  }
+
+  private normalizarProceso(rama: string | null | undefined): string {
+    if (!rama) {
+      return 'Trabajo de Título I';
+    }
+
+    const ramaLimpia = rama.trim();
+    if (!ramaLimpia) {
+      return 'Trabajo de Título I';
+    }
+
+    const ramaMayus = ramaLimpia.toUpperCase();
+    if (ramaMayus.includes('II')) {
+      return 'Trabajo de Título II';
+    }
+
+    return 'Trabajo de Título I';
   }
 
   private calcularAvanceDesdeCorreo(correo: string | null): number | null {
@@ -540,6 +595,42 @@ export class DocenteDashboardComponent implements OnInit {
       ...estudiante,
       avance: this.calcularAvanceDesdeCorreo(estudiante.correo),
     }));
+    this.actualizarOpcionesFiltros();
+    this.aplicarFiltros();
+  }
+
+  private coincideAvance(avance: number | null, filtro: string): boolean {
+    if (!filtro) {
+      return true;
+    }
+
+    if (avance == null) {
+      return false;
+    }
+
+    const [desde, hasta] = filtro.split('-').map((v) => Number(v));
+    return avance >= desde && avance <= hasta;
+  }
+
+  private actualizarOpcionesFiltros(): void {
+    const carreras = new Set<string>();
+    const procesos = new Set<string>();
+
+    for (const estudiante of this.estudiantes) {
+      if (estudiante.carrera) {
+        carreras.add(estudiante.carrera);
+      }
+      if (estudiante.proceso) {
+        procesos.add(estudiante.proceso);
+      }
+    }
+
+    this.carrerasDisponibles = Array.from(carreras).sort((a, b) =>
+      a.localeCompare(b, 'es', { sensitivity: 'base' }),
+    );
+    this.procesosDisponibles = Array.from(procesos).sort((a, b) =>
+      a.localeCompare(b, 'es', { sensitivity: 'base' }),
+    );
   }
 
   private mapEntregaDocente(
