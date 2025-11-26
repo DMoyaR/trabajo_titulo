@@ -31,6 +31,13 @@ type Entrega = {
   fechaEntrega: string | null;
   nota: number | null;
   comentarios: string | null;
+  archivoNombre: string | null;
+  archivoUrl: string | null;
+  archivoTipo: string | null;
+  alumnoNombre: string | null;
+  alumnoCorreo: string | null;
+  esBitacora?: boolean;
+  bitacoraIndice?: number | null;
   rubricaNombre: string | null;
   rubricaUrl: string | null;
   rubricaTipo: string | null;
@@ -486,6 +493,13 @@ export class DocenteTrabajoListComponent implements OnInit {
       fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
       nota: entrega.nota ?? null,
       comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
+      archivoNombre: entrega.archivo_nombre || null,
+      archivoUrl: entrega.archivo_url || null,
+      archivoTipo: entrega.archivo_tipo || null,
+      alumnoNombre: entrega.alumno?.nombre || null,
+      alumnoCorreo: entrega.alumno?.correo || null,
+      esBitacora: entrega.es_bitacora,
+      bitacoraIndice: entrega.bitacora_indice ?? null,
       rubricaNombre: entrega.rubrica_docente_nombre || null,
       rubricaUrl: entrega.rubrica_docente_url || null,
       rubricaTipo: entrega.rubrica_docente_tipo || null,
