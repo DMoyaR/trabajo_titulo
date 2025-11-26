@@ -356,6 +356,12 @@ export class AlumnoEntregaComponent implements OnInit {
     this._seleccion.set(null);
   }
 
+  openEvaluacion(evaluacionId: number) {
+    const encontrada = this._evaluaciones().find(ev => ev.id === evaluacionId) || null;
+    this._seleccion.set(encontrada);
+    this._seleccionBitacora.set(null);
+  }
+
   limpiarSeleccion() {
     this._seleccion.set(null);
     this._seleccionBitacora.set(null);
@@ -425,7 +431,7 @@ export class AlumnoEntregaComponent implements OnInit {
     if (bitacora.estado !== 'pendiente') return;
     this.seleccionarBitacora(bitacora);
     this._destinoSubida.set({ tipo: 'bitacora', evaluacionId: bitacora.evaluacionId, bitacora });
-    this.prepararFormulario(bitacora.titulo, bitacora.comentario || '');
+    this.prepararFormulario(bitacora.titulo, '');
   }
 
   private prepararFormulario(tituloPorDefecto = '', comentarioPorDefecto = '') {
