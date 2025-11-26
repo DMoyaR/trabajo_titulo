@@ -25,7 +25,7 @@
         <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
       </div>
       <div class="bitacora-actions">
-        <button class="btn primary" *ngIf="b.estado === 'pendiente'" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
+        <button class="btn primary" *ngIf="b.estado === 'pendiente'" (click)="seleccionarBitacora(b); openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
         <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
       </div>
     </article>
@@ -96,7 +96,128 @@
   </div>
 </section>
 
-<!-- Panel detalle -->
+<!-- Panel detalle bitácora -->
+<section class="card" *ngIf="seleccionBitacora() as b">
+  <div class="detail-head">
+    <h3>Detalle — {{ b.titulo }}</h3>
+    <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
+  </div>
+
+  <div class="instrucciones detail">
+    <div class="ins-head">
+      <b>Bitácora</b>
+      <span class="tag">Para: {{ b.evaluacionTitulo }}</span>
+    </div>
+    <p class="muted">{{ b.comentario || 'Revisar instrucciones en Aula Virtual.' }}</p>
+  </div>
+
+  <div class="info-row">
+    <span class="chip" [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
+    <span class="muted">Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+  </div>
+
+  <div class="docente-detail">
+    <div class="docente-head">
+      <b>Detalles del docente</b>
+      <span class="muted">Información que acompaña a la bitácora</span>
+    </div>
+
+    <div class="row">
+      <div><b>Evaluación asociada:</b></div>
+      <div>{{ b.evaluacionTitulo }}</div>
+    </div>
+
+    <div class="row">
+      <div><b>Comentario:</b></div>
+      <div>{{ b.comentario || 'Sin comentarios adicionales.' }}</div>
+    </div>
+  </div>
+
+  <div *ngIf="b.estado === 'pendiente'; else bitacoraEntrega">
+    <p class="muted">Esta bitácora está pendiente. Debes subir tu archivo para completar la entrega.</p>
+    <button class="btn primary" (click)="openUploadBitacora(b)">Subir archivo</button>
+  </div>
+
+  <ng-template #bitacoraEntrega>
+    <div *ngIf="b.entrega; else sinEntregaBitacora" class="entrega">
+      <div class="row">
+        <div><b>Título:</b></div>
+        <div>{{ b.entrega?.titulo }}</div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.comentario">
+        <div><b>Comentario:</b></div>
+        <div>{{ b.entrega?.comentario }}</div>
+      </div>
+
+      <div class="row">
+        <div><b>Archivo:</b></div>
+        <div>
+          📄
+          <ng-container *ngIf="b.entrega?.archivoUrl; else archivoSinLinkBitacora">
+            <a
+              [href]="b.entrega?.archivoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ b.entrega?.archivoNombre }}
+            </a>
+          </ng-container>
+          <ng-template #archivoSinLinkBitacora>
+            {{ b.entrega?.archivoNombre }}
+          </ng-template>
+          <small class="muted">({{ b.entrega?.archivoTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.rubricaUrl">
+        <div><b>Rúbrica corregida:</b></div>
+        <div>
+          📎
+          <a
+            [href]="b.entrega?.rubricaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ b.entrega?.rubricaNombre || 'Rúbrica' }}
+          </a>
+          <small class="muted" *ngIf="b.entrega?.rubricaTipo">({{ b.entrega?.rubricaTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.informeUrl">
+        <div><b>Informe corregido:</b></div>
+        <div>
+          📝
+          <a
+            [href]="b.entrega?.informeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ b.entrega?.informeNombre || 'Informe con anotaciones' }}
+          </a>
+          <small class="muted" *ngIf="b.entrega?.informeTipo">({{ b.entrega?.informeTipo }})</small>
+        </div>
+      </div>
+
+      <div class="row">
+        <div><b>Fecha envío:</b></div>
+        <div>{{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</div>
+      </div>
+
+      <div class="row" *ngIf="b.entrega?.nota != null">
+        <div><b>Nota:</b></div>
+        <div><span class="nota">{{ b.entrega?.nota }}</span></div>
+      </div>
+    </div>
+
+    <ng-template #sinEntregaBitacora>
+      <p class="muted">Aún no existe registro de entrega.</p>
+    </ng-template>
+  </ng-template>
+</section>
+
+<!-- Panel detalle evaluación -->
 <section class="card" *ngIf="seleccionada() as ev">
   <div class="detail-head">
     <h3>Detalle — {{ ev.titulo }}</h3>
