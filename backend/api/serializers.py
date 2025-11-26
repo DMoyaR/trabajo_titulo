@@ -65,6 +65,25 @@ def _procesar_correos_companeros(
 
     return correos_limpios
 
+
+def _obtener_proyecto_alumno(alumno: Usuario | None) -> str | None:
+    """Devuelve el título del proyecto/tema activo del alumno, si existe."""
+
+    if not alumno or alumno.rol != "alumno":
+        return None
+
+    inscripcion = (
+        InscripcionTema.objects.filter(alumno=alumno, activo=True)
+        .select_related("tema")
+        .order_by("-created_at")
+        .first()
+    )
+
+    if inscripcion and getattr(inscripcion, "tema", None):
+        return inscripcion.tema.titulo
+
+    return None
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
@@ -466,6 +485,7 @@ class SolicitudReunionSerializer(serializers.ModelSerializer):
             "estado": base["estado"],
             "motivo": base["motivo"],
             "disponibilidadSugerida": base.get("disponibilidad_sugerida"),
+            "proyectoNombre": _obtener_proyecto_alumno(instance.alumno),
             "creadoEn": instance.creado_en.isoformat(),
             "actualizadoEn": instance.actualizado_en.isoformat(),
             "alumno": base.get("alumno"),
@@ -531,6 +551,7 @@ class ReunionSerializer(serializers.ModelSerializer):
             "horaInicio": instance.hora_inicio.isoformat(),
             "horaTermino": instance.hora_termino.isoformat(),
             "modalidad": base["modalidad"],
+            "proyectoNombre": _obtener_proyecto_alumno(instance.alumno),
             "creadoEn": instance.creado_en.isoformat(),
             "actualizadoEn": instance.actualizado_en.isoformat(),
             "alumno": base.get("alumno"),
