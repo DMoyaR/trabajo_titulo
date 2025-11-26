@@ -15,6 +15,10 @@
       </div>
 
       <div class="right">
+        <button class="doc-pill muted" (click)="toggleSolicitudes()">
+          Solicitudes
+          <span class="chip-badge" *ngIf="solicitudesPendientes.length">{{ solicitudesPendientes.length }}</span>
+        </button>
         <button class="doc-pill muted" (click)="openResumen()">Resumen de reuniones</button>
         <button class="doc-pill muted" (click)="openContinuas()">Agendar reunión continua</button>
         <button class="doc-pill primary" (click)="openAgendar()">Agendar reunión</button>
@@ -110,6 +114,135 @@
   </aside>
 </div>
 
+<!-- ===== Modal: Solicitudes de reunión ===== -->
+<div class="doc-overlay" *ngIf="showSolicitudesModal()">
+  <div class="doc-modal solicitudes-modal">
+    <header>
+      <h3>Solicitudes de reunión</h3>
+      <button class="x" (click)="toggleSolicitudes()">✕</button>
+    </header>
+
+    <div class="doc-modal-body solicitudes-body">
+      <div class="alert success" *ngIf="solicitudesMensaje">{{ solicitudesMensaje }}</div>
+      <div class="alert error" *ngIf="solicitudesError">{{ solicitudesError }}</div>
+
+      <p class="muted" *ngIf="solicitudesCargando">Cargando solicitudes…</p>
+      <p class="muted" *ngIf="!solicitudesCargando && !solicitudes.length">No hay solicitudes registradas.</p>
+
+      <section class="solicitudes-section">
+        <div class="section-head">
+          <h4>Pendientes</h4>
+          <span class="chip" *ngIf="solicitudesPendientes.length">{{ solicitudesPendientes.length }} en espera</span>
+        </div>
+        <div class="muted" *ngIf="!solicitudesPendientes.length && !solicitudesCargando">No hay solicitudes pendientes.</div>
+
+        <div class="solicitud-card" *ngFor="let solicitud of solicitudesPendientes">
+          <header>
+            <div>
+              <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+              <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
+            </div>
+            <span class="estado pend">{{ estadoSolicitudLabel(solicitud.estado) }}</span>
+          </header>
+
+          <p class="motivo">{{ solicitud.motivo }}</p>
+          <p class="muted" *ngIf="solicitud.disponibilidadSugerida">
+            Disponibilidad sugerida: <strong>{{ solicitud.disponibilidadSugerida }}</strong>
+          </p>
+
+          <div class="acciones">
+            <button class="doc-pill primary" type="button" (click)="abrirAprobacion(solicitud)" [disabled]="procesandoSolicitud">
+              Aprobar y agendar
+            </button>
+            <button class="doc-pill danger" type="button" (click)="abrirRechazo(solicitud)" [disabled]="procesandoSolicitud">
+              Rechazar
+            </button>
+          </div>
+
+          <form
+            class="panel-form"
+            *ngIf="seleccionada?.id === solicitud.id && modo === 'aprobar'"
+            [formGroup]="aprobarForm"
+            (ngSubmit)="confirmarAprobacion()"
+          >
+            <h4>Agendar reunión</h4>
+            <div class="grid form-grid">
+              <label>
+                Fecha
+                <input type="date" formControlName="fecha" />
+              </label>
+              <label>
+                Hora inicio
+                <input type="time" formControlName="horaInicio" />
+              </label>
+              <label>
+                Hora término
+                <input type="time" formControlName="horaTermino" />
+              </label>
+              <label>
+                Modalidad
+                <select formControlName="modalidad">
+                  <option value="presencial">Presencial</option>
+                  <option value="online">Online</option>
+                </select>
+              </label>
+            </div>
+            <label class="block">
+              Comentario (opcional)
+              <textarea rows="3" formControlName="comentario" placeholder="Instrucciones para el estudiante"></textarea>
+            </label>
+            <div class="acciones">
+              <button class="doc-pill primary" type="submit" [disabled]="procesandoSolicitud">
+                {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar reunión' }}
+              </button>
+              <button class="doc-pill" type="button" (click)="cancelarAccion()">Cancelar</button>
+            </div>
+          </form>
+
+          <form
+            class="panel-form"
+            *ngIf="seleccionada?.id === solicitud.id && modo === 'rechazar'"
+            [formGroup]="rechazoForm"
+            (ngSubmit)="confirmarRechazo()"
+          >
+            <h4>Rechazar solicitud</h4>
+            <label class="block">
+              Comentario (opcional)
+              <textarea rows="3" formControlName="comentario" placeholder="Explica al estudiante el motivo"></textarea>
+            </label>
+            <div class="acciones">
+              <button class="doc-pill danger" type="submit" [disabled]="procesandoSolicitud">
+                {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar rechazo' }}
+              </button>
+              <button class="doc-pill" type="button" (click)="cancelarAccion()">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="solicitudes-section" *ngIf="solicitudesResueltas.length">
+        <div class="section-head">
+          <h4>Historial</h4>
+          <span class="chip muted">{{ solicitudesResueltas.length }} resuelta{{ solicitudesResueltas.length === 1 ? '' : 's' }}</span>
+        </div>
+
+        <div class="solicitud-card" *ngFor="let solicitud of solicitudesResueltas">
+          <header>
+            <div>
+              <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+              <small class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</small>
+            </div>
+            <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
+              {{ estadoSolicitudLabel(solicitud.estado) }}
+            </span>
+          </header>
+          <p class="motivo">{{ solicitud.motivo }}</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Modal: Eventos del día ===== -->
 <div class="doc-overlay" *ngIf="showDayModal()">
   <div class="doc-modal">
@@ -128,6 +261,10 @@
             <button class="chip" (click)="editEvent(ev)">Editar</button>
             <button class="chip danger" (click)="deleteEvent(ev.id)">Eliminar</button>
           </div>
+        </div>
+        <div class="ev-meta">
+          <span class="chip subtle" *ngIf="ev.alumno">Alumno: {{ ev.alumno }}</span>
+          <span class="chip status" *ngIf="ev.estado">{{ estadoReunionLabel(ev.estado) }}</span>
         </div>
         <div class="ev-sub">{{ ev.lugar }}</div>
         <div class="ev-desc">{{ ev.descripcion }}</div>
