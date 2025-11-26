@@ -284,3 +284,128 @@
     </div>
   </div>
 </div>
+
+<section class="card entregas-panel">
+  <header class="entregas-header">
+    <div>
+      <h3>Entregas recibidas</h3>
+      <p class="muted">Revisa los archivos enviados por tus grupos y marca sus revisiones.</p>
+    </div>
+    <div class="entregas-actions">
+      <button type="button" class="btn sm" (click)="exportarNotasCsv()" [disabled]="!entregasRevisadas.length">
+        Exportar notas CSV
+      </button>
+    </div>
+  </header>
+
+  <div class="alert error" *ngIf="entregasError">{{ entregasError }}</div>
+  <p class="muted" *ngIf="entregasCargando && !entregasError">Cargando entregas…</p>
+
+  <ng-container *ngIf="!entregasCargando && !entregasError">
+    <ng-container *ngIf="entregasPorGrupo.length; else sinEntregasDash">
+      <div class="entregas-grupos">
+        <article
+          class="grupo-entrega-card"
+          *ngFor="let grupo of entregasPorGrupo"
+          [class.cerrado]="!grupo.abierto"
+        >
+          <button type="button" class="grupo-toggle" (click)="seleccionarGrupoEntregas(grupo.nombre)">
+            <div class="grupo-titulo">
+              <h4>{{ grupo.nombre }}</h4>
+              <small *ngIf="grupo.abierto">{{ grupo.pendientes.length + grupo.revisadas.length }} entregas</small>
+            </div>
+            <div class="grupo-resumen" *ngIf="grupo.abierto">
+              <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
+              <span class="chip ok">{{ grupo.revisadas.length }} revisadas</span>
+            </div>
+            <span class="caret" [class.open]="grupo.abierto">▼</span>
+          </button>
+
+          <div class="grupo-detalle" *ngIf="grupo.abierto">
+            <div class="entregas-grid detalle-grid">
+              <div class="entregas-col">
+                <div class="col-header">
+                  <h5>Pendientes</h5>
+                  <span class="pill" [class.empty]="!grupo.pendientes.length">{{ grupo.pendientes.length }}</span>
+                </div>
+                <ng-container *ngIf="grupo.pendientes.length; else sinPendientesDash">
+                  <article class="entrega-card pendiente" *ngFor="let entrega of grupo.pendientes">
+                    <header>
+                      <div>
+                        <h5>
+                          <span class="tag info" *ngIf="entrega.esBitacora">
+                            Bitácora {{ entrega.bitacoraIndice || '-' }}
+                          </span>
+                          {{ entrega.evaluacionTitulo }}
+                        </h5>
+                        <span class="tag warn">Por revisar</span>
+                      </div>
+                      <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
+                    </header>
+                    <ul class="info">
+                      <li>
+                        <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
+                        <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
+                      </li>
+                      <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
+                      <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+                    </ul>
+                    <button class="btn sm" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                      Revisar
+                    </button>
+                  </article>
+                </ng-container>
+              </div>
+
+              <div class="entregas-col">
+                <div class="col-header">
+                  <h5>Revisadas</h5>
+                  <span class="pill" [class.empty]="!grupo.revisadas.length">{{ grupo.revisadas.length }}</span>
+                </div>
+                <ng-container *ngIf="grupo.revisadas.length; else sinRevisadasDash">
+                  <article class="entrega-card revisada" *ngFor="let entrega of grupo.revisadas">
+                    <header>
+                      <div>
+                        <h5>
+                          <span class="tag info" *ngIf="entrega.esBitacora">
+                            Bitácora {{ entrega.bitacoraIndice || '-' }}
+                          </span>
+                          {{ entrega.evaluacionTitulo }}
+                        </h5>
+                        <span class="tag ok">Revisada</span>
+                      </div>
+                      <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
+                    </header>
+                    <ul class="info">
+                      <li>
+                        <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
+                        <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
+                      </li>
+                      <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
+                      <li *ngIf="entrega.nota != null"><strong>Nota:</strong> {{ entrega.nota }}</li>
+                      <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+                    </ul>
+                    <button class="btn sm" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                      Ver archivo
+                    </button>
+                  </article>
+                </ng-container>
+              </div>
+            </div>
+
+            <ng-template #sinPendientesDash>
+              <p class="muted">No tienes entregas pendientes de revisión.</p>
+            </ng-template>
+            <ng-template #sinRevisadasDash>
+              <p class="muted">Aún no hay entregas revisadas.</p>
+            </ng-template>
+          </div>
+        </article>
+      </div>
+    </ng-container>
+
+    <ng-template #sinEntregasDash>
+      <p class="muted">Aún no hay entregas registradas para tus grupos.</p>
+    </ng-template>
+  </ng-container>
+</section>

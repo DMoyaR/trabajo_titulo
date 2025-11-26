@@ -12,7 +12,7 @@ import {
 import { finalize } from 'rxjs/operators';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
-type EstadoBitacora = 'pendiente' | 'entregada' | 'revisada';
+type EstadoBitacora = 'pendiente' | 'entregada' | 'revisada' | 'no_entregada';
 
 interface Entrega {
   id?: number;
@@ -184,16 +184,21 @@ export class AlumnoEntregaComponent implements OnInit {
     return evaluaciones
       .filter(ev => (ev.bitacoras_programadas?.length ?? 0) > 0)
       .flatMap(ev =>
-        (ev.bitacoras_programadas || []).map(bitacora => ({
-          evaluacionId: ev.id,
-          evaluacionTitulo: ev.titulo,
-          indice: bitacora.indice,
-          titulo: bitacora.titulo,
-          comentario: bitacora.comentario,
-          fechaLimite: this.parseFecha(bitacora.fecha) ?? bitacora.fecha,
-          estado: this.mapEstadoBitacora(bitacora.estado),
-          entrega: bitacora.entrega ? this.mapEntregaDto(bitacora.entrega) : null,
-        }))
+        (ev.bitacoras_programadas || []).map(bitacora => {
+          const fechaLimite = this.parseFecha(bitacora.fecha) ?? bitacora.fecha;
+          const entrega = bitacora.entrega ? this.mapEntregaDto(bitacora.entrega) : null;
+
+          return {
+            evaluacionId: ev.id,
+            evaluacionTitulo: ev.titulo,
+            indice: bitacora.indice,
+            titulo: bitacora.titulo,
+            comentario: bitacora.comentario,
+            fechaLimite,
+            estado: this.mapEstadoBitacoraVencida(bitacora.estado, fechaLimite, entrega),
+            entrega,
+          };
+        })
       )
       .sort((a, b) => {
         const fechaA = new Date(a.fechaLimite).getTime();
@@ -232,6 +237,25 @@ export class AlumnoEntregaComponent implements OnInit {
       return 'revisada';
     }
     return 'pendiente';
+  }
+
+  private mapEstadoBitacoraVencida(
+    estado: string | null | undefined,
+    fecha: string | Date,
+    entrega: Entrega | null,
+  ): EstadoBitacora {
+    const base = this.mapEstadoBitacora(estado);
+
+    if (base !== 'pendiente' || entrega) {
+      return base;
+    }
+
+    const limite = new Date(fecha).getTime();
+    if (!Number.isNaN(limite) && limite < Date.now()) {
+      return 'no_entregada';
+    }
+
+    return base;
   }
 
   private mapEntregaDto(dto: EvaluacionEntregaDto): Entrega {
@@ -378,7 +402,22 @@ export class AlumnoEntregaComponent implements OnInit {
       case 'calificada':
       case 'revisada':
         return 'chip ok';
+      case 'no_entregada':
+        return 'chip danger';
       default: return 'chip';
+    }
+  }
+
+  estadoBitacoraLabel(estado: EstadoBitacora): string {
+    switch (estado) {
+      case 'no_entregada':
+        return 'No entregada';
+      case 'revisada':
+        return 'Revisada';
+      case 'entregada':
+        return 'Entregada';
+      default:
+        return 'Pendiente';
     }
   }
 
