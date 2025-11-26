@@ -73,6 +73,7 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   tiposEntrega = ['Todos'];
   filtroTipo = 'Todos';
+  filtroCategoria: 'Todos' | 'Evaluaciones' | 'Bitácoras' = 'Todos';
   filtroBusqueda = '';
 
   showEvalModal = false;
@@ -237,6 +238,7 @@ export class DocenteTrabajoListComponent implements OnInit {
   verGrupo(grupo: Grupo) {
     this.grupoSeleccionado = grupo;
     this.filtroTipo = 'Todos';
+    this.filtroCategoria = 'Todos';
     this.filtroBusqueda = '';
 
     this.actualizarEntregasSeleccionadas();
@@ -252,11 +254,14 @@ export class DocenteTrabajoListComponent implements OnInit {
     const texto = this.filtroBusqueda.trim().toLowerCase();
     return this.entregas.filter((entrega) => {
       const coincideTipo = this.filtroTipo === 'Todos' || entrega.tipo === this.filtroTipo;
+      const coincideCategoria =
+        this.filtroCategoria === 'Todos' ||
+        (this.filtroCategoria === 'Bitácoras' ? entrega.esBitacora : !entrega.esBitacora);
       const coincideBusqueda =
         !texto ||
         entrega.titulo.toLowerCase().includes(texto) ||
         (entrega.tipo ?? '').toLowerCase().includes(texto);
-      return coincideTipo && coincideBusqueda;
+      return coincideTipo && coincideCategoria && coincideBusqueda;
     });
   }
 
@@ -270,7 +275,7 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   revisarEntrega(entrega: Entrega) {
     this.entregaEnRevision = entrega;
-    this.notaInput = null;
+    this.notaInput = entrega.esBitacora ? null : entrega.nota;
     this.comentariosInput = '';
     this.rubricaArchivo = null;
     this.informeArchivo = null;
@@ -289,18 +294,23 @@ export class DocenteTrabajoListComponent implements OnInit {
   }
 
   guardarEvaluacion() {
-    if (!this.entregaEnRevision || this.notaInput == null || this.guardandoEvaluacion) {
+    if (!this.entregaEnRevision || this.guardandoEvaluacion) {
       return;
     }
 
-    const notaNormalizada = this.normalizarNota(this.notaInput);
+    const esBitacora = Boolean(this.entregaEnRevision.esBitacora);
+    if (!esBitacora) {
+      const notaNormalizada = this.normalizarNota(this.notaInput);
 
-    if (notaNormalizada == null) {
-      this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
-      return;
+      if (notaNormalizada == null) {
+        this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
+        return;
+      }
+
+      this.notaInput = notaNormalizada;
+    } else {
+      this.notaInput = null;
     }
-
-    this.notaInput = notaNormalizada;
 
 
     const entregaEnRevision = this.entregaEnRevision;
@@ -308,8 +318,8 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.guardandoEvaluacion = true;
     this.errorEvaluacion = null;
 
-    const rubricaAdjunta = this.adjuntoDesdeArchivo(this.rubricaArchivo);
-    const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
+    const rubricaAdjunta = esBitacora ? null : this.adjuntoDesdeArchivo(this.rubricaArchivo);
+    const informeAdjunto = esBitacora ? null : this.adjuntoDesdeArchivo(this.informeArchivo);
 
     this.evaluacionesService
       .actualizarEntrega(
@@ -319,7 +329,7 @@ export class DocenteTrabajoListComponent implements OnInit {
           comentario: this.comentariosInput || 'Sin comentarios adicionales.',
           estado_revision: 'revisada',
         },
-        { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
+        esBitacora ? undefined : { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
       )
       .subscribe({
         next: (entregaActualizada) => {
@@ -498,7 +508,7 @@ export class DocenteTrabajoListComponent implements OnInit {
       archivoTipo: entrega.archivo_tipo || null,
       alumnoNombre: entrega.alumno?.nombre || null,
       alumnoCorreo: entrega.alumno?.correo || null,
-      esBitacora: entrega.es_bitacora,
+      esBitacora: Boolean(entrega.es_bitacora),
       bitacoraIndice: entrega.bitacora_indice ?? null,
       rubricaNombre: entrega.rubrica_docente_nombre || null,
       rubricaUrl: entrega.rubrica_docente_url || null,

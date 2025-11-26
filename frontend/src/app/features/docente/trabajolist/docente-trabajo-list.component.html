@@ -47,6 +47,11 @@
       <p class="error" *ngIf="!cargandoEntregas && errorEntregas">{{ errorEntregas }}</p>
 
       <div class="filtros-bar">
+        <select [(ngModel)]="filtroCategoria">
+          <option value="Todos">Todos</option>
+          <option value="Evaluaciones">Solo evaluaciones</option>
+          <option value="Bitácoras">Solo bitácoras</option>
+        </select>
         <select [(ngModel)]="filtroTipo">
           <option *ngFor="let t of tiposEntrega" [value]="t">{{ t }}</option>
         </select>
@@ -168,28 +173,47 @@
         <div class="muted">{{ entregaEnRevision?.tipo }}</div>
       </div>
 
-      <div class="field">
-        <label>Nota (1.0 a 7.0) <span class="req">*</span></label>
-        <input type="number" min="1" max="7" step="0.1" [(ngModel)]="notaInput" name="nota" required />
-      </div>
+      <ng-container *ngIf="!entregaEnRevision?.esBitacora; else bitacoraInfo">
+        <div class="field">
+          <label>Nota (1.0 a 7.0) <span class="req">*</span></label>
+          <input
+            type="number"
+            min="1"
+            max="7"
+            step="0.1"
+            [(ngModel)]="notaInput"
+            name="nota"
+            [required]="!entregaEnRevision?.esBitacora"
+          />
+        </div>
 
-      <div class="field">
-        <label>Rúbrica con puntaje</label>
-        <label class="file-picker">
-          <input type="file" accept="application/pdf,.pdf" (change)="onRubricaSeleccionada($event)" />
-          <span>{{ rubricaArchivo?.name || 'Subir rúbrica (PDF)' }}</span>
-        </label>
-        <small class="muted">Adjunta la rúbrica completa con el desglose de puntaje.</small>
-      </div>
+        <div class="field">
+          <label>Rúbrica con puntaje</label>
+          <label class="file-picker">
+            <input type="file" accept="application/pdf,.pdf" (change)="onRubricaSeleccionada($event)" />
+            <span>{{ rubricaArchivo?.name || 'Subir rúbrica (PDF)' }}</span>
+          </label>
+          <small class="muted">Adjunta la rúbrica completa con el desglose de puntaje.</small>
+        </div>
 
-      <div class="field">
-        <label>Informe con correcciones</label>
-        <label class="file-picker">
-          <input type="file" (change)="onInformeSeleccionado($event)" />
-          <span>{{ informeArchivo?.name || 'Subir informe corregido' }}</span>
-        </label>
-        <small class="muted">Archivo con las observaciones y correcciones para el alumno.</small>
-      </div>
+        <div class="field">
+          <label>Informe con correcciones</label>
+          <label class="file-picker">
+            <input type="file" (change)="onInformeSeleccionado($event)" />
+            <span>{{ informeArchivo?.name || 'Subir informe corregido' }}</span>
+          </label>
+          <small class="muted">Archivo con las observaciones y correcciones para el alumno.</small>
+        </div>
+      </ng-container>
+
+      <ng-template #bitacoraInfo>
+        <div class="field full">
+          <p class="muted" style="margin:0">
+            Las bitácoras no llevan nota. Marca la revisión y agrega un mensaje para que el alumno reciba la
+            notificación.
+          </p>
+        </div>
+      </ng-template>
 
       <div class="field full">
         <label>Comentarios</label>
@@ -200,7 +224,11 @@
 
       <div class="actions full">
         <button type="button" class="btn light" (click)="cerrarEvalModal()">Cancelar</button>
-        <button type="submit" class="btn primary" [disabled]="notaInput==null || guardandoEvaluacion">
+        <button
+          type="submit"
+          class="btn primary"
+          [disabled]="(!entregaEnRevision?.esBitacora && notaInput==null) || guardandoEvaluacion"
+        >
           {{ guardandoEvaluacion ? 'Guardando…' : 'Guardar evaluación' }}
         </button>
       </div>
