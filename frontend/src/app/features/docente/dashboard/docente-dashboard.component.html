@@ -119,9 +119,9 @@
   <p class="muted" *ngIf="solicitudesCargando">Cargando solicitudes…</p>
   <p class="muted" *ngIf="!solicitudesCargando && !solicitudes.length">No hay solicitudes registradas.</p>
 
-  <p class="muted" *ngIf="mostrarPendientes && !solicitudesPendientes.length && !solicitudesCargando">
+  <div class="alert info" *ngIf="mostrarPendientes && !solicitudesPendientes.length && !solicitudesCargando">
     No hay solicitudes pendientes por revisar.
-  </p>
+  </div>
 
   <ng-container *ngIf="mostrarPendientes">
     <div class="solicitud" *ngFor="let solicitud of solicitudesPendientes">
@@ -223,7 +223,7 @@
       </button>
     </div>
     <ul class="historial-lista" *ngIf="mostrarHistorial">
-      <li *ngFor="let solicitud of solicitudesResueltas">
+      <li *ngFor="let solicitud of historialPaginado">
         <div>
           <strong>{{ solicitud.alumno?.nombre || 'Alumno' }}</strong>
           <p class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</p>
@@ -233,5 +233,19 @@
         </span>
       </li>
     </ul>
+    <div class="historial-paginacion" *ngIf="mostrarHistorial && historialTotalPaginas > 1">
+      <button class="link-button" type="button" (click)="paginaHistorialAnterior()" [disabled]="historialPagina === 1">
+        Anterior
+      </button>
+      <span class="muted">Página {{ historialPagina }} de {{ historialTotalPaginas }}</span>
+      <button
+        class="link-button"
+        type="button"
+        (click)="paginaHistorialSiguiente()"
+        [disabled]="historialPagina === historialTotalPaginas"
+      >
+        Siguiente
+      </button>
+    </div>
   </div>
 </div>

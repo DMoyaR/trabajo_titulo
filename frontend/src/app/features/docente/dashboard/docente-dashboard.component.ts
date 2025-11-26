@@ -74,6 +74,8 @@ export class DocenteDashboardComponent implements OnInit {
   modo: 'aprobar' | 'rechazar' | null = null;
   mostrarPendientes = false;
   mostrarHistorial = false;
+  historialPagina = 1;
+  readonly historialPorPagina = 10;
 
   readonly aprobarForm = this.fb.nonNullable.group({
     fecha: ['', Validators.required],
@@ -114,6 +116,7 @@ export class DocenteDashboardComponent implements OnInit {
       next: (items) => {
         this.solicitudes = items;
         this.solicitudesCargando = false;
+        this.ajustarPaginaHistorial();
       },
       error: (err) => {
         console.error('No se pudieron cargar las solicitudes de reunión del docente', err);
@@ -252,6 +255,18 @@ export class DocenteDashboardComponent implements OnInit {
     return this.solicitudesPendientes.length > 0;
   }
 
+  get historialTotalPaginas(): number {
+    if (!this.solicitudesResueltas.length) {
+      return 1;
+    }
+    return Math.ceil(this.solicitudesResueltas.length / this.historialPorPagina);
+  }
+
+  get historialPaginado(): SolicitudReunion[] {
+    const inicio = (this.historialPagina - 1) * this.historialPorPagina;
+    return this.solicitudesResueltas.slice(inicio, inicio + this.historialPorPagina);
+  }
+
   togglePendientes(): void {
     this.mostrarPendientes = !this.mostrarPendientes;
     if (!this.mostrarPendientes) {
@@ -261,6 +276,25 @@ export class DocenteDashboardComponent implements OnInit {
 
   toggleHistorial(): void {
     this.mostrarHistorial = !this.mostrarHistorial;
+  }
+
+  irAPaginaHistorial(pagina: number): void {
+    const paginaSegura = Math.min(Math.max(pagina, 1), this.historialTotalPaginas);
+    this.historialPagina = paginaSegura;
+  }
+
+  paginaHistorialSiguiente(): void {
+    this.irAPaginaHistorial(this.historialPagina + 1);
+  }
+
+  paginaHistorialAnterior(): void {
+    this.irAPaginaHistorial(this.historialPagina - 1);
+  }
+
+  private ajustarPaginaHistorial(): void {
+    if (this.historialPagina > this.historialTotalPaginas) {
+      this.historialPagina = 1;
+    }
   }
 
   estadoSolicitudLabel(estado: string): string {
