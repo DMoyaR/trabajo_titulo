@@ -251,8 +251,18 @@
 .summary-item .sub{ color:#596375; font-size:12px; }
 
 /* ===== Solicitudes ===== */
-.solicitudes-modal{ width:min(900px, 94vw); }
-.solicitudes-body{ gap:14px; }
+.solicitudes-modal{
+  width:min(900px, 94vw);
+  max-height:86vh;
+  display:flex;
+  flex-direction:column;
+}
+.solicitudes-body{
+  gap:14px;
+  max-height:calc(86vh - 60px);
+  overflow:auto;
+  padding:14px;
+}
 .solicitudes-section{ border:1px solid #e6eefc; border-radius:12px; padding:10px; background:#f8fbff; display:grid; gap:8px; }
 .section-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .solicitud-card{ border:1px solid #dfe7f5; border-radius:12px; background:#fff; padding:12px; display:grid; gap:8px; box-shadow:0 8px 20px rgba(0,0,0,.04); }

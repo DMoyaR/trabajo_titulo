@@ -115,11 +115,11 @@
 </div>
 
 <!-- ===== Modal: Solicitudes de reunión ===== -->
-<div class="doc-overlay" *ngIf="showSolicitudesModal()">
-  <div class="doc-modal solicitudes-modal">
+<div class="doc-overlay" *ngIf="showSolicitudesModal()" (click)="closeSolicitudes()">
+  <div class="doc-modal solicitudes-modal" (click)="$event.stopPropagation()">
     <header>
       <h3>Solicitudes de reunión</h3>
-      <button class="x" (click)="toggleSolicitudes()">✕</button>
+      <button class="x" type="button" (click)="closeSolicitudes()">✕</button>
     </header>
 
     <div class="doc-modal-body solicitudes-body">
@@ -327,15 +327,12 @@
           </label>
         </div>
         <div class="row">
-          <label>Proyecto
-            <input
-              type="text"
-              list="proyectos-docente"
-              [(ngModel)]="singleForm.proyecto"
-              name="proyecto"
-              placeholder="Selecciona el proyecto"
-            />
-          </label>
+            <label>Proyecto
+              <select [(ngModel)]="singleForm.proyecto" name="proyecto">
+                <option value="">Selecciona el proyecto</option>
+                <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto">{{ proyecto }}</option>
+              </select>
+            </label>
           <label>Título
             <input type="text" [(ngModel)]="singleForm.titulo" name="titulo" required />
           </label>
@@ -399,15 +396,12 @@
         </div>
 
         <div class="row">
-          <label>Proyecto
-            <input
-              type="text"
-              list="proyectos-docente"
-              [(ngModel)]="recurForm.proyecto"
-              name="proyectoRecur"
-              placeholder="Selecciona el proyecto"
-            />
-          </label>
+            <label>Proyecto
+              <select [(ngModel)]="recurForm.proyecto" name="proyectoRecur">
+                <option value="">Selecciona el proyecto</option>
+                <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto">{{ proyecto }}</option>
+              </select>
+            </label>
           <label>Título
             <input type="text" [(ngModel)]="recurForm.titulo" name="tituloRecur" required />
           </label>
@@ -429,10 +423,6 @@
     </div>
   </div>
 </div>
-
-<datalist id="proyectos-docente">
-  <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto"></option>
-</datalist>
 
 <!-- ===== Modal: Resumen de reuniones ===== -->
 <div class="doc-overlay" *ngIf="showResumenModal()">
