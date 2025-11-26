@@ -102,6 +102,23 @@ h2.ttl{
 .docente-detail a{ color:#1e66c9; font-weight:700; text-decoration:none; }
 .docente-detail a:hover{ text-decoration:underline; }
 
+.tag{
+  display:inline-block;
+  border-radius:999px;
+  padding:2px 8px;
+  background:#eef6ff;
+  border:1px solid #cfe3ff;
+  color:#1f2a37;
+  font-size:12px;
+  font-weight:800;
+  text-transform:none;
+}
+.tag.ghost{
+  background:#f5f8ff;
+  border-color:var(--border);
+  color:var(--muted);
+}
+
 /* Instrucciones dentro del detalle */
 .instrucciones.detail{
   background:#f7fbff;
@@ -247,3 +264,9 @@ input[type="text"], textarea{
 .bitacora-title{ display:flex; flex-direction:column; gap:2px; }
 .bitacora-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
 .btn.ghost{ background:transparent; border-color:var(--border); color:var(--primary); }
+.bitacoras-split .sec{ margin-bottom:8px; }
+.bitacora-card{ position:relative; overflow:hidden; }
+.bitacora-card.done{ background:#f7f9ff; }
+.bitacora-card .sub{ font-size:12px; }
+.bitacora-card .meta{ gap:12px; }
+.eval-meta{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
