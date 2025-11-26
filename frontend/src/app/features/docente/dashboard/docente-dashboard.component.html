@@ -273,3 +273,87 @@
     </div>
   </div>
 </div>
+
+<div class="card solicitudes-card entregas-card">
+  <div class="card-header">
+    <div class="card-title">
+      <h3>Evaluaciones pendientes</h3>
+      <p class="muted">Revisa las entregas recibidas de tus grupos y descarga los archivos.</p>
+    </div>
+    <div class="acciones-header">
+      <span class="chip alerta" *ngIf="totalEntregasPendientes">
+        {{ totalEntregasPendientes }} pendiente{{ totalEntregasPendientes === 1 ? '' : 's' }}
+      </span>
+      <button type="button" class="btn sm toggle" (click)="togglePendientesEntregas()">
+        {{ mostrarEntregasPendientes ? 'Ocultar pendientes' : 'Ver pendientes' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="alert error" *ngIf="entregasError">{{ entregasError }}</div>
+  <p class="muted" *ngIf="entregasCargando">Cargando evaluaciones…</p>
+
+  <div class="entregas-actions" *ngIf="!entregasCargando && !entregasError">
+    <button class="btn sm toggle" type="button" (click)="cargarEntregas()" [disabled]="entregasCargando">
+      Actualizar lista
+    </button>
+    <button class="btn sm" type="button" (click)="exportarNotasCsv()" [disabled]="!entregasRevisadas.length">
+      Exportar CSV
+    </button>
+  </div>
+
+  <p class="muted" *ngIf="!entregasCargando && !entregasError && !totalEntregasPendientes">
+    No tienes entregas pendientes por revisar.
+  </p>
+
+  <div
+    class="entregas-panel"
+    *ngIf="
+      mostrarEntregasPendientes && !entregasCargando && !entregasError && totalEntregasPendientes
+    "
+  >
+    <div class="entregas-grupos">
+      <div class="grupo-entrega-card" *ngFor="let grupo of gruposPendientes">
+        <button class="grupo-toggle" type="button" (click)="seleccionarGrupoEntregas(grupo.nombre)">
+          <div class="grupo-titulo">
+            <h4>{{ grupo.nombre }}</h4>
+            <small>{{ grupo.pendientes.length }} entrega{{ grupo.pendientes.length === 1 ? '' : 's' }}</small>
+          </div>
+          <div class="grupo-resumen">
+            <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
+          </div>
+          <span class="caret" [class.open]="grupo.abierto">⌃</span>
+        </button>
+
+        <div class="grupo-detalle" *ngIf="grupo.abierto">
+          <div class="entregas-grid detalle-grid">
+            <div class="entrega-card" *ngFor="let entrega of grupo.pendientes">
+              <header>
+                <div>
+                  <h5>{{ tituloEntrega(entrega) }}</h5>
+                  <small>{{ entrega.alumnoNombre }}</small>
+                  <div class="muted">{{ fechaHora(entrega.fecha) }}</div>
+                </div>
+                <div class="grupo-resumen">
+                  <span class="tag warn">Pendiente</span>
+                  <span class="tag info" *ngIf="entrega.esBitacora">Bitácora</span>
+                </div>
+              </header>
+
+              <ul class="info">
+                <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+                <li><strong>Grupo:</strong> {{ entrega.grupo }}</li>
+              </ul>
+
+              <div class="acciones">
+                <button class="btn-edit" type="button" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                  Revisar archivo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

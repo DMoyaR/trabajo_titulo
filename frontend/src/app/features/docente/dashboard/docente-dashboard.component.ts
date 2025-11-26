@@ -84,6 +84,7 @@ export class DocenteDashboardComponent implements OnInit {
   modo: 'aprobar' | 'rechazar' | null = null;
   mostrarPendientes = false;
   mostrarHistorial = false;
+  mostrarEntregasPendientes = true;
   historialPagina = 1;
   readonly historialPorPagina = 10;
   readonly duracionesDisponibles = [15, 30, 45, 60, 75, 90, 105, 120];
@@ -368,6 +369,14 @@ export class DocenteDashboardComponent implements OnInit {
     return this.solicitudesPendientes.length > 0;
   }
 
+  get totalEntregasPendientes(): number {
+    return this.entregasPorGrupo.reduce((acc, grupo) => acc + grupo.pendientes.length, 0);
+  }
+
+  get gruposPendientes(): EntregasPorGrupo[] {
+    return this.entregasPorGrupo.filter((grupo) => grupo.pendientes.length > 0);
+  }
+
   get historialTotalPaginas(): number {
     if (!this.solicitudesResueltas.length) {
       return 1;
@@ -393,6 +402,10 @@ export class DocenteDashboardComponent implements OnInit {
 
   toggleHistorial(): void {
     this.mostrarHistorial = !this.mostrarHistorial;
+  }
+
+  togglePendientesEntregas(): void {
+    this.mostrarEntregasPendientes = !this.mostrarEntregasPendientes;
   }
 
   irAPaginaHistorial(pagina: number): void {
@@ -746,5 +759,14 @@ export class DocenteDashboardComponent implements OnInit {
     }
     const fecha = new Date(valor);
     return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  tituloEntrega(entrega: EntregaDocente): string {
+    if (entrega.esBitacora) {
+      const indice = entrega.bitacoraIndice != null ? ` ${entrega.bitacoraIndice}` : '';
+      return `Bitácora${indice}`;
+    }
+
+    return entrega.evaluacionTitulo;
   }
 }
