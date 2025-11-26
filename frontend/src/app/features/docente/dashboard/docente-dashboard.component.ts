@@ -9,6 +9,7 @@ import {
   EvaluacionEntregaDto,
   EvaluacionGrupoDto,
 } from '../evaluaciones/docente-evaluaciones.service';
+import { TemaDisponible, TemaService } from '../trabajolist/tema.service';
 
 type EntregaDocente = {
   id: number;
@@ -25,6 +26,15 @@ type EntregaDocente = {
   archivoUrl: string | null;
   estadoRevision: 'pendiente' | 'revisada';
   nota: number | null;
+};
+
+type ResumenEstudiante = {
+  nombre: string;
+  carrera: string;
+  proceso: string;
+  proyecto: string;
+  avance: number | null;
+  correo: string | null;
 };
 
 type EntregasPorGrupo = {
@@ -45,55 +55,15 @@ export class DocenteDashboardComponent implements OnInit {
   private readonly currentUserService = inject(CurrentUserService);
   private readonly reunionesService = inject(ReunionesService);
   private readonly evaluacionesService = inject(DocenteEvaluacionesService);
+  private readonly temaService = inject(TemaService);
   private readonly fb = inject(FormBuilder);
 
-  rows = [
-    { 
-      estudiante: 'Ana López', 
-      carrera: 'Ingeniería en Sistemas', 
-      tipo: 'Tesis', 
-      estado: 'Entregado',
-      statusIcon: '✓',
-      avance: 85 
-    },
-    { 
-      estudiante: 'Carlos Díaz', 
-      carrera: 'Administración', 
-      tipo: 'Prácticas', 
-      estado: 'Pendiente',
-      statusIcon: '⚠',
-      avance: 40 
-    },
-    { 
-      estudiante: 'Valeria Molina', 
-      carrera: 'Ingeniería Industrial', 
-      tipo: 'Proyecto', 
-      estado: 'En-plazo',
-      statusIcon: '→',
-      avance: 60 
-    },
-    { 
-      estudiante: 'David Reyes', 
-      carrera: 'Ingeniería en Sistemas', 
-      tipo: 'Tesis', 
-      estado: 'En-plazo',
-      statusIcon: '→',
-      avance: 75 
-    },
-    { 
-      estudiante: 'María González', 
-      carrera: 'Administración', 
-      tipo: 'Prácticas', 
-      estado: 'Entregado',
-      statusIcon: '✓',
-      avance: 100 
-    }
-  ];
-
-  obs: string = '';
-  obs2: string = '';
+  estudiantes: ResumenEstudiante[] = [];
+  cargandoEstudiantes = false;
+  errorEstudiantes: string | null = null;
 
   private docenteId: number | null = null;
+  private progresoPorCorreo = new Map<string, { total: number; revisadas: number }>();
 
   solicitudes: SolicitudReunion[] = [];
   solicitudesCargando = false;
@@ -146,6 +116,7 @@ export class DocenteDashboardComponent implements OnInit {
     this.docenteId = profile.id;
     this.cargarSolicitudes();
     this.cargarEntregas();
+    this.cargarEstudiantes();
   }
 
   cargarSolicitudes(): void {
@@ -177,6 +148,7 @@ export class DocenteDashboardComponent implements OnInit {
 
     this.entregasCargando = true;
     this.entregasError = null;
+    this.progresoPorCorreo.clear();
 
     this.evaluacionesService.listar(this.docenteId).subscribe({
       next: (evaluaciones) => {
@@ -187,6 +159,30 @@ export class DocenteDashboardComponent implements OnInit {
         console.error('No se pudieron cargar las entregas del docente', error);
         this.entregasError = 'No se pudieron cargar las entregas. Intenta nuevamente.';
         this.entregasCargando = false;
+      },
+    });
+  }
+
+  cargarEstudiantes(): void {
+    if (!this.docenteId) {
+      this.estudiantes = [];
+      this.errorEstudiantes = 'No se pudo identificar al docente.';
+      return;
+    }
+
+    this.cargandoEstudiantes = true;
+    this.errorEstudiantes = null;
+
+    this.temaService.getTemas({ usuarioId: this.docenteId }).subscribe({
+      next: (temas) => {
+        this.estudiantes = this.mapearEstudiantes(temas);
+        this.cargandoEstudiantes = false;
+      },
+      error: (err) => {
+        console.error('No se pudieron cargar los estudiantes del docente', err);
+        this.estudiantes = [];
+        this.errorEstudiantes = 'No se pudieron cargar los estudiantes asignados.';
+        this.cargandoEstudiantes = false;
       },
     });
   }
@@ -452,6 +448,16 @@ export class DocenteDashboardComponent implements OnInit {
         const mapeada = this.mapEntregaDocente(entrega, evaluacion, grupoNombre);
         const coleccion = gruposMap.get(grupoNombre) ?? { pendientes: [], revisadas: [] };
 
+        const correo = entrega.alumno?.correo?.toLowerCase() ?? null;
+        if (correo) {
+          const registro = this.progresoPorCorreo.get(correo) ?? { total: 0, revisadas: 0 };
+          registro.total += 1;
+          if (entrega.estado_revision === 'revisada') {
+            registro.revisadas += 1;
+          }
+          this.progresoPorCorreo.set(correo, registro);
+        }
+
         if (entrega.estado_revision === 'revisada') {
           revisadas.push(mapeada);
           coleccion.revisadas.push(mapeada);
@@ -485,6 +491,55 @@ export class DocenteDashboardComponent implements OnInit {
         abierto: nombreActivo ? nombre === nombreActivo : false,
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+
+    this.actualizarAvanceEstudiantes();
+  }
+
+  private mapearEstudiantes(temas: TemaDisponible[]): ResumenEstudiante[] {
+    const estudiantes: ResumenEstudiante[] = [];
+
+    for (const tema of temas) {
+      const proyecto = tema.titulo || 'Proyecto sin título';
+      const carreraTema = tema.carrera || '—';
+
+      for (const inscripcion of tema.inscripcionesActivas ?? []) {
+        if (!inscripcion.nombre) {
+          continue;
+        }
+
+        const correoNormalizado = inscripcion.correo ? inscripcion.correo.toLowerCase() : null;
+        estudiantes.push({
+          nombre: inscripcion.nombre,
+          carrera: inscripcion.carrera || carreraTema,
+          proceso: 'Trabajo de Título',
+          proyecto,
+          avance: this.calcularAvanceDesdeCorreo(correoNormalizado),
+          correo: inscripcion.correo ?? null,
+        });
+      }
+    }
+
+    return estudiantes;
+  }
+
+  private calcularAvanceDesdeCorreo(correo: string | null): number | null {
+    if (!correo) {
+      return null;
+    }
+
+    const progreso = this.progresoPorCorreo.get(correo.toLowerCase());
+    if (!progreso || progreso.total === 0) {
+      return null;
+    }
+
+    return Math.round((progreso.revisadas / progreso.total) * 100);
+  }
+
+  private actualizarAvanceEstudiantes(): void {
+    this.estudiantes = this.estudiantes.map((estudiante) => ({
+      ...estudiante,
+      avance: this.calcularAvanceDesdeCorreo(estudiante.correo),
+    }));
   }
 
   private mapEntregaDocente(

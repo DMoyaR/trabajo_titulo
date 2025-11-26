@@ -93,7 +93,7 @@ select:focus {
 
 .grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
 }
 
@@ -210,33 +210,24 @@ select:focus {
   min-width: 40px;
 }
 
-.observations-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.inp {
-  width: 100%;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 12px;
-  box-sizing: border-box;
-  resize: vertical;
-  font-family: inherit;
-  font-size: 0.9rem;
-  min-height: 120px;
-}
-
-.inp:focus {
-  outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
-}
-
 .solicitudes-card {
   margin: 20px 0;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.empty-box {
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  color: #6c757d;
+  text-align: center;
 }
 
 .card-header {
