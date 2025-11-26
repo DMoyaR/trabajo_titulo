@@ -63,7 +63,27 @@
                 <span class="chip chip-warn">Pendiente</span>
               </div>
               <div class="hit-descr muted">
-                {{ e.tipo }} • <ng-container *ngIf="e.fechaLimite">Coordinar antes del {{ e.fechaLimite }}</ng-container>
+                <span *ngIf="e.esBitacora" class="pill">Bitácora {{ e.bitacoraIndice || '-' }}</span>
+                {{ e.tipo }} •
+                <ng-container *ngIf="e.fechaLimite">Coordinar antes del {{ e.fechaLimite }}</ng-container>
+              </div>
+              <div class="hit-meta" *ngIf="e.alumnoNombre || e.alumnoCorreo">
+                <small class="muted">{{ e.alumnoNombre }} <span *ngIf="e.alumnoCorreo">({{ e.alumnoCorreo }})</span></small>
+              </div>
+              <div class="hit-files" *ngIf="e.archivoNombre">
+                <div class="file-chip">
+                  📄 {{ e.archivoNombre }}
+                  <small class="muted" *ngIf="e.archivoTipo">({{ e.archivoTipo }})</small>
+                </div>
+                <a
+                  class="btn link"
+                  *ngIf="e.archivoUrl"
+                  [href]="e.archivoUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver archivo
+                </a>
               </div>
               <div class="hit-actions">
                 <button class="btn primary" type="button" (click)="revisarEntrega(e)">Revisar</button>
@@ -84,7 +104,12 @@
                 <span class="chip chip-ok">Evaluada</span>
               </div>
               <div class="hit-meta muted">
-                Entregada {{ e.fechaEntrega }} <span *ngIf="e.nota">• Nota: <b>{{ e.nota }}</b></span>
+                <span *ngIf="e.esBitacora" class="pill">Bitácora {{ e.bitacoraIndice || '-' }}</span>
+                Entregada {{ e.fechaEntrega }}
+                <span *ngIf="e.nota">• Nota: <b>{{ e.nota }}</b></span>
+              </div>
+              <div class="hit-meta" *ngIf="e.alumnoNombre || e.alumnoCorreo">
+                <small class="muted">{{ e.alumnoNombre }} <span *ngIf="e.alumnoCorreo">({{ e.alumnoCorreo }})</span></small>
               </div>
               <div class="hit-actions">
                 <button class="btn light" type="button" (click)="toggleResumen(e)">
@@ -94,8 +119,15 @@
               <div class="hit-resumen" *ngIf="e.expanded">
                 <p class="muted"><b>Comentarios:</b></p>
                 <p>{{ e.comentarios }}</p>
-                <div class="hit-files" *ngIf="e.rubricaUrl || e.informeUrl">
+                <div class="hit-files" *ngIf="e.archivoNombre || e.rubricaUrl || e.informeUrl">
                   <p class="muted"><b>Archivos adjuntos</b></p>
+                  <div class="file-chip" *ngIf="e.archivoNombre">
+                    📄
+                    <a [href]="e.archivoUrl || undefined" target="_blank" rel="noopener noreferrer">
+                      {{ e.archivoNombre }}
+                    </a>
+                    <small class="muted" *ngIf="e.archivoTipo">({{ e.archivoTipo }})</small>
+                  </div>
                   <div class="file-chip" *ngIf="e.rubricaUrl">
                     📎
                     <a [href]="e.rubricaUrl" target="_blank" rel="noopener noreferrer">
