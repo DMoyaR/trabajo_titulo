@@ -124,3 +124,160 @@
   color: #008c4a;
   transform: translateY(-2px);
 }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chip {
+  background: #eef3fb;
+  color: #1a3e6a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.alert {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.alert.success {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+.alert.error {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #b71c1c;
+}
+
+.muted {
+  color: #6c757d;
+  margin: 0;
+}
+
+.solicitud {
+  border: 1px solid #eef3fb;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+  background: #fdfefe;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.solicitud header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.solicitud h4 {
+  margin: 0 0 4px;
+}
+
+.motivo {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.estado {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: #eef3fb;
+  color: #1a3e6a;
+}
+
+.estado.pendiente {
+  background: #fff4e5;
+  color: #b55b00;
+}
+
+.estado.aprobada {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.estado.rechazada {
+  background: #ffebee;
+  color: #b71c1c;
+}
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.panel-form {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #dfe5ee;
+  border-radius: 10px;
+  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.form-grid label,
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.form-grid input,
+.form-grid select,
+.panel-form textarea {
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.panel-form textarea {
+  resize: vertical;
+}
+
+.historial {
+  margin-top: 16px;
+  border-top: 1px solid #eef3fb;
+  padding-top: 12px;
+}
+
+.historial-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.historial-lista li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #eef3fb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}

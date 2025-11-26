@@ -1,6 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import {
+  ReunionesService,
+  Reunion,
+  SolicitudReunion,
+} from '../../../shared/services/reuniones.service';
 
 type Evento = {
   id: string;
@@ -8,6 +15,9 @@ type Evento = {
   hora: string;         // "HH:mm"
   lugar: string;
   descripcion: string;
+  alumno?: string | null;
+  estado?: string;
+  origen?: 'manual' | 'reunion';
 };
 
 type SummaryItem = {
@@ -19,17 +29,45 @@ type SummaryItem = {
 @Component({
   selector: 'docente-calendario',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './calendario.component.html',
   styleUrls: ['./calendario.component.css']
 })
-export class CalendarioComponent {
+export class CalendarioComponent implements OnInit {
   /* ===== Estado base ===== */
   private ref = new Date();
   month = signal(this.ref.getMonth());
   year  = signal(this.ref.getFullYear());
   selectedDay = signal<number | null>(this.ref.getDate());
   today = new Date();
+
+  private readonly currentUserService = inject(CurrentUserService);
+  private readonly reunionesService = inject(ReunionesService);
+  private readonly fb = inject(FormBuilder);
+
+  private docenteId: number | null = null;
+
+  solicitudes: SolicitudReunion[] = [];
+  solicitudesCargando = false;
+  solicitudesError: string | null = null;
+  solicitudesMensaje: string | null = null;
+  procesandoSolicitud = false;
+  seleccionada: SolicitudReunion | null = null;
+  modo: 'aprobar' | 'rechazar' | null = null;
+
+  showSolicitudesModal = signal(false);
+
+  readonly aprobarForm = this.fb.nonNullable.group({
+    fecha: ['', Validators.required],
+    horaInicio: ['', Validators.required],
+    horaTermino: ['', Validators.required],
+    modalidad: ['presencial', Validators.required],
+    comentario: [''],
+  });
+
+  readonly rechazoForm = this.fb.group({
+    comentario: [''],
+  });
 
   weekDays = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   monthNames = [
@@ -99,7 +137,17 @@ export class CalendarioComponent {
 
   constructor() {
     this.buildYearRange(this.yearRangeStart);
-    this.seedDemoEvents(); // demo para ver datos
+  }
+
+  ngOnInit(): void {
+    const profile = this.currentUserService.getProfile();
+    if (!profile?.id) {
+      return;
+    }
+
+    this.docenteId = profile.id;
+    this.cargarReuniones();
+    this.cargarSolicitudes();
   }
 
   private syncMini() {
@@ -421,6 +469,248 @@ export class CalendarioComponent {
     return `${yyyy}${mm}${dd}-${hh}${min}`;
   }
 
+  /* ===== Solicitudes de reunión ===== */
+  get solicitudesPendientes(): SolicitudReunion[] {
+    return this.solicitudes.filter((item) => item.estado === 'pendiente');
+  }
+
+  get solicitudesResueltas(): SolicitudReunion[] {
+    return this.solicitudes.filter((item) => item.estado !== 'pendiente');
+  }
+
+  toggleSolicitudes(): void {
+    this.showSolicitudesModal.update((value) => !value);
+    this.solicitudesMensaje = null;
+    this.solicitudesError = null;
+  }
+
+  cargarSolicitudes(): void {
+    if (!this.docenteId) {
+      return;
+    }
+
+    this.solicitudesCargando = true;
+    this.solicitudesError = null;
+
+    this.reunionesService.listarSolicitudes({ docente: this.docenteId }).subscribe({
+      next: (items) => {
+        this.solicitudes = items;
+        this.solicitudesCargando = false;
+      },
+      error: (err) => {
+        console.error('No se pudieron cargar las solicitudes de reunión del docente', err);
+        this.solicitudesError = 'No se pudieron cargar las solicitudes. Intenta nuevamente.';
+        this.solicitudesCargando = false;
+      },
+    });
+  }
+
+  abrirAprobacion(solicitud: SolicitudReunion): void {
+    this.seleccionada = solicitud;
+    this.modo = 'aprobar';
+    this.solicitudesMensaje = null;
+    this.solicitudesError = null;
+    this.aprobarForm.reset({
+      fecha: '',
+      horaInicio: '',
+      horaTermino: '',
+      modalidad: 'presencial',
+      comentario: solicitud.disponibilidadSugerida ?? '',
+    });
+  }
+
+  abrirRechazo(solicitud: SolicitudReunion): void {
+    this.seleccionada = solicitud;
+    this.modo = 'rechazar';
+    this.solicitudesMensaje = null;
+    this.solicitudesError = null;
+    this.rechazoForm.reset({ comentario: '' });
+  }
+
+  cancelarAccion(): void {
+    this.seleccionada = null;
+    this.modo = null;
+    this.aprobarForm.reset({
+      fecha: '',
+      horaInicio: '',
+      horaTermino: '',
+      modalidad: 'presencial',
+      comentario: '',
+    });
+    this.rechazoForm.reset({ comentario: '' });
+  }
+
+  confirmarAprobacion(): void {
+    const solicitud = this.seleccionada;
+    if (!solicitud || this.modo !== 'aprobar' || !this.docenteId) {
+      return;
+    }
+
+    if (this.aprobarForm.invalid) {
+      this.aprobarForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.aprobarForm.getRawValue();
+    const modalidad = formValue.modalidad as 'presencial' | 'online';
+    const comentarioNormalizado = formValue.comentario?.trim() || undefined;
+
+    this.procesandoSolicitud = true;
+    this.solicitudesError = null;
+    this.solicitudesMensaje = null;
+
+    this.reunionesService
+      .aprobarSolicitud(solicitud.id, {
+        docente: this.docenteId,
+        fecha: formValue.fecha,
+        horaInicio: formValue.horaInicio,
+        horaTermino: formValue.horaTermino,
+        modalidad,
+        comentario: comentarioNormalizado,
+      })
+      .subscribe({
+        next: (reunion) => {
+          this.procesandoSolicitud = false;
+          this.solicitudesMensaje = 'La reunión fue agendada correctamente.';
+          this.cancelarAccion();
+          this.cargarSolicitudes();
+          this.agregarReunionAlCalendario(reunion);
+        },
+        error: (err) => {
+          console.error('No se pudo aprobar la solicitud de reunión', err);
+          this.procesandoSolicitud = false;
+          const detalle = err?.error?.detail;
+          if (typeof detalle === 'string') {
+            this.solicitudesError = detalle;
+          } else {
+            this.solicitudesError = 'Ocurrió un error al agendar la reunión.';
+          }
+        },
+      });
+  }
+
+  confirmarRechazo(): void {
+    const solicitud = this.seleccionada;
+    if (!solicitud || this.modo !== 'rechazar' || !this.docenteId) {
+      return;
+    }
+
+    const comentario = this.rechazoForm.value.comentario?.trim() || undefined;
+
+    this.procesandoSolicitud = true;
+    this.solicitudesError = null;
+    this.solicitudesMensaje = null;
+
+    this.reunionesService
+      .rechazarSolicitud(solicitud.id, { docente: this.docenteId, comentario })
+      .subscribe({
+        next: () => {
+          this.procesandoSolicitud = false;
+          this.solicitudesMensaje = 'La solicitud fue rechazada correctamente.';
+          this.cancelarAccion();
+          this.cargarSolicitudes();
+        },
+        error: (err) => {
+          console.error('No se pudo rechazar la solicitud', err);
+          this.procesandoSolicitud = false;
+          const detalle = err?.error?.detail;
+          if (typeof detalle === 'string') {
+            this.solicitudesError = detalle;
+          } else {
+            this.solicitudesError = 'No se pudo registrar el rechazo. Intenta nuevamente.';
+          }
+        },
+      });
+  }
+
+  estadoSolicitudLabel(estado: string): string {
+    switch (estado) {
+      case 'pendiente':
+        return 'Pendiente';
+      case 'aprobada':
+        return 'Aprobada';
+      case 'rechazada':
+        return 'Rechazada';
+      default:
+        return estado;
+    }
+  }
+
+  estadoReunionLabel(estado: string | undefined): string {
+    switch (estado) {
+      case 'aprobada':
+        return 'Agendada';
+      case 'finalizada':
+        return 'Finalizada';
+      case 'no_realizada':
+        return 'No realizada';
+      case 'reprogramada':
+        return 'Reprogramada';
+      default:
+        return estado ?? '';
+    }
+  }
+
+  fechaHora(valor: Date): string {
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(valor);
+  }
+
+  /* ===== Sincronización de reuniones ===== */
+  private cargarReuniones(): void {
+    if (!this.docenteId) {
+      return;
+    }
+
+    this.reunionesService.listarReuniones({ docente: this.docenteId }).subscribe({
+      next: (items) => {
+        const mapa: Record<string, Evento[]> = {};
+        items.forEach((reunion) => this.agregarReunionAlCalendario(reunion, mapa));
+        this._events.set(mapa);
+      },
+      error: (err) => {
+        console.error('No se pudieron cargar las reuniones del docente', err);
+      },
+    });
+  }
+
+  private agregarReunionAlCalendario(reunion: Reunion, mapa?: Record<string, Evento[]>): void {
+    const date = this.parseDateOnly(reunion.fecha);
+    const key = this.keyFor(date.getDate(), date);
+    if (!key) {
+      return;
+    }
+
+    const evento: Evento = {
+      id: `reunion-${reunion.id}`,
+      titulo: reunion.motivo || 'Reunión agendada',
+      hora: reunion.horaInicio,
+      lugar: reunion.modalidad === 'online' ? 'Online' : 'Presencial',
+      descripcion: reunion.observaciones || '',
+      alumno: reunion.alumno?.nombre ?? null,
+      estado: reunion.estado,
+      origen: 'reunion',
+    };
+
+    const targetMap = mapa ?? this._events();
+    const list = [...(targetMap[key] ?? [])].filter((item) => item.id !== evento.id);
+    list.push(evento);
+    list.sort((a, b) => a.hora.localeCompare(b.hora));
+
+    if (mapa) {
+      mapa[key] = list;
+    } else {
+      this._events.update((map) => ({ ...map, [key]: list }));
+    }
+  }
+
+  private parseDateOnly(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, (month ?? 1) - 1, day ?? 1);
+  }
+
   /* ===== Util ===== */
   private toInputDate(d: Date) {
     const yyyy = d.getFullYear();
@@ -429,20 +719,4 @@ export class CalendarioComponent {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // Demo para ver datos
-  private seedDemoEvents() {
-    const kToday = this.keyFor(this.selectedDay());
-    const k15 = this.keyFor(15);
-    const demo: Record<string, Evento[]> = {};
-    if (kToday) {
-      demo[kToday] = [
-        { id: (crypto as any).randomUUID?.() ?? 'a1', titulo:'Reunión con guía', hora:'10:00', lugar:'Sala 204', descripcion:'Avance capítulo 2' },
-        { id: (crypto as any).randomUUID?.() ?? 'a2', titulo:'Feedback documento', hora:'16:30', lugar:'Teams', descripcion:'Observaciones del borrador' }
-      ];
-    }
-    demo[k15] = [
-      { id: (crypto as any).randomUUID?.() ?? 'a3', titulo:'Corrección Informe 1', hora:'09:00', lugar:'Oficina 3', descripcion:'Correcciones de estilo' }
-    ];
-    this._events.set(demo);
-  }
 }
