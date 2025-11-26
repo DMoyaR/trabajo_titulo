@@ -264,6 +264,7 @@
         </div>
         <div class="ev-meta">
           <span class="chip subtle" *ngIf="ev.alumno">Alumno: {{ ev.alumno }}</span>
+          <span class="chip subtle" *ngIf="ev.grupo">Grupo: {{ ev.grupo }}</span>
           <span class="chip status" *ngIf="ev.estado">{{ estadoReunionLabel(ev.estado) }}</span>
         </div>
         <div class="ev-sub">{{ ev.lugar }}</div>
@@ -432,7 +433,10 @@
             </div>
             <div class="mid">
               <div class="ttl">{{ ev.titulo }}</div>
-              <div class="sub">{{ ev.lugar }}</div>
+              <div class="sub">
+                {{ ev.lugar }}
+                <ng-container *ngIf="ev.grupo"> — Grupo: {{ ev.grupo }}</ng-container>
+              </div>
             </div>
             <div class="right">
               <small>{{ ev.key }}</small>
