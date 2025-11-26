@@ -16,13 +16,9 @@
       <div class="grid" *ngIf="bitacorasPendientes().length; else noBitPend">
         <article class="item" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
           <div class="top">
-            <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
+            <b class="title">Bitácora {{ b.indice }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc" *ngIf="b.titulo; else bitacoraPendienteDesc">{{ b.titulo }}</p>
-          <ng-template #bitacoraPendienteDesc>
-            <p class="desc">Sigue el progreso semanal de tu trabajo.</p>
-          </ng-template>
           <div class="meta">
             <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
           </div>
@@ -38,16 +34,11 @@
       <div class="grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
         <article class="item" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
           <div class="top">
-            <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
+            <b class="title">Bitácora {{ b.indice }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc" *ngIf="b.titulo; else bitacoraCompletadaDesc">{{ b.titulo }}</p>
-          <ng-template #bitacoraCompletadaDesc>
-            <p class="desc">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
-          </ng-template>
           <div class="meta">
-            <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
-            <span *ngIf="b.entrega?.nota != null">• Nota: <b>{{ b.entrega?.nota }}</b></span>
+            <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
           </div>
         </article>
       </div>
@@ -63,7 +54,7 @@
   <div class="detail-head bitacora-head">
     <div>
       <p class="eyebrow">Bitácora programada</p>
-      <h3>Detalle — Bitácora {{ b.indice + 1 }}</h3>
+      <h3>Detalle — Bitácora {{ b.indice }}</h3>
       <p class="muted bitacora-sub">Asociada a {{ b.evaluacionTitulo }}</p>
     </div>
     <div class="detail-actions">
