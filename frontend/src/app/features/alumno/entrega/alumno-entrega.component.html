@@ -16,13 +16,11 @@
       <div class="grid bitacoras-grid" *ngIf="bitacorasPendientes().length; else noBitPend">
         <article class="item clickable bitacora-card" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
           <div class="top">
-            <div class="bitacora-title">
-              <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
-              <span class="sub muted">Bitácora: {{ b.titulo }}</span>
-            </div>
+            <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc">Sigue el progreso semanal de tu trabajo.</p>
+          <p class="desc" *ngIf="b.titulo">{{ b.titulo }}</p>
+          <p class="desc muted">Sigue el progreso semanal de tu trabajo.</p>
           <div class="meta">
             <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
           </div>
@@ -42,16 +40,14 @@
       <div class="grid bitacoras-grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
         <article class="item clickable bitacora-card done" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
           <div class="top">
-            <div class="bitacora-title">
-              <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
-              <span class="sub muted">Bitácora: {{ b.titulo }}</span>
-            </div>
+            <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
+          <p class="desc" *ngIf="b.titulo">{{ b.titulo }}</p>
+          <p class="desc muted">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
           <div class="meta">
             <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
-            <span *ngIf="b.entrega?.nota != null">Nota: <b>{{ b.entrega?.nota }}</b></span>
+            <span *ngIf="b.entrega?.nota != null">• Nota: <b>{{ b.entrega?.nota }}</b></span>
           </div>
           <div class="bitacora-actions">
             <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
