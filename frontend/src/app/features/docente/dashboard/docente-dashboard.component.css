@@ -273,3 +273,225 @@ select:focus {
   border-color: #1976d2;
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
 }
+
+.solicitudes-card {
+  margin-bottom: 20px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-title h3 {
+  margin: 0;
+  color: #1a3e6a;
+}
+
+.card-title p {
+  margin: 4px 0 0;
+}
+
+.chip {
+  background: #eef3fb;
+  color: #1a3e6a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.alert {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  margin: 8px 0;
+}
+
+.alert.success {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+.alert.error {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #b71c1c;
+}
+
+.muted {
+  color: #6c757d;
+  margin: 0;
+}
+
+.solicitud {
+  border: 1px solid #eef3fb;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+  background: #fdfefe;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.solicitud header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.solicitud h4 {
+  margin: 0 0 4px;
+}
+
+.motivo {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.estado {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: #eef3fb;
+  color: #1a3e6a;
+}
+
+.estado.pendiente {
+  background: #fff4e5;
+  color: #b55b00;
+}
+
+.estado.aprobada {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.estado.rechazada {
+  background: #ffebee;
+  color: #b71c1c;
+}
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.btn-edit,
+.btn-cancel {
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-edit {
+  background: #00598c;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #004d8c;
+  transform: translateY(-2px);
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #545b62;
+  transform: translateY(-2px);
+}
+
+.btn-session {
+  background: #f8f9fa;
+  color: #333;
+  border: 2px solid #e9ecef;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-session:hover {
+  background: #e9ecef;
+  border-color: #008c4a;
+  color: #008c4a;
+  transform: translateY(-2px);
+}
+
+.panel-form {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #dfe5ee;
+  border-radius: 10px;
+  background: #f7f9fc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.form-grid label,
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.form-grid input,
+.form-grid select,
+.panel-form textarea {
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.panel-form textarea {
+  resize: vertical;
+}
+
+.historial {
+  margin-top: 16px;
+  border-top: 1px solid #eef3fb;
+  padding-top: 12px;
+}
+
+.historial-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.historial-lista li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #eef3fb;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
