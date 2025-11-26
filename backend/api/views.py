@@ -601,6 +601,32 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
         },
     )
 
+    docente = reunion.docente
+    if docente:
+        alumno_nombre = alumno.nombre_completo if alumno else "El alumno"
+        docente_mensaje = (
+            f"Agendaste con {alumno_nombre} el {fecha} entre {inicio} y {termino} "
+            f"({modalidad.lower()})."
+        )
+        if reunion.motivo:
+            docente_mensaje = f"{docente_mensaje} Motivo: {reunion.motivo}."
+        if reunion.observaciones:
+            docente_mensaje = f"{docente_mensaje} Comentario: {reunion.observaciones}."
+
+        Notificacion.objects.create(
+            usuario=docente,
+            titulo="Solicitud de reunión aprobada",
+            mensaje=docente_mensaje,
+            tipo="reunion",
+            meta={
+                "evento": "solicitud_aprobada_docente",
+                "reunionId": reunion.pk,
+                "solicitudId": reunion.solicitud_id,
+                "docenteId": docente.pk,
+                "alumnoId": alumno.pk if alumno else None,
+            },
+        )
+
 
 def _notificar_solicitud_reunion_rechazada(
     solicitud: SolicitudReunion, comentario: str | None
@@ -629,6 +655,29 @@ def _notificar_solicitud_reunion_rechazada(
             "alumnoId": alumno.pk,
         },
     )
+
+    docente = solicitud.docente
+    if docente:
+        alumno_nombre = alumno.nombre_completo if alumno else "El alumno"
+        docente_mensaje = (
+            f"Rechazaste la solicitud de reunión de {alumno_nombre}. "
+            f"Motivo: {solicitud.motivo}."
+        )
+        if comentario:
+            docente_mensaje = f"{docente_mensaje} Comentario: {comentario}."
+
+        Notificacion.objects.create(
+            usuario=docente,
+            titulo="Solicitud de reunión rechazada",
+            mensaje=docente_mensaje,
+            tipo="reunion",
+            meta={
+                "evento": "solicitud_rechazada_docente",
+                "solicitudId": solicitud.pk,
+                "docenteId": docente.pk,
+                "alumnoId": alumno.pk if alumno else None,
+            },
+        )
 
 
 def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:

@@ -79,4 +79,50 @@
     <p>30 de Abril, 11:00</p>
   </div>
 
+  <div class="card reuniones-card" aria-live="polite">
+    <div class="card-head">
+      <h3>Solicitudes y reuniones</h3>
+      <span class="chip ghost" *ngIf="solicitudesPendientes().length">Pendientes: {{ solicitudesPendientes().length }}</span>
+    </div>
+
+    <div class="alert error" *ngIf="reunionesError()">{{ reunionesError() }}</div>
+    <p class="muted" *ngIf="reunionesCargando()">Cargando tus solicitudes y reuniones…</p>
+
+    <section class="solicitudes-pendientes">
+      <h4>Pendientes por respuesta</h4>
+      <div *ngIf="solicitudesPendientes().length; else sinPendientes">
+        <div class="solicitud-row" *ngFor="let solicitud of solicitudesPendientes()">
+          <div>
+            <p class="solicitud-titulo">{{ solicitud.proyectoNombre || 'Solicitud de reunión' }}</p>
+            <p class="solicitud-detalle">Estado: {{ estadoSolicitudLabel(solicitud.estado) }}</p>
+          </div>
+          <span class="chip warning">Pendiente</span>
+        </div>
+      </div>
+      <ng-template #sinPendientes>
+        <div class="empty-box">No hay solicitudes pendientes por revisar.</div>
+      </ng-template>
+    </section>
+
+    <section class="historial-reuniones">
+      <div class="historial-head">
+        <h4>Historial reciente</h4>
+        <span class="chip ghost">Últimos {{ historialEventos().length || 0 }}</span>
+      </div>
+      <div *ngIf="!historialEventos().length" class="empty-box">Aún no tienes reuniones registradas.</div>
+      <ul *ngIf="historialEventos().length" class="historial-list">
+        <li *ngFor="let evento of historialEventos()">
+          <div>
+            <p class="evento-titulo">{{ evento.titulo }}</p>
+            <p class="evento-detalle">{{ evento.detalle }}</p>
+          </div>
+          <div class="evento-meta">
+            <span class="chip state">{{ evento.estado }}</span>
+            <span class="evento-fecha">{{ evento.fecha | date: 'mediumDate' }}</span>
+          </div>
+        </li>
+      </ul>
+    </section>
+  </div>
+
 </div>
