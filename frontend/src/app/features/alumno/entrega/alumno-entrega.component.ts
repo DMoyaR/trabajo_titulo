@@ -12,6 +12,7 @@ import {
 import { finalize } from 'rxjs/operators';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
+type EstadoBitacora = 'pendiente' | 'entregada' | 'calificada';
 
 interface Entrega {
   titulo: string;
@@ -43,6 +44,16 @@ interface Evaluacion {
   ultimaEntrega?: Entrega | null;
 }
 
+interface BitacoraProgramada {
+  evaluacionId: number;
+  evaluacionTitulo: string;
+  indice: number;
+  titulo: string;
+  comentario?: string | null;
+  fechaLimite: string | Date;
+  estado: EstadoBitacora;
+}
+
 @Component({
   selector: 'alumno-entrega',
   standalone: true,
@@ -60,6 +71,7 @@ export class AlumnoEntregaComponent implements OnInit {
   private _evaluaciones = signal<Evaluacion[]>([]);
   private _cargando = signal(false);
   private _loadError = signal<string | null>(null);
+  private _bitacoras = signal<BitacoraProgramada[]>([]);
 
   private alumnoId: number | null = null;
 
@@ -90,6 +102,7 @@ export class AlumnoEntregaComponent implements OnInit {
   // Getters para template (signals)
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
   completadas = () => this._evaluaciones().filter(e => e.estado !== 'pendiente');
+  bitacoras = () => this._bitacoras();
 
   seleccionada = () => this._seleccion();
 
@@ -122,6 +135,7 @@ export class AlumnoEntregaComponent implements OnInit {
       next: evaluaciones => {
         const mapeadas = evaluaciones.map(ev => this.mapEvaluacion(ev));
         this._evaluaciones.set(mapeadas);
+        this._bitacoras.set(this.extraerBitacoras(evaluaciones));
         this._cargando.set(false);
         this.seleccionarInicial();
       },
@@ -153,6 +167,27 @@ export class AlumnoEntregaComponent implements OnInit {
       rubricaTipo: dto.rubrica_tipo,
       ultimaEntrega: ultima ? this.mapEntregaDto(ultima) : null,
     };
+  }
+
+  private extraerBitacoras(evaluaciones: EvaluacionGrupoDto[]): BitacoraProgramada[] {
+    return evaluaciones
+      .filter(ev => (ev.bitacoras_programadas?.length ?? 0) > 0)
+      .flatMap(ev =>
+        (ev.bitacoras_programadas || []).map(bitacora => ({
+          evaluacionId: ev.id,
+          evaluacionTitulo: ev.titulo,
+          indice: bitacora.indice,
+          titulo: bitacora.titulo,
+          comentario: bitacora.comentario,
+          fechaLimite: this.parseFecha(bitacora.fecha) ?? bitacora.fecha,
+          estado: (bitacora.estado as EstadoBitacora) || 'pendiente',
+        }))
+      )
+      .sort((a, b) => {
+        const fechaA = new Date(a.fechaLimite).getTime();
+        const fechaB = new Date(b.fechaLimite).getTime();
+        return fechaA - fechaB;
+      });
   }
 
   private mapEstado(dto: EvaluacionGrupoDto, ultima: EvaluacionEntregaDto | null): EstadoEval {
