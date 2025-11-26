@@ -161,18 +161,39 @@
         (ngSubmit)="confirmarAprobacion()"
       >
         <h4>Agendar reunión</h4>
+        <p class="muted" *ngIf="fechaHoraFija">
+          Fecha y hora solicitadas por el alumno. Solo selecciona la duración y agrega comentarios.
+        </p>
         <div class="grid form-grid">
           <label>
             Fecha
-            <input type="date" formControlName="fecha" />
+            <input
+              type="date"
+              formControlName="fecha"
+              [attr.readonly]="fechaHoraFija ? '' : null"
+              [class.readonly]="fechaHoraFija"
+            />
           </label>
           <label>
             Hora inicio
-            <input type="time" formControlName="horaInicio" />
+            <input
+              type="time"
+              formControlName="horaInicio"
+              [attr.readonly]="fechaHoraFija ? '' : null"
+              [class.readonly]="fechaHoraFija"
+            />
+          </label>
+          <label>
+            Duración
+            <select formControlName="duracion">
+              <option *ngFor="let dur of duracionesDisponibles" [ngValue]="dur">
+                {{ dur }} minutos
+              </option>
+            </select>
           </label>
           <label>
             Hora término
-            <input type="time" formControlName="horaTermino" />
+            <input type="time" formControlName="horaTermino" readonly />
           </label>
           <label>
             Modalidad
