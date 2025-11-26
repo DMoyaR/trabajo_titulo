@@ -108,6 +108,7 @@ export class AlumnoEntregaComponent implements OnInit {
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
   completadas = () => this._evaluaciones().filter(e => e.estado !== 'pendiente');
   bitacoras = () => this._bitacoras();
+  destinoSubida = () => this._destinoSubida();
 
   seleccionada = () => this._seleccion();
 
@@ -336,6 +337,23 @@ export class AlumnoEntregaComponent implements OnInit {
       case 'calificada': return 'chip ok';
       default: return 'chip';
     }
+  }
+
+  destinoLabel(): string {
+    const destino = this._destinoSubida();
+    if (!destino) return '';
+
+    if (destino.tipo === 'bitacora') {
+      const evaluacionTitulo =
+        this._evaluaciones().find(ev => ev.id === destino.evaluacionId)?.titulo ||
+        destino.bitacora?.evaluacionTitulo ||
+        'Evaluación';
+      const bitacoraTitulo = destino.bitacora?.titulo || 'Bitácora';
+      return `Bitácora: ${bitacoraTitulo} — ${evaluacionTitulo}`;
+    }
+
+    const evaluacionTitulo = this._evaluaciones().find(ev => ev.id === destino.evaluacionId)?.titulo;
+    return `Evaluación: ${evaluacionTitulo || 'Sin título'}`;
   }
 
   getInstrucciones(ev: Evaluacion): string[] {
