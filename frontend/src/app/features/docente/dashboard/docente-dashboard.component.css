@@ -21,6 +21,12 @@
   font-weight: 500;
 }
 
+.acciones-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .filters {
   display: flex;
   gap: 12px;
@@ -73,6 +79,11 @@ select:focus {
   transition: all 0.2s ease;
   height: fit-content;
   align-self: end;
+}
+
+.btn.sm.toggle {
+  background: #0f4b8f;
+  padding: 8px 16px;
 }
 
 .btn.sm:hover {
@@ -199,57 +210,6 @@ select:focus {
   min-width: 40px;
 }
 
-.restricciones {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.restricciones-intro {
-  margin: 0 0 12px;
-  color: #4b5563;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.restricciones-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.restricciones-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.restriccion-icon {
-  font-size: 20px;
-  line-height: 1;
-  margin-top: 2px;
-}
-
-.restriccion-texto h4 {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
-  color: #1a3e6a;
-}
-
-.restriccion-texto p {
-  margin: 0;
-  color: #475569;
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
-
 .observations-panel {
   display: flex;
   flex-direction: column;
@@ -304,6 +264,12 @@ select:focus {
   font-size: 0.85rem;
 }
 
+.chip.alerta {
+  background: #fff4e5;
+  color: #b55b00;
+  border: 1px solid #ffd8a8;
+}
+
 .alert {
   padding: 12px 14px;
   border-radius: 10px;
@@ -329,6 +295,14 @@ select:focus {
   margin: 0;
 }
 
+.resumen {
+  background: #f8fafc;
+  border: 1px dashed #dfe5ee;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
 .solicitud {
   border: 1px solid #eef3fb;
   border-radius: 12px;
@@ -336,6 +310,10 @@ select:focus {
   margin-top: 12px;
   background: #fdfefe;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.solicitud.compact {
+  padding: 10px 12px;
 }
 
 .solicitud header {
@@ -476,6 +454,22 @@ select:focus {
   margin-top: 16px;
   border-top: 1px solid #eef3fb;
   padding-top: 12px;
+}
+
+.historial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.link-button {
+  background: transparent;
+  border: none;
+  color: #0f4b8f;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 .historial-lista {
