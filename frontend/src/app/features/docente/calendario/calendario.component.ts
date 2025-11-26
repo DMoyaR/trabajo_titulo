@@ -16,6 +16,7 @@ type Evento = {
   lugar: string;
   descripcion: string;
   alumno?: string | null;
+  grupo?: string | null;
   estado?: string;
   origen?: 'manual' | 'reunion';
 };
@@ -690,6 +691,7 @@ export class CalendarioComponent implements OnInit {
       lugar: reunion.modalidad === 'online' ? 'Online' : 'Presencial',
       descripcion: reunion.observaciones || '',
       alumno: reunion.alumno?.nombre ?? null,
+      grupo: reunion.grupoNombre ?? null,
       estado: reunion.estado,
       origen: 'reunion',
     };
