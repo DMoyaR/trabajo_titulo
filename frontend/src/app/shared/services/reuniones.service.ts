@@ -27,6 +27,9 @@ export interface SolicitudReunion {
   estado: 'pendiente' | 'aprobada' | 'rechazada';
   motivo: string;
   disponibilidadSugerida: string | null;
+  fechaSugerida?: string | null;
+  horaSugerida?: string | null;
+  modalidadSugerida?: 'presencial' | 'online' | null;
   creadoEn: Date;
   actualizadoEn: Date;
   alumno: UsuarioResumen | null;
@@ -118,6 +121,9 @@ interface SolicitudReunionApi {
   estado: 'pendiente' | 'aprobada' | 'rechazada';
   motivo: string;
   disponibilidadSugerida: string | null;
+  fechaSugerida?: string | null;
+  horaSugerida?: string | null;
+  modalidadSugerida?: 'presencial' | 'online' | null;
   creadoEn: string;
   actualizadoEn: string;
   alumno: UsuarioResumen | null;
@@ -212,6 +218,9 @@ export class ReunionesService {
       estado: api.estado,
       motivo: api.motivo,
       disponibilidadSugerida: api.disponibilidadSugerida ?? null,
+      fechaSugerida: api.fechaSugerida ?? null,
+      horaSugerida: api.horaSugerida ?? null,
+      modalidadSugerida: api.modalidadSugerida ?? null,
       creadoEn: this.parseDate(api.creadoEn),
       actualizadoEn: this.parseDate(api.actualizadoEn),
       alumno: api.alumno ?? null,

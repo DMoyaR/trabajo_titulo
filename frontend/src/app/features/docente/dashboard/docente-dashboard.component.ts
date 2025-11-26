@@ -76,18 +76,25 @@ export class DocenteDashboardComponent implements OnInit {
   mostrarHistorial = false;
   historialPagina = 1;
   readonly historialPorPagina = 10;
+  readonly duracionesDisponibles = [15, 30, 45, 60, 75, 90, 105, 120];
 
   readonly aprobarForm = this.fb.nonNullable.group({
     fecha: ['', Validators.required],
     horaInicio: ['', Validators.required],
     horaTermino: ['', Validators.required],
     modalidad: ['presencial', Validators.required],
+    duracion: [30, Validators.required],
     comentario: [''],
   });
 
   readonly rechazoForm = this.fb.group({
     comentario: [''],
   });
+
+  constructor() {
+    this.aprobarForm.controls.duracion.valueChanges.subscribe(() => this.actualizarHoraTermino());
+    this.aprobarForm.controls.horaInicio.valueChanges.subscribe(() => this.actualizarHoraTermino());
+  }
 
   ngOnInit(): void {
     this.cargarDocente();
@@ -131,11 +138,16 @@ export class DocenteDashboardComponent implements OnInit {
     this.modo = 'aprobar';
     this.solicitudesMensaje = null;
     this.solicitudesError = null;
+    const duracion = this.aprobarForm.controls.duracion.value ?? 30;
+    const fecha = solicitud.fechaSugerida ?? '';
+    const horaInicio = solicitud.horaSugerida ?? '';
+    const horaTermino = horaInicio ? this.calcularHoraTermino(horaInicio, duracion) : '';
     this.aprobarForm.reset({
-      fecha: '',
-      horaInicio: '',
-      horaTermino: '',
-      modalidad: 'presencial',
+      fecha,
+      horaInicio,
+      horaTermino,
+      modalidad: solicitud.modalidadSugerida ?? 'presencial',
+      duracion,
       comentario: solicitud.disponibilidadSugerida ?? '',
     });
   }
@@ -156,6 +168,7 @@ export class DocenteDashboardComponent implements OnInit {
       horaInicio: '',
       horaTermino: '',
       modalidad: 'presencial',
+      duracion: 30,
       comentario: '',
     });
     this.rechazoForm.reset({ comentario: '' });
@@ -176,6 +189,9 @@ export class DocenteDashboardComponent implements OnInit {
     const modalidad = formValue.modalidad as 'presencial' | 'online';
     const comentarioNormalizado = formValue.comentario?.trim() || undefined;
 
+    this.actualizarHoraTermino();
+    const horaTermino = this.aprobarForm.controls.horaTermino.value;
+
     this.procesandoSolicitud = true;
     this.solicitudesError = null;
     this.solicitudesMensaje = null;
@@ -185,7 +201,7 @@ export class DocenteDashboardComponent implements OnInit {
         docente: this.docenteId,
         fecha: formValue.fecha,
         horaInicio: formValue.horaInicio,
-        horaTermino: formValue.horaTermino,
+        horaTermino,
         modalidad,
         comentario: comentarioNormalizado,
       })
@@ -267,6 +283,10 @@ export class DocenteDashboardComponent implements OnInit {
     return this.solicitudesResueltas.slice(inicio, inicio + this.historialPorPagina);
   }
 
+  get fechaHoraFija(): boolean {
+    return Boolean(this.seleccionada?.fechaSugerida && this.seleccionada?.horaSugerida);
+  }
+
   togglePendientes(): void {
     this.mostrarPendientes = !this.mostrarPendientes;
     if (!this.mostrarPendientes) {
@@ -315,5 +335,30 @@ export class DocenteDashboardComponent implements OnInit {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(valor);
+  }
+
+  private actualizarHoraTermino(): void {
+    const horaInicio = this.aprobarForm.controls.horaInicio.value;
+    const duracion = Number(this.aprobarForm.controls.duracion.value || 0);
+    if (!horaInicio || !duracion) {
+      return;
+    }
+
+    const horaTermino = this.calcularHoraTermino(horaInicio, duracion);
+    this.aprobarForm.controls.horaTermino.setValue(horaTermino, { emitEvent: false });
+  }
+
+  private calcularHoraTermino(horaInicio: string, duracion: number): string {
+    const [hora, minuto] = horaInicio.split(':').map((v) => Number(v));
+
+    if (Number.isNaN(hora) || Number.isNaN(minuto)) {
+      return horaInicio;
+    }
+
+    const totalMinutos = hora * 60 + minuto + duracion;
+    const horaFin = Math.floor(totalMinutos / 60) % 24;
+    const minutoFin = totalMinutos % 60;
+
+    return `${horaFin.toString().padStart(2, '0')}:${minutoFin.toString().padStart(2, '0')}`;
   }
 }

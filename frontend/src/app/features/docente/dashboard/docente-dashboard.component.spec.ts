@@ -17,6 +17,9 @@ class ReunionesServiceStub {
       estado: 'pendiente',
       motivo: 'Revisar capítulo 1',
       disponibilidadSugerida: null,
+      fechaSugerida: '2024-01-15',
+      horaSugerida: '10:00',
+      modalidadSugerida: 'online',
       creadoEn: new Date('2024-01-10T10:00:00Z'),
       actualizadoEn: new Date('2024-01-10T10:00:00Z'),
       alumno: { id: 1, nombre: 'Ana López', correo: 'ana@example.com', carrera: null, telefono: null, rol: 'alumno' },
@@ -31,6 +34,9 @@ class ReunionesServiceStub {
       estado: 'aprobada',
       motivo: 'Seguimiento general',
       disponibilidadSugerida: 'Martes AM',
+      fechaSugerida: '2024-01-20',
+      horaSugerida: '11:00',
+      modalidadSugerida: 'presencial',
       creadoEn: new Date('2024-01-08T10:00:00Z'),
       actualizadoEn: new Date('2024-01-09T10:00:00Z'),
       alumno: { id: 2, nombre: 'Carlos Díaz', correo: 'carlos@example.com', carrera: null, telefono: null, rol: 'alumno' },
@@ -53,6 +59,9 @@ class ReunionesServiceStub {
           rol: 'alumno',
         },
         motivo: `Motivo ${idx + 1}`,
+        fechaSugerida: '2024-02-01',
+        horaSugerida: '12:00',
+        modalidadSugerida: 'online',
         creadoEn: new Date(`2024-01-${10 + idx}T12:00:00Z`),
         actualizadoEn: new Date(`2024-01-${10 + idx}T13:00:00Z`),
       })),
@@ -136,5 +145,20 @@ describe('DocenteDashboardComponent', () => {
     component.paginaHistorialSiguiente();
     expect(component.historialPagina).toBe(2);
     expect(component.historialPaginado.length).toBe(1);
+  });
+
+  it('should honor fixed fecha and hora from the alumno and compute hora termino from duracion', () => {
+    fixture.detectChanges();
+
+    const solicitud = reunionesService.solicitudes[0];
+    component.abrirAprobacion(solicitud);
+
+    expect(component.aprobarForm.controls.fecha.value).toBe('2024-01-15');
+    expect(component.aprobarForm.controls.horaInicio.value).toBe('10:00');
+    expect(component.fechaHoraFija).toBeTrue();
+    expect(component.aprobarForm.controls.horaTermino.value).toBe('10:30');
+
+    component.aprobarForm.controls.duracion.setValue(45);
+    expect(component.aprobarForm.controls.horaTermino.value).toBe('10:45');
   });
 });

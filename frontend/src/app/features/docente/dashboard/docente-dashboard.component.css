@@ -436,6 +436,12 @@ select:focus {
   color: #1a3e6a;
 }
 
+.form-grid input.readonly {
+  background-color: #f6f7fb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
 .form-grid input,
 .form-grid select,
 .panel-form textarea {
