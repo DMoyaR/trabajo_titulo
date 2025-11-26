@@ -507,7 +507,19 @@ export class CalendarioComponent implements OnInit {
   }
 
   toggleSolicitudes(): void {
-    this.showSolicitudesModal.update((value) => !value);
+    if (this.showSolicitudesModal()) {
+      this.closeSolicitudes();
+      return;
+    }
+
+    this.showSolicitudesModal.set(true);
+    this.solicitudesMensaje = null;
+    this.solicitudesError = null;
+  }
+
+  closeSolicitudes(): void {
+    this.showSolicitudesModal.set(false);
+    this.cancelarAccion();
     this.solicitudesMensaje = null;
     this.solicitudesError = null;
   }
