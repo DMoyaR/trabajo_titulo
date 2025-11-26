@@ -75,8 +75,7 @@
 
   <div class="detail-section">
     <div class="section-head">
-      <b>Instrucciones</b>
-      <span class="tag" *ngIf="evaluacionAsociada(b) as evRef">Para: {{ evRef.tipo | titlecase }}</span>
+      <b>Instrucciones del docente</b>
     </div>
     <p class="muted">
       {{
@@ -84,121 +83,12 @@
           || 'Revisa las indicaciones de tu docente y completa la bitácora con tu avance semanal.'
       }}
     </p>
-    <div class="tag-row">
-      <span class="tag ghost">Bitácora {{ b.indice + 1 }}</span>
-      <span class="tag ghost">Evaluación: {{ b.evaluacionTitulo }}</span>
-      <span class="tag ghost" *ngIf="b.entrega?.fecha">Último envío: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
-    </div>
   </div>
 
-  <div class="detail-section" *ngIf="evaluacionAsociada(b) as evRef">
-    <div class="section-head">
-      <b>Detalles de la evaluación</b>
-      <button class="link" (click)="openEvaluacion(b.evaluacionId)">Ver evaluación</button>
-    </div>
-    <p class="muted">
-      {{ evRef.descripcion || 'Revisa las indicaciones originales de la evaluación antes de subir tu bitácora.' }}
-    </p>
-    <div class="meta eval-meta">
-      <span [ngClass]="estadoClase(evRef.estado)" class="chip">{{ evRef.estado }}</span>
-      <ng-container *ngIf="evRef.fechaLimite">Fecha límite: {{ evRef.fechaLimite | date:'d MMM y, HH:mm' }}</ng-container>
-      <ng-container *ngIf="evRef.ultimaEntrega?.nota != null">Nota última entrega: <b>{{ evRef.ultimaEntrega?.nota }}</b></ng-container>
-    </div>
-  </div>
-
-  <div class="detail-section docente-detail alt">
-    <div class="docente-head">
-      <b>Observaciones del docente</b>
-      <span class="muted">Te ayudan a completar la bitácora</span>
-    </div>
-    <p class="muted">{{ b.comentario || 'El docente no añadió observaciones específicas para esta bitácora.' }}</p>
-  </div>
-
-  <div class="detail-section entrega-panel">
-    <div class="section-head">
-      <b>Archivos de tu envío</b>
-      <span class="tag ghost" *ngIf="b.entrega">Actualizado {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
-    </div>
-
-    <div *ngIf="b.entrega; else sinEntregaBitacora" class="entrega">
-      <div class="file-pill">
-        <div class="file-meta">
-          <span class="file-name">📄 {{ b.entrega?.archivoNombre }}</span>
-          <small class="muted">{{ b.entrega?.archivoTipo }}</small>
-        </div>
-        <div class="file-actions">
-          <span class="chip" [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
-          <a
-            class="link strong"
-            *ngIf="b.entrega?.archivoUrl; else archivoSinLinkBitacora"
-            [href]="b.entrega?.archivoUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Ver entrega
-          </a>
-          <ng-template #archivoSinLinkBitacora>
-            <span class="muted">Entrega sin enlace</span>
-          </ng-template>
-        </div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.comentario">
-        <div><b>Comentario:</b></div>
-        <div>{{ b.entrega?.comentario }}</div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.rubricaUrl">
-        <div><b>Rúbrica corregida:</b></div>
-        <div>
-          📎
-          <a
-            [href]="b.entrega?.rubricaUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ b.entrega?.rubricaNombre || 'Rúbrica' }}
-          </a>
-          <small class="muted" *ngIf="b.entrega?.rubricaTipo">({{ b.entrega?.rubricaTipo }})</small>
-        </div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.informeUrl">
-        <div><b>Informe corregido:</b></div>
-        <div>
-          📝
-          <a
-            [href]="b.entrega?.informeUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ b.entrega?.informeNombre || 'Informe con anotaciones' }}
-          </a>
-          <small class="muted" *ngIf="b.entrega?.informeTipo">({{ b.entrega?.informeTipo }})</small>
-        </div>
-      </div>
-
-      <div class="row">
-        <div><b>Fecha envío:</b></div>
-        <div>{{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</div>
-      </div>
-
-      <div class="row" *ngIf="b.entrega?.nota != null">
-        <div><b>Nota:</b></div>
-        <div><span class="nota">{{ b.entrega?.nota }}</span></div>
-      </div>
-    </div>
-
-    <ng-template #sinEntregaBitacora>
-      <p class="muted">Aún no existe registro de entrega para esta bitácora.</p>
-    </ng-template>
-  </div>
-
-  <div class="cta-row">
+  <div class="cta-row single">
     <button class="btn primary" (click)="openUploadBitacora(b)">
       {{ b.entrega ? 'Actualizar entrega' : 'Subir bitácora' }}
     </button>
-    <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId)">Ver evaluación asociada</button>
   </div>
 </section>
 

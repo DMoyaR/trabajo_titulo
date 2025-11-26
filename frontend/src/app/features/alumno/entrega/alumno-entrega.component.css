@@ -194,6 +194,7 @@ h2.ttl{
 .file-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .link.strong{ font-weight:800; }
 .cta-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px; }
+.cta-row.single{ justify-content:flex-start; }
 
 /* ====== Modal para subir archivo ====== */
 .overlay{
