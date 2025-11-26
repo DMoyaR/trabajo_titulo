@@ -17,6 +17,8 @@ export interface EvaluacionEntregaDto {
   informe_corregido_tipo: string | null;
   nota: number | null;
   estado_revision: 'pendiente' | 'revisada';
+  es_bitacora?: boolean;
+  bitacora_indice?: number | null;
   creado_en: string;
   actualizado_en: string;
   alumno: {
@@ -51,6 +53,7 @@ export interface EvaluacionGrupoDto {
     fecha: string;
     comentario: string | null;
     estado: string;
+    entrega?: EvaluacionEntregaDto | null;
   }[];
   entregas: EvaluacionEntregaDto[];
   ultima_entrega: EvaluacionEntregaDto | null;
@@ -70,7 +73,7 @@ export class AlumnoEntregasService {
   enviarEntrega(
     evaluacionId: number,
     alumnoId: number,
-    payload: { titulo: string; comentario?: string | null; archivo: File }
+    payload: { titulo: string; comentario?: string | null; archivo: File; bitacoraIndice?: number | null }
   ): Observable<EvaluacionEntregaDto> {
     const url = `${this.baseUrl}${evaluacionId}/entregas/`;
     const formData = new FormData();
@@ -80,6 +83,9 @@ export class AlumnoEntregasService {
     }
     formData.append('archivo', payload.archivo);
     formData.append('alumno', String(alumnoId));
+    if (payload.bitacoraIndice) {
+      formData.append('bitacora_indice', String(payload.bitacoraIndice));
+    }
 
     return this.http.post<EvaluacionEntregaDto>(url, formData);
   }

@@ -15,6 +15,7 @@ type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
 type EstadoBitacora = 'pendiente' | 'entregada' | 'calificada';
 
 interface Entrega {
+  id?: number;
   titulo: string;
   comentario?: string | null;
   archivoNombre: string;
@@ -28,6 +29,8 @@ interface Entrega {
   informeUrl?: string | null;
   fecha: string | Date;
   nota?: number | null;
+  esBitacora?: boolean;
+  bitacoraIndice?: number | null;
 }
 
 interface Evaluacion {
@@ -52,6 +55,7 @@ interface BitacoraProgramada {
   comentario?: string | null;
   fechaLimite: string | Date;
   estado: EstadoBitacora;
+  entrega?: Entrega | null;
 }
 
 @Component({
@@ -72,6 +76,7 @@ export class AlumnoEntregaComponent implements OnInit {
   private _cargando = signal(false);
   private _loadError = signal<string | null>(null);
   private _bitacoras = signal<BitacoraProgramada[]>([]);
+  private _destinoSubida = signal<{ tipo: 'evaluacion' | 'bitacora'; evaluacionId: number; bitacora?: BitacoraProgramada | null } | null>(null);
 
   private alumnoId: number | null = null;
 
@@ -181,6 +186,7 @@ export class AlumnoEntregaComponent implements OnInit {
           comentario: bitacora.comentario,
           fechaLimite: this.parseFecha(bitacora.fecha) ?? bitacora.fecha,
           estado: (bitacora.estado as EstadoBitacora) || 'pendiente',
+          entrega: bitacora.entrega ? this.mapEntregaDto(bitacora.entrega) : null,
         }))
       )
       .sort((a, b) => {
@@ -213,6 +219,7 @@ export class AlumnoEntregaComponent implements OnInit {
 
   private mapEntregaDto(dto: EvaluacionEntregaDto): Entrega {
     return {
+      id: dto.id,
       titulo: dto.titulo,
       comentario: dto.comentario,
       archivoNombre: dto.archivo_nombre,
@@ -226,6 +233,8 @@ export class AlumnoEntregaComponent implements OnInit {
       informeUrl: dto.informe_corregido_url || null,
       fecha: this.parseFecha(dto.creado_en) ?? dto.creado_en,
       nota: dto.nota,
+      esBitacora: dto.es_bitacora,
+      bitacoraIndice: dto.bitacora_indice ?? null,
     };
   }
 
@@ -277,6 +286,33 @@ export class AlumnoEntregaComponent implements OnInit {
     this._seleccion.set(pendiente ?? evaluaciones[0]);
   }
 
+  onBitacoraClick(bitacora: BitacoraProgramada) {
+    if (bitacora.estado === 'pendiente') {
+      this.openUploadBitacora(bitacora);
+    }
+  }
+
+  private actualizarBitacoraEntregada(
+    destino: { evaluacionId: number; bitacora?: BitacoraProgramada | null },
+    entrega: Entrega,
+  ) {
+    const indice = destino.bitacora?.indice ?? entrega.bitacoraIndice ?? null;
+    if (!indice) return;
+
+    this._bitacoras.set(
+      this._bitacoras().map(b => {
+        if (b.evaluacionId === destino.evaluacionId && b.indice === indice) {
+          return {
+            ...b,
+            estado: entrega.nota != null ? 'calificada' : 'entregada',
+            entrega,
+          };
+        }
+        return b;
+      })
+    );
+  }
+
   archivoInfo() {
     const f = this._archivo();
     if (!f) return null;
@@ -326,17 +362,34 @@ export class AlumnoEntregaComponent implements OnInit {
     }
   }
 
-  openUpload() {
+  openUploadEvaluacion() {
+    const ev = this._seleccion();
+    if (!ev) {
+      this._errorMsg.set('Selecciona una evaluación para subir tu entrega.');
+      return;
+    }
+    this._destinoSubida.set({ tipo: 'evaluacion', evaluacionId: ev.id });
+    this.prepararFormulario(ev.titulo);
+  }
+
+  openUploadBitacora(bitacora: BitacoraProgramada) {
+    if (bitacora.estado !== 'pendiente') return;
+    this._destinoSubida.set({ tipo: 'bitacora', evaluacionId: bitacora.evaluacionId, bitacora });
+    this.prepararFormulario(bitacora.titulo, bitacora.comentario || '');
+  }
+
+  private prepararFormulario(tituloPorDefecto = '', comentarioPorDefecto = '') {
     this._errorMsg.set(null);
     this._archivo.set(null);
-    this.upload.titulo = '';
-    this.upload.comentario = '';
+    this.upload.titulo = tituloPorDefecto;
+    this.upload.comentario = comentarioPorDefecto;
     this.showUpload.set(true);
   }
 
   closeUpload() {
     if (this._sending()) return;
     this.showUpload.set(false);
+    this._destinoSubida.set(null);
   }
 
   onDragOver(ev: DragEvent) {
@@ -395,20 +448,23 @@ export class AlumnoEntregaComponent implements OnInit {
     }
 
     const alumnoId = this.alumnoId;
-    const ev = this._seleccion();
-    if (!alumnoId || !ev) {
-      this._errorMsg.set('No se pudo identificar la evaluación seleccionada.');
+    const destino = this._destinoSubida();
+    if (!alumnoId || !destino) {
+      this._errorMsg.set('Selecciona primero la evaluación o bitácora que deseas entregar.');
       return;
     }
 
     this._sending.set(true);
     this._progress.set(10);
 
+    const bitacoraIndice = destino.tipo === 'bitacora' ? destino.bitacora?.indice ?? null : null;
+
     this.entregasService
-      .enviarEntrega(ev.id, alumnoId, {
+      .enviarEntrega(destino.evaluacionId, alumnoId, {
         titulo: this.upload.titulo.trim(),
         comentario: this.upload.comentario?.trim() || null,
         archivo: this._archivo()!,
+        bitacoraIndice,
       })
       .pipe(
         finalize(() => {
@@ -420,16 +476,26 @@ export class AlumnoEntregaComponent implements OnInit {
         next: dto => {
           const entrega = this.mapEntregaDto(dto);
           const estado: EstadoEval = dto.estado_revision === 'revisada' ? 'calificada' : 'entregada';
-          const actualizada: Evaluacion = { ...ev, estado, ultimaEntrega: entrega };
-          this._evaluaciones.set(
-            this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x))
-          );
-          this._seleccion.set(actualizada);
+
+          if (destino.tipo === 'bitacora') {
+            this.actualizarBitacoraEntregada(destino, entrega);
+          } else {
+            const ev = this._seleccion();
+            if (ev) {
+              const actualizada: Evaluacion = { ...ev, estado, ultimaEntrega: entrega };
+              this._evaluaciones.set(
+                this._evaluaciones().map(x => (x.id === ev.id ? actualizada : x))
+              );
+              this._seleccion.set(actualizada);
+            }
+          }
+
           this._progress.set(100);
           this.showUpload.set(false);
           this._archivo.set(null);
           this.upload.titulo = '';
           this.upload.comentario = '';
+          this._destinoSubida.set(null);
         },
         error: error => {
           console.error('No se pudo registrar la entrega de la evaluación', error);

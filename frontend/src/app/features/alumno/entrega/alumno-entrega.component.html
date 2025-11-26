@@ -7,19 +7,26 @@
       <h3>Bitácoras</h3>
       <p class="muted">Seguimiento semanal solicitado por tu docente.</p>
     </div>
-    <span class="chip warn">Pendientes</span>
+    <span class="chip warn">{{ bitacoras().filter(b => b.estado === 'pendiente').length }} pendientes</span>
   </div>
 
-  <div class="bitacoras-grid">
-    <article class="item" *ngFor="let b of bitacoras()">
+  <div class="grid bitacoras-grid">
+    <article class="item clickable" *ngFor="let b of bitacoras()" (click)="onBitacoraClick(b)">
       <div class="top">
-        <b class="title">{{ b.titulo }}</b>
-        <span class="chip warn">{{ b.estado }}</span>
+        <div class="bitacora-title">
+          <b class="title">{{ b.titulo }}</b>
+          <small class="muted">Evaluación: {{ b.evaluacionTitulo }}</small>
+        </div>
+        <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
       </div>
       <p class="desc">{{ b.comentario || 'Sigue el progreso semanal de tu trabajo.' }}</p>
       <div class="meta">
-        <span>Evaluación: {{ b.evaluacionTitulo }}</span>
-        <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y' }}</span>
+        <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+        <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
+      </div>
+      <div class="bitacora-actions">
+        <button class="btn primary" *ngIf="b.estado === 'pendiente'" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
+        <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
       </div>
     </article>
   </div>
@@ -153,7 +160,7 @@
   <!-- Si pendiente -> botón subir -->
   <div *ngIf="canUpload(); else vistaEntrega">
     <p class="muted">Esta evaluación está pendiente. Debes subir tu archivo para completar la entrega.</p>
-    <button class="btn primary" (click)="openUpload()">Subir archivo</button>
+    <button class="btn primary" (click)="openUploadEvaluacion()">Subir archivo</button>
   </div>
 
   <!-- Entregada / Calificada -->

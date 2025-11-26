@@ -524,6 +524,8 @@ class EvaluacionEntregaAlumno(models.Model):
         choices=ESTADOS_REVISION,
         default="pendiente",
     )
+    es_bitacora = models.BooleanField(default=False)
+    bitacora_indice = models.PositiveSmallIntegerField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -534,7 +536,11 @@ class EvaluacionEntregaAlumno(models.Model):
             models.Index(
                 fields=["evaluacion", "alumno", "estado_revision"],
                 name="evaluacione_evaluac_3ae986_idx",
-            )
+            ),
+            models.Index(
+                fields=["evaluacion", "alumno", "es_bitacora", "bitacora_indice"],
+                name="evaluacione_bitacor_idx",
+            ),
         ]
 
     def __str__(self) -> str:

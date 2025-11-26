@@ -921,6 +921,8 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     informe_corregido_url = serializers.SerializerMethodField()
     informe_corregido_nombre = serializers.CharField(read_only=True)
     informe_corregido_tipo = serializers.SerializerMethodField()
+    es_bitacora = serializers.BooleanField(read_only=True)
+    bitacora_indice = serializers.IntegerField(required=False, allow_null=True)
 
     MAX_ARCHIVO_MB = 50
 
@@ -946,6 +948,8 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "informe_corregido_tipo",
             "nota",
             "estado_revision",
+            "es_bitacora",
+            "bitacora_indice",
             "creado_en",
             "actualizado_en",
         ]
@@ -966,12 +970,14 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "informe_corregido_tipo",
             "nota",
             "estado_revision",
+            "es_bitacora",
             "creado_en",
             "actualizado_en",
         ]
         extra_kwargs = {
             "archivo": {"write_only": True},
             "comentario": {"required": False, "allow_null": True, "allow_blank": True},
+            "bitacora_indice": {"required": False, "allow_null": True},
         }
 
     def validate_archivo(self, value):
@@ -1253,10 +1259,30 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             return []
 
         bitacoras = []
+        entregas = self._obtener_entregas_prefetch(obj)
+        entregas_bitacora: dict[int, EvaluacionEntregaAlumno] = {}
+
+        for entrega in entregas:
+            indice = getattr(entrega, "bitacora_indice", None)
+            if not getattr(entrega, "es_bitacora", False) or not indice:
+                continue
+            if indice not in entregas_bitacora:
+                entregas_bitacora[indice] = entrega
 
         for indice in range(1, total + 1):
             semanas_restantes = total - indice + 1
             fecha = fecha_limite - timedelta(weeks=semanas_restantes)
+
+            entrega = entregas_bitacora.get(indice)
+            estado = "pendiente"
+            entrega_data = None
+
+            if entrega:
+                estado = "calificada" if entrega.estado_revision == "revisada" else "entregada"
+                entrega_serializer = EvaluacionEntregaAlumnoSerializer(
+                    entrega, context=self.context
+                )
+                entrega_data = entrega_serializer.data
 
             bitacoras.append(
                 {
@@ -1264,7 +1290,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
                     "titulo": f"Bitácora {indice}",
                     "fecha": fecha,
                     "comentario": obj.bitacora_comentario,
-                    "estado": "pendiente",
+                    "estado": estado,
+                    "entrega": entrega_data,
                 }
             )
 
@@ -1299,8 +1326,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         entregas = self._obtener_entregas_prefetch(obj)
         if not entregas:
             return []
+        entregas_formales = [e for e in entregas if not getattr(e, "es_bitacora", False)]
         serializer = EvaluacionEntregaAlumnoSerializer(
-            entregas,
+            entregas_formales,
             many=True,
             context=self.context,
         )
@@ -1308,10 +1336,11 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
 
     def get_ultima_entrega(self, obj):
         entregas = self._obtener_entregas_prefetch(obj)
-        if not entregas:
+        entregas_formales = [e for e in entregas if not getattr(e, "es_bitacora", False)]
+        if not entregas_formales:
             return None
         serializer = EvaluacionEntregaAlumnoSerializer(
-            entregas[0],
+            entregas_formales[0],
             context=self.context,
         )
         return serializer.data
