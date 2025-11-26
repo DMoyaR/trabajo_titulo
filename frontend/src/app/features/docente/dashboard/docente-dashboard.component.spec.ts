@@ -72,12 +72,39 @@ class ReunionesServiceStub {
     return of(this.solicitudes);
   }
 
-  aprobarSolicitud() {
-    return of(null);
+  aprobarSolicitud(id: number, payload: any) {
+    return of({
+      id: 100,
+      estado: 'aprobada',
+      motivo: 'Reunión aprobada',
+      observaciones: payload?.comentario ?? null,
+      fecha: payload?.fecha ?? '2024-01-15',
+      horaInicio: payload?.horaInicio ?? '10:00',
+      horaTermino: payload?.horaTermino ?? '10:30',
+      modalidad: payload?.modalidad ?? 'presencial',
+      creadoEn: new Date('2024-01-10T10:00:00Z'),
+      actualizadoEn: new Date('2024-01-10T10:00:00Z'),
+      alumno: this.solicitudes.find((item) => item.id === id)?.alumno ?? null,
+      docente: null,
+      solicitudId: id,
+      trazabilidad: [],
+    });
   }
 
-  rechazarSolicitud() {
-    return of(null);
+  rechazarSolicitud(id: number, payload: any) {
+    const base = this.solicitudes.find((item) => item.id === id) ?? this.solicitudes[0];
+
+    return of({
+      ...base,
+      estado: 'rechazada',
+      actualizadoEn: new Date('2024-01-11T10:00:00Z'),
+      trazabilidad: [],
+      disponibilidadSugerida: base.disponibilidadSugerida ?? null,
+      fechaSugerida: base.fechaSugerida ?? null,
+      horaSugerida: base.horaSugerida ?? null,
+      modalidadSugerida: base.modalidadSugerida ?? null,
+      motivo: base.motivo,
+    } as SolicitudReunion);
   }
 }
 
