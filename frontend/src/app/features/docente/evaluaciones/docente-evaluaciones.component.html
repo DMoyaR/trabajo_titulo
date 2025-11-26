@@ -250,7 +250,12 @@
                     <article class="entrega-card pendiente" *ngFor="let entrega of grupo.pendientes">
                       <header>
                         <div>
-                          <h5>{{ entrega.evaluacionTitulo }}</h5>
+                          <h5>
+                            <span class="tag info" *ngIf="entrega.esBitacora">
+                              Bitácora {{ entrega.bitacoraIndice || '-' }}
+                            </span>
+                            {{ entrega.evaluacionTitulo }}
+                          </h5>
                           <span class="tag warn">Por revisar</span>
                         </div>
                         <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
@@ -279,7 +284,12 @@
                     <article class="entrega-card revisada" *ngFor="let entrega of grupo.revisadas">
                       <header>
                         <div>
-                          <h5>{{ entrega.evaluacionTitulo }}</h5>
+                          <h5>
+                            <span class="tag info" *ngIf="entrega.esBitacora">
+                              Bitácora {{ entrega.bitacoraIndice || '-' }}
+                            </span>
+                            {{ entrega.evaluacionTitulo }}
+                          </h5>
                           <span class="tag ok">Evaluada</span>
                         </div>
                         <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>

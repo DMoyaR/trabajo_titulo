@@ -1326,9 +1326,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         entregas = self._obtener_entregas_prefetch(obj)
         if not entregas:
             return []
-        entregas_formales = [e for e in entregas if not getattr(e, "es_bitacora", False)]
         serializer = EvaluacionEntregaAlumnoSerializer(
-            entregas_formales,
+            entregas,
             many=True,
             context=self.context,
         )
