@@ -33,12 +33,23 @@ export class AlumnoCalendarComponent implements OnInit {
   private readonly reunionesService = inject(ReunionesService);
   private readonly currentUserService = inject(CurrentUserService);
 
-  private alumnoId: number | null = null;
+  private alumnoId: number | undefined = undefined;
 
-  mensaje = signal<string | null>(null);
-  error = signal<string | null>(null);
-  cargando = signal(false);
-  enviando = signal(false);
+  private mensajeSig = signal<string | null>(null);
+  mensaje() { return this.mensajeSig(); }
+  private setMensaje(value: string | null) { this.mensajeSig.set(value); }
+
+  private errorSig = signal<string | null>(null);
+  error() { return this.errorSig(); }
+  private setError(value: string | null) { this.errorSig.set(value); }
+
+  private cargandoSig = signal(false);
+  cargando() { return this.cargandoSig(); }
+  private setCargando(value: boolean) { this.cargandoSig.set(value); }
+
+  private enviandoSig = signal(false);
+  enviando() { return this.enviandoSig(); }
+  private setEnviando(value: boolean) { this.enviandoSig.set(value); }
   /* ===== Estado base ===== */
   private ref = new Date();
   month = signal(this.ref.getMonth());
@@ -118,10 +129,10 @@ export class AlumnoCalendarComponent implements OnInit {
 
   ngOnInit(): void {
     const perfil = this.currentUserService.getProfile();
-    this.alumnoId = perfil?.id ?? null;
+    this.alumnoId = perfil?.id ?? undefined;
 
-    if (!this.alumnoId) {
-      this.error.set('No pudimos identificar tu usuario para agendar una reunión.');
+    if (this.alumnoId === undefined) {
+      this.setError('No pudimos identificar tu usuario para agendar una reunión.');
       return;
     }
 
@@ -187,10 +198,11 @@ export class AlumnoCalendarComponent implements OnInit {
     return key ? (this._events()[key]?.length ?? 0) : 0;
   }
 
-  private keyFor(day: number | null = this.selectedDay()) {
+  private keyFor(day: number | null = this.selectedDay(), date: Date | null = null) {
     if (!day) return '';
-    const y = this.year();
-    const m = this.month() + 1;
+    const base = date ?? new Date(this.year(), this.month(), day);
+    const y = base.getFullYear();
+    const m = base.getMonth() + 1;
     const dd = String(day).padStart(2, '0');
     const mm = String(m).padStart(2, '0');
     return `${y}-${mm}-${dd}`;
@@ -227,22 +239,22 @@ export class AlumnoCalendarComponent implements OnInit {
   closeSolicitar() { this.showSolicitudModal.set(false); }
 
   submitSolicitud() {
-    if (!this.alumnoId) {
-      this.error.set('No pudimos identificar tu usuario. Vuelve a iniciar sesión.');
+    if (this.alumnoId === undefined) {
+      this.setError('No pudimos identificar tu usuario. Vuelve a iniciar sesión.');
       return;
     }
 
     const motivo = this.solicitudForm.descripcion?.trim() || this.solicitudForm.titulo.trim();
     if (!motivo) {
-      this.error.set('Debes indicar un título o descripción para tu solicitud.');
+      this.setError('Debes indicar un título o descripción para tu solicitud.');
       return;
     }
 
     const disponibilidad = this.buildDisponibilidad();
 
-    this.enviando.set(true);
-    this.error.set(null);
-    this.mensaje.set(null);
+    this.setEnviando(true);
+    this.setError(null);
+    this.setMensaje(null);
 
     this.reunionesService
       .crearSolicitud({
@@ -252,19 +264,19 @@ export class AlumnoCalendarComponent implements OnInit {
       })
       .subscribe({
         next: (solicitud) => {
-          this.enviando.set(false);
-          this.mensaje.set('Tu solicitud fue enviada al docente guía.');
+          this.setEnviando(false);
+          this.setMensaje('Tu solicitud fue enviada al docente guía.');
           this.closeSolicitar();
           this.registrarEventoDesdeSolicitud(solicitud);
         },
         error: (err) => {
           console.error('No se pudo enviar la solicitud de reunión', err);
-          this.enviando.set(false);
+          this.setEnviando(false);
           const detalle = err?.error?.detail;
           if (typeof detalle === 'string') {
-            this.error.set(detalle);
+            this.setError(detalle);
           } else {
-            this.error.set('Ocurrió un error al enviar la solicitud. Intenta nuevamente.');
+            this.setError('Ocurrió un error al enviar la solicitud. Intenta nuevamente.');
           }
         },
       });
@@ -303,11 +315,11 @@ export class AlumnoCalendarComponent implements OnInit {
   }
 
   private cargarDatos() {
-    if (!this.alumnoId) {
+    if (this.alumnoId === undefined) {
       return;
     }
 
-    this.cargando.set(true);
+    this.setCargando(true);
     this._events.set({});
 
     this.reunionesService.listarSolicitudes({ alumno: this.alumnoId }).subscribe({
@@ -316,19 +328,19 @@ export class AlumnoCalendarComponent implements OnInit {
         this.reunionesService.listarReuniones({ alumno: this.alumnoId }).subscribe({
           next: (reuniones) => {
             this.sincronizarReuniones(reuniones);
-            this.cargando.set(false);
+            this.setCargando(false);
           },
           error: (err) => {
             console.error('No se pudieron cargar las reuniones del alumno', err);
-            this.error.set('No se pudieron cargar tus reuniones.');
-            this.cargando.set(false);
+            this.setError('No se pudieron cargar tus reuniones.');
+            this.setCargando(false);
           },
         });
       },
       error: (err) => {
         console.error('No se pudieron cargar las solicitudes del alumno', err);
-        this.error.set('No se pudieron cargar tus solicitudes.');
-        this.cargando.set(false);
+        this.setError('No se pudieron cargar tus solicitudes.');
+        this.setCargando(false);
       },
     });
   }
