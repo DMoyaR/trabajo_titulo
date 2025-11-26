@@ -13,20 +13,18 @@
   <div class="split bitacoras-split">
     <div>
       <h4 class="sec">Pendientes</h4>
-      <div class="grid bitacoras-grid" *ngIf="bitacorasPendientes().length; else noBitPend">
-        <article class="item clickable bitacora-card" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
+      <div class="grid" *ngIf="bitacorasPendientes().length; else noBitPend">
+        <article class="item" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
           <div class="top">
             <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc" *ngIf="b.titulo">{{ b.titulo }}</p>
-          <p class="desc muted">Sigue el progreso semanal de tu trabajo.</p>
+          <p class="desc" *ngIf="b.titulo; else bitacoraPendienteDesc">{{ b.titulo }}</p>
+          <ng-template #bitacoraPendienteDesc>
+            <p class="desc">Sigue el progreso semanal de tu trabajo.</p>
+          </ng-template>
           <div class="meta">
             <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
-          </div>
-          <div class="bitacora-actions">
-            <button class="btn primary" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
-            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Detalles</button>
           </div>
         </article>
       </div>
@@ -37,22 +35,19 @@
 
     <div>
       <h4 class="sec">Completadas</h4>
-      <div class="grid bitacoras-grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
-        <article class="item clickable bitacora-card done" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
+      <div class="grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
+        <article class="item" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
           <div class="top">
             <b class="title">Bitácora {{ b.indice + 1 }} de evaluación {{ b.evaluacionTitulo }}</b>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc" *ngIf="b.titulo">{{ b.titulo }}</p>
-          <p class="desc muted">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
+          <p class="desc" *ngIf="b.titulo; else bitacoraCompletadaDesc">{{ b.titulo }}</p>
+          <ng-template #bitacoraCompletadaDesc>
+            <p class="desc">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
+          </ng-template>
           <div class="meta">
             <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
             <span *ngIf="b.entrega?.nota != null">• Nota: <b>{{ b.entrega?.nota }}</b></span>
-          </div>
-          <div class="bitacora-actions">
-            <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
-            <a *ngIf="b.entrega?.informeUrl" [href]="b.entrega?.informeUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver correcciones</a>
-            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Detalles</button>
           </div>
         </article>
       </div>
