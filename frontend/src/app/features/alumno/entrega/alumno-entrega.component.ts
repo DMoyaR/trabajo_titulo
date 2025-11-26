@@ -12,7 +12,7 @@ import {
 import { finalize } from 'rxjs/operators';
 
 type EstadoEval = 'pendiente' | 'entregada' | 'calificada';
-type EstadoBitacora = 'pendiente' | 'entregada' | 'calificada';
+type EstadoBitacora = 'pendiente' | 'entregada' | 'revisada';
 
 interface Entrega {
   id?: number;
@@ -29,6 +29,7 @@ interface Entrega {
   informeUrl?: string | null;
   fecha: string | Date;
   nota?: number | null;
+  estadoRevision?: 'pendiente' | 'revisada';
   esBitacora?: boolean;
   bitacoraIndice?: number | null;
 }
@@ -227,8 +228,8 @@ export class AlumnoEntregaComponent implements OnInit {
     if (normalizado === 'entregada') {
       return 'entregada';
     }
-    if (normalizado === 'calificada' || normalizado === 'evaluada') {
-      return 'calificada';
+    if (normalizado === 'revisada' || normalizado === 'calificada' || normalizado === 'evaluada') {
+      return 'revisada';
     }
     return 'pendiente';
   }
@@ -249,6 +250,7 @@ export class AlumnoEntregaComponent implements OnInit {
       informeUrl: dto.informe_corregido_url || null,
       fecha: this.parseFecha(dto.creado_en) ?? dto.creado_en,
       nota: dto.nota,
+      estadoRevision: dto.estado_revision,
       esBitacora: dto.es_bitacora,
       bitacoraIndice: dto.bitacora_indice ?? null,
     };
@@ -315,13 +317,15 @@ export class AlumnoEntregaComponent implements OnInit {
     const indice = destino.bitacora?.indice ?? entrega.bitacoraIndice ?? null;
     if (indice == null) return;
 
+    const estado: EstadoBitacora = entrega.estadoRevision === 'revisada' ? 'revisada' : 'entregada';
+
     let actualizada: BitacoraProgramada | null = null;
     this._bitacoras.set(
       this._bitacoras().map(b => {
         if (b.evaluacionId === destino.evaluacionId && b.indice === indice) {
           actualizada = {
             ...b,
-            estado: entrega.nota != null ? 'calificada' : 'entregada',
+            estado,
             entrega,
           };
           return actualizada;
@@ -371,7 +375,9 @@ export class AlumnoEntregaComponent implements OnInit {
     switch (estado) {
       case 'pendiente': return 'chip warn';
       case 'entregada': return 'chip info';
-      case 'calificada': return 'chip ok';
+      case 'calificada':
+      case 'revisada':
+        return 'chip ok';
       default: return 'chip';
     }
   }

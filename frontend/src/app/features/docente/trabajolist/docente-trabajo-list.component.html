@@ -52,9 +52,6 @@
           <option value="Evaluaciones">Solo evaluaciones</option>
           <option value="Bitácoras">Solo bitácoras</option>
         </select>
-        <select [(ngModel)]="filtroTipo">
-          <option *ngFor="let t of tiposEntrega" [value]="t">{{ t }}</option>
-        </select>
         <input type="text" [(ngModel)]="filtroBusqueda" placeholder="Buscar entrega..." />
       </div>
 

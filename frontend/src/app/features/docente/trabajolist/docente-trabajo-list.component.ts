@@ -71,8 +71,6 @@ export class DocenteTrabajoListComponent implements OnInit {
   cargandoEntregas = false;
   errorEntregas: string | null = null;
 
-  tiposEntrega = ['Todos'];
-  filtroTipo = 'Todos';
   filtroCategoria: 'Todos' | 'Evaluaciones' | 'Bitácoras' = 'Todos';
   filtroBusqueda = '';
 
@@ -173,7 +171,6 @@ export class DocenteTrabajoListComponent implements OnInit {
         this.errorEntregas = 'No pudimos obtener las entregas registradas.';
         this.entregasPorGrupo = new Map();
         this.entregas = [];
-        this.actualizarTiposEntrega();
         this.cargandoEntregas = false;
       },
     });
@@ -237,7 +234,6 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   verGrupo(grupo: Grupo) {
     this.grupoSeleccionado = grupo;
-    this.filtroTipo = 'Todos';
     this.filtroCategoria = 'Todos';
     this.filtroBusqueda = '';
 
@@ -247,13 +243,11 @@ export class DocenteTrabajoListComponent implements OnInit {
   volverAListaGrupos() {
     this.grupoSeleccionado = null;
     this.entregas = [];
-    this.actualizarTiposEntrega();
   }
 
   get entregasFiltradas(): Entrega[] {
     const texto = this.filtroBusqueda.trim().toLowerCase();
     return this.entregas.filter((entrega) => {
-      const coincideTipo = this.filtroTipo === 'Todos' || entrega.tipo === this.filtroTipo;
       const coincideCategoria =
         this.filtroCategoria === 'Todos' ||
         (this.filtroCategoria === 'Bitácoras' ? entrega.esBitacora : !entrega.esBitacora);
@@ -261,7 +255,7 @@ export class DocenteTrabajoListComponent implements OnInit {
         !texto ||
         entrega.titulo.toLowerCase().includes(texto) ||
         (entrega.tipo ?? '').toLowerCase().includes(texto);
-      return coincideTipo && coincideCategoria && coincideBusqueda;
+      return coincideCategoria && coincideBusqueda;
     });
   }
 
@@ -411,32 +405,11 @@ export class DocenteTrabajoListComponent implements OnInit {
   private actualizarEntregasSeleccionadas(): void {
     if (!this.grupoSeleccionado) {
       this.entregas = [];
-      this.actualizarTiposEntrega();
       return;
     }
 
     const entregasGrupo = this.entregasPorGrupo.get(this.grupoSeleccionado.id) ?? [];
     this.entregas = [...entregasGrupo];
-    this.actualizarTiposEntrega();
-  }
-
-  private actualizarTiposEntrega(): void {
-    const tipos = new Set<string>();
-    this.entregas.forEach((entrega) => {
-      const tipo = entrega.tipo?.trim();
-      if (tipo) {
-        tipos.add(tipo);
-      }
-    });
-
-    this.tiposEntrega = [
-      'Todos',
-      ...Array.from(tipos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
-    ];
-
-    if (!this.tiposEntrega.includes(this.filtroTipo)) {
-      this.filtroTipo = 'Todos';
-    }
   }
 
   private mapearEntregasPorGrupo(
