@@ -11,8 +11,33 @@ class CurrentUserServiceStub {
 }
 
 class ReunionesServiceStub {
+  solicitudes: SolicitudReunion[] = [
+    {
+      id: 1,
+      estado: 'pendiente',
+      motivo: 'Revisar capítulo 1',
+      disponibilidadSugerida: null,
+      creadoEn: new Date('2024-01-10T10:00:00Z'),
+      actualizadoEn: new Date('2024-01-10T10:00:00Z'),
+      alumno: { id: 1, nombre: 'Ana López', correo: 'ana@example.com', carrera: null, telefono: null, rol: 'alumno' },
+      docente: null,
+      trazabilidad: [],
+    },
+    {
+      id: 2,
+      estado: 'aprobada',
+      motivo: 'Seguimiento general',
+      disponibilidadSugerida: 'Martes AM',
+      creadoEn: new Date('2024-01-08T10:00:00Z'),
+      actualizadoEn: new Date('2024-01-09T10:00:00Z'),
+      alumno: { id: 2, nombre: 'Carlos Díaz', correo: 'carlos@example.com', carrera: null, telefono: null, rol: 'alumno' },
+      docente: null,
+      trazabilidad: [],
+    },
+  ];
+
   listarSolicitudes(_: { docente: number }) {
-    return of([] as SolicitudReunion[]);
+    return of(this.solicitudes);
   }
 
   aprobarSolicitud() {
@@ -53,7 +78,7 @@ describe('DocenteDashboardComponent', () => {
     fixture.detectChanges();
 
     expect(spy).toHaveBeenCalledWith({ docente: 1 });
-    expect(component.solicitudes).toEqual([]);
+    expect(component.solicitudes).toEqual(reunionesService.solicitudes);
   });
 
   it('should allow toggling pendientes and historial', () => {
@@ -67,5 +92,12 @@ describe('DocenteDashboardComponent', () => {
 
     expect(component.mostrarPendientes).toBeTrue();
     expect(component.mostrarHistorial).toBeTrue();
+  });
+
+  it('should only show solicitudes pendientes when reviewing', () => {
+    fixture.detectChanges();
+
+    expect(component.solicitudesPendientes.length).toBe(1);
+    expect(component.solicitudesResueltas.length).toBe(1);
   });
 });
