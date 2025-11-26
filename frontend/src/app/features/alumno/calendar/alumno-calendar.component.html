@@ -1,5 +1,9 @@
 <h2 class="ttl">Calendario</h2>
 
+<div class="alert success" *ngIf="mensaje()">{{ mensaje() }}</div>
+<div class="alert error" *ngIf="error()">{{ error() }}</div>
+<p class="muted" *ngIf="cargando()">Cargando tus reuniones y solicitudes…</p>
+
 <div class="wrap">
   <!-- Calendario principal -->
   <section class="panel">
@@ -124,7 +128,7 @@
       <div *ngFor="let ev of dayEvents()" class="event">
         <div class="ev-head">
           <b>{{ ev.hora }} — {{ ev.titulo }}</b>
-          <span class="state" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'">
+          <span class="state" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'" [class.alert]="ev.estado==='Rechazada'">
             {{ ev.estado }}
           </span>
         </div>
@@ -173,7 +177,9 @@
 
         <div class="modal-actions">
           <button type="button" class="pill" (click)="closeSolicitar()">Cancelar</button>
-          <button type="submit" class="pill primary">Enviar solicitud</button>
+          <button type="submit" class="pill primary" [disabled]="enviando()">
+            {{ enviando() ? 'Enviando…' : 'Enviar solicitud' }}
+          </button>
         </div>
       </form>
       <small class="muted">Tu solicitud quedará en estado <b>Pendiente</b> hasta ser revisada por tu docente guía.</small>
@@ -206,7 +212,7 @@
               <div class="sub">{{ ev.lugar }}</div>
             </div>
             <div class="right">
-              <span class="state small" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'">
+              <span class="state small" [class.ok]="ev.estado==='Confirmada'" [class.pending]="ev.estado==='Pendiente'" [class.alert]="ev.estado==='Rechazada'">
                 {{ ev.estado }}
               </span>
             </div>
