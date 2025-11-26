@@ -290,6 +290,12 @@ select:focus {
   color: #b71c1c;
 }
 
+.alert.info {
+  background: #eef3fb;
+  border-color: #c8d4f3;
+  color: #1a3e6a;
+}
+
 .muted {
   color: #6c757d;
   margin: 0;
@@ -480,4 +486,11 @@ select:focus {
   border: 1px solid #eef3fb;
   border-radius: 10px;
   padding: 10px 12px;
+}
+
+.historial-paginacion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
 }

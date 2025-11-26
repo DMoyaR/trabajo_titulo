@@ -23,7 +23,10 @@ class ReunionesServiceStub {
       docente: null,
       trazabilidad: [],
     },
-    {
+  ];
+
+  constructor() {
+    const baseResuelta: SolicitudReunion = {
       id: 2,
       estado: 'aprobada',
       motivo: 'Seguimiento general',
@@ -33,8 +36,28 @@ class ReunionesServiceStub {
       alumno: { id: 2, nombre: 'Carlos Díaz', correo: 'carlos@example.com', carrera: null, telefono: null, rol: 'alumno' },
       docente: null,
       trazabilidad: [],
-    },
-  ];
+    };
+
+    this.solicitudes = [
+      this.solicitudes[0],
+      baseResuelta,
+      ...Array.from({ length: 10 }).map((_, idx) => ({
+        ...baseResuelta,
+        id: 3 + idx,
+        alumno: {
+          id: 3 + idx,
+          nombre: `Alumno ${idx + 1}`,
+          correo: `alumno${idx + 1}@example.com`,
+          carrera: null,
+          telefono: null,
+          rol: 'alumno',
+        },
+        motivo: `Motivo ${idx + 1}`,
+        creadoEn: new Date(`2024-01-${10 + idx}T12:00:00Z`),
+        actualizadoEn: new Date(`2024-01-${10 + idx}T13:00:00Z`),
+      })),
+    ];
+  }
 
   listarSolicitudes(_: { docente: number }) {
     return of(this.solicitudes);
@@ -98,6 +121,20 @@ describe('DocenteDashboardComponent', () => {
     fixture.detectChanges();
 
     expect(component.solicitudesPendientes.length).toBe(1);
-    expect(component.solicitudesResueltas.length).toBe(1);
+    expect(component.solicitudesResueltas.length).toBe(11);
+  });
+
+  it('should paginate historial when more than 10 solicitudes resueltas', () => {
+    fixture.detectChanges();
+
+    component.mostrarHistorial = true;
+    fixture.detectChanges();
+
+    expect(component.historialTotalPaginas).toBe(2);
+    expect(component.historialPaginado.length).toBe(component.historialPorPagina);
+
+    component.paginaHistorialSiguiente();
+    expect(component.historialPagina).toBe(2);
+    expect(component.historialPaginado.length).toBe(1);
   });
 });
