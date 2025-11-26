@@ -260,15 +260,7 @@ input[type="text"], textarea{
 
 /* Bitácoras */
 .bitacoras-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.bitacoras-grid .item{ background:#f7fbff; }
-.item.clickable{ cursor:pointer; }
 .bitacora-title{ display:flex; flex-direction:column; gap:2px; }
-.bitacora-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
-.btn.ghost{ background:transparent; border-color:var(--border); color:var(--primary); }
 .bitacoras-split .sec{ margin-bottom:8px; }
-.bitacora-card{ position:relative; overflow:hidden; }
-.bitacora-card.done{ background:#f7f9ff; }
-.bitacora-card .sub{ font-size:12px; }
-.bitacora-card .meta{ gap:12px; }
 .eval-meta{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 .bitacora-sub{ margin-top:0; margin-bottom:8px; }
