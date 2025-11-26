@@ -239,3 +239,10 @@ input[type="text"], textarea{
 }
 .ins-list{ margin:0; padding-left:18px; color:#1f2a37; }
 .ins-list li{ margin:4px 0; }
+
+/* Bitácoras */
+.bitacoras-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.bitacoras-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; }
+.bitacoras-grid .item{ cursor:default; border:1px solid #e4e7ec; border-radius:12px; padding:12px; background:linear-gradient(180deg, #fdf5ff 0%, #fff 40%); box-shadow:0 2px 6px rgba(0,0,0,0.04); }
+.bitacoras-grid .meta{ display:flex; justify-content:space-between; gap:6px; color:#667085; font-size:13px; }
+.bitacoras-grid .title{ color:#7f56d9; }

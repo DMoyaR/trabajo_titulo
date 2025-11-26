@@ -1,5 +1,30 @@
 <h2 class="ttl">{{ titulo }}</h2>
 
+<!-- Bitácoras programadas -->
+<section class="card" *ngIf="bitacoras().length">
+  <div class="bitacoras-head">
+    <div>
+      <h3>Bitácoras</h3>
+      <p class="muted">Seguimiento semanal solicitado por tu docente.</p>
+    </div>
+    <span class="chip warn">Pendientes</span>
+  </div>
+
+  <div class="bitacoras-grid">
+    <article class="item" *ngFor="let b of bitacoras()">
+      <div class="top">
+        <b class="title">{{ b.titulo }}</b>
+        <span class="chip warn">{{ b.estado }}</span>
+      </div>
+      <p class="desc">{{ b.comentario || 'Sigue el progreso semanal de tu trabajo.' }}</p>
+      <div class="meta">
+        <span>Evaluación: {{ b.evaluacionTitulo }}</span>
+        <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y' }}</span>
+      </div>
+    </article>
+  </div>
+</section>
+
 <!-- Evaluaciones -->
 <section class="card">
   <h3>Evaluaciones</h3>

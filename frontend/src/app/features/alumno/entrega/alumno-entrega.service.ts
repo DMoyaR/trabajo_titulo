@@ -45,6 +45,13 @@ export interface EvaluacionGrupoDto {
     nombre: string;
     integrantes: string[];
   } | null;
+  bitacoras_programadas?: {
+    indice: number;
+    titulo: string;
+    fecha: string;
+    comentario: string | null;
+    estado: string;
+  }[];
   entregas: EvaluacionEntregaDto[];
   ultima_entrega: EvaluacionEntregaDto | null;
 }

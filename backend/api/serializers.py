@@ -1,4 +1,5 @@
 from math import ceil
+from datetime import timedelta
 from rest_framework import serializers
 import mimetypes
 from django.utils import timezone
@@ -1089,6 +1090,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    bitacoras_programadas = serializers.SerializerMethodField()
     rubrica_url = serializers.SerializerMethodField()
     rubrica_nombre = serializers.SerializerMethodField()
     rubrica_tipo = serializers.SerializerMethodField()
@@ -1108,6 +1110,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_tipo",
             "bitacoras_requeridas",
             "bitacora_comentario",
+            "bitacoras_programadas",
             "fecha",
             "estado",
             "created_at",
@@ -1127,6 +1130,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_tipo",
             "entregas",
             "ultima_entrega",
+            "bitacoras_programadas",
         ]
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
@@ -1240,6 +1244,31 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
 
         semanas = ceil(dias_restantes / 7)
         return max(semanas - 1, 0)
+
+    def get_bitacoras_programadas(self, obj: EvaluacionGrupoDocente):
+        fecha_limite = obj.fecha
+        total = obj.bitacoras_requeridas or 0
+
+        if not fecha_limite or total <= 0:
+            return []
+
+        bitacoras = []
+
+        for indice in range(1, total + 1):
+            semanas_restantes = total - indice + 1
+            fecha = fecha_limite - timedelta(weeks=semanas_restantes)
+
+            bitacoras.append(
+                {
+                    "indice": indice,
+                    "titulo": f"Bitácora {indice}",
+                    "fecha": fecha,
+                    "comentario": obj.bitacora_comentario,
+                    "estado": "pendiente",
+                }
+            )
+
+        return bitacoras
 
     def get_grupo(self, obj):
         tema = obj.tema
