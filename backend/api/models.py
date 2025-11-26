@@ -439,6 +439,8 @@ class EvaluacionGrupoDocente(models.Model):
         null=True,
         max_length=255,
     )
+    bitacoras_requeridas = models.PositiveSmallIntegerField(default=0)
+    bitacora_comentario = models.TextField(blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1104,6 +1104,8 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_url",
             "rubrica_nombre",
             "rubrica_tipo",
+            "bitacoras_requeridas",
+            "bitacora_comentario",
             "fecha",
             "estado",
             "created_at",
@@ -1121,6 +1123,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_url",
             "rubrica_nombre",
             "rubrica_tipo",
+            "bitacoras_requeridas",
             "entregas",
             "ultima_entrega",
         ]
@@ -1158,12 +1161,22 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             )
         return comentario_limpio
 
+    def validate_bitacoras_requeridas(self, cantidad: int | None) -> int:
+        cantidad = cantidad or 0
+        if cantidad < 0:
+            raise serializers.ValidationError(
+                "La cantidad de bitácoras no puede ser negativa."
+            )
+        return cantidad
+
     def to_internal_value(self, data):
         data = data.copy()
         if data.get("fecha") in ("", None):
             data["fecha"] = None
         if data.get("rubrica") in ("", None):
             data["rubrica"] = None
+        if data.get("bitacora_comentario") in ("", None):
+            data["bitacora_comentario"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
@@ -1179,6 +1192,18 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         if docente and not self._tema_pertenece_a_docente(tema, docente):
             raise serializers.ValidationError(
                 {"tema": "El grupo seleccionado no pertenece al docente."}
+            )
+
+        bitacoras = attrs.get("bitacoras_requeridas") or 0
+        bitacora_comentario = (attrs.get("bitacora_comentario") or "").strip()
+
+        if bitacoras > 0 and not bitacora_comentario:
+            raise serializers.ValidationError(
+                {
+                    "bitacora_comentario": (
+                        "Agrega instrucciones para las bitácoras solicitadas."
+                    )
+                }
             )
 
         if not tema.inscripciones.filter(activo=True).exists():

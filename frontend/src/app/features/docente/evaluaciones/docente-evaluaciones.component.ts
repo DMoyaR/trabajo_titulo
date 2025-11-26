@@ -17,6 +17,8 @@ type GrupoEvaluaciones = {
     comentario: string | null;
     rubricaNombre: string | null;
     rubricaUrl: string | null;
+    bitacorasRequeridas: number;
+    bitacoraComentario: string | null;
     fecha: string | null;
     estado: string;
   }[];
@@ -78,6 +80,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
   evaluacionComentario = signal('');
+  bitacorasRequeridas = signal(0);
+  bitacoraComentario = signal('');
   evaluacionRubrica = signal<File | null>(null);
 
   private rubricaInput?: HTMLInputElement | null;
@@ -100,6 +104,15 @@ export class DocenteEvaluacionesComponent implements OnInit {
     this.evaluacionRubrica.set(archivo);
   }
 
+  onBitacorasChange(event: Event): void {
+    const valor = Number((event.target as HTMLInputElement | null)?.value ?? 0);
+    if (Number.isNaN(valor) || valor < 0) {
+      this.bitacorasRequeridas.set(0);
+      return;
+    }
+    this.bitacorasRequeridas.set(Math.trunc(valor));
+  }
+
   private limpiarRubrica(): void {
     this.evaluacionRubrica.set(null);
     if (this.rubricaInput) {
@@ -118,9 +131,15 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const bitacoras = Math.max(0, Number(this.bitacorasRequeridas()) || 0);
+    const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
 
     if (!grupoId || !titulo || !comentario) {
+      return;
+    }
+
+    if (bitacoras > 0 && !bitacoraComentario) {
       return;
     }
 
@@ -128,6 +147,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       tema: grupoId,
       titulo,
       comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario: bitacoras > 0 ? bitacoraComentario : null,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
       rubrica,
@@ -147,6 +168,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
       this.limpiarRubrica();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
@@ -166,6 +189,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const bitacoras = Math.max(0, Number(this.bitacorasRequeridas()) || 0);
+    const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
     const gruposActivos = this.gruposActivos();
 
@@ -173,10 +198,16 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
 
+    if (bitacoras > 0 && !bitacoraComentario) {
+      return;
+    }
+
     const payloads = gruposActivos.map((grupo) => ({
       tema: grupo.id,
       titulo,
       comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario: bitacoras > 0 ? bitacoraComentario : null,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
       rubrica,
@@ -223,6 +254,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
       this.limpiarRubrica();
 
       if (hayFallos) {
@@ -302,6 +335,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
         comentario: evaluacion.comentario,
         rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
         rubricaUrl: evaluacion.rubrica_url,
+        bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+        bitacoraComentario: evaluacion.bitacora_comentario,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
       });
@@ -323,6 +358,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       comentario: evaluacion.comentario,
       rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
       rubricaUrl: evaluacion.rubrica_url,
+      bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+      bitacoraComentario: evaluacion.bitacora_comentario,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
     };

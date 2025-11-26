@@ -36,6 +36,8 @@ export interface EvaluacionGrupoDto {
   rubrica_url: string | null;
   rubrica_nombre: string | null;
   rubrica_tipo: string | null;
+  bitacoras_requeridas: number;
+  bitacora_comentario: string | null;
   fecha: string | null;
   estado: string;
   created_at: string;
@@ -56,6 +58,8 @@ export type CrearEvaluacionPayload = {
   comentario: string;
   rubrica?: File | null;
   fecha?: string | null;
+  bitacoras_requeridas?: number | null;
+  bitacora_comentario?: string | null;
 };
 
 export interface GrupoActivoDto {
@@ -99,6 +103,14 @@ export class DocenteEvaluacionesService {
         body['fecha'] = null;
       }
 
+      if (payload.bitacoras_requeridas != null) {
+        body['bitacoras_requeridas'] = payload.bitacoras_requeridas;
+      }
+
+      if (payload.bitacora_comentario != null) {
+        body['bitacora_comentario'] = payload.bitacora_comentario;
+      }
+
       if (payload.docente != null) {
         body['docente'] = payload.docente;
       }
@@ -113,6 +125,14 @@ export class DocenteEvaluacionesService {
 
     if (payload.fecha) {
       form.append('fecha', payload.fecha);
+    }
+
+    if (payload.bitacoras_requeridas != null) {
+      form.append('bitacoras_requeridas', String(payload.bitacoras_requeridas));
+    }
+
+    if (payload.bitacora_comentario != null) {
+      form.append('bitacora_comentario', payload.bitacora_comentario);
     }
 
     if (payload.docente != null) {

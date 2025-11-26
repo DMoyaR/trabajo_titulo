@@ -234,6 +234,19 @@
   font-size: 14px;
 }
 
+.bitacora-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bitacora-texto {
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+}
+
 .empty {
   border: 2px dashed #b6c3de;
   border-radius: 16px;
@@ -372,6 +385,11 @@
 .chip.ok {
   background: #def7ec;
   color: #047857;
+}
+
+.chip.info {
+  background: #e0f2fe;
+  color: #0f4c81;
 }
 
 .panel-resumen {
