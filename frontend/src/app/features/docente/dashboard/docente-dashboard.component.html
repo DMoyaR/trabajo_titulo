@@ -5,55 +5,51 @@
 <div class="filters">
   <div class="filter-group">
     <label class="filter-label">Carrera</label>
-    <select>
-      <option>Todas las carreras</option>
-      <option>Ingeniería en Sistemas</option>
-      <option>Administración</option>
-      <option>Ingeniería Industrial</option>
+    <select [(ngModel)]="filtros.carrera" (change)="aplicarFiltros()">
+      <option value="">Todas las carreras</option>
+      <option *ngFor="let carrera of carrerasDisponibles" [value]="carrera">{{ carrera }}</option>
     </select>
   </div>
   <div class="filter-group">
-    <label class="filter-label">Tipo de Proceso</label>
-    <select>
-      <option>Todos los tipos</option>
-      <option>Tesis</option>
-      <option>Prácticas</option>
-      <option>Proyecto</option>
+    <label class="filter-label">Proceso</label>
+    <select [(ngModel)]="filtros.proceso" (change)="aplicarFiltros()">
+      <option value="">Todos los procesos</option>
+      <option *ngFor="let proceso of procesosDisponibles" [value]="proceso">{{ proceso }}</option>
     </select>
   </div>
   <div class="filter-group">
-    <label class="filter-label">Estado</label>
-    <select>
-      <option>Todos los estados</option>
-      <option>Entregado</option>
-      <option>En proceso</option>
-      <option>Pendiente</option>
-    </select>
+    <label class="filter-label">Proyecto</label>
+    <input
+      type="text"
+      placeholder="Nombre del proyecto"
+      [(ngModel)]="filtros.proyecto"
+      (input)="aplicarFiltros()"
+    />
   </div>
   <div class="filter-group">
     <label class="filter-label">Avance</label>
-    <select>
-      <option>Cualquier avance</option>
-      <option>0-25%</option>
-      <option>26-50%</option>
-      <option>51-75%</option>
-      <option>76-100%</option>
+    <select [(ngModel)]="filtros.avance" (change)="aplicarFiltros()">
+      <option value="">Cualquier avance</option>
+      <option value="0-25">0-25%</option>
+      <option value="26-50">26-50%</option>
+      <option value="51-75">51-75%</option>
+      <option value="76-100">76-100%</option>
     </select>
   </div>
-  <button class="btn sm">Filtrar</button>
+  <button class="btn sm" type="button" (click)="limpiarFiltros()">Limpiar</button>
 </div>
 
 <div class="grid">
   <div class="card main-table" aria-live="polite">
     <div class="card-head">
       <h3>Estudiantes asignados</h3>
-      <span class="muted" *ngIf="!cargandoEstudiantes && !errorEstudiantes">{{ estudiantes.length }} en total</span>
+      <span class="muted" *ngIf="!cargandoEstudiantes && !errorEstudiantes">{{ estudiantesFiltrados.length }} en total</span>
     </div>
 
     <div class="alert error" *ngIf="errorEstudiantes">{{ errorEstudiantes }}</div>
     <p class="muted" *ngIf="cargandoEstudiantes">Cargando estudiantes…</p>
 
-    <table class="tbl" *ngIf="!cargandoEstudiantes && !errorEstudiantes && estudiantes.length">
+    <table class="tbl" *ngIf="!cargandoEstudiantes && !errorEstudiantes && estudiantesFiltrados.length">
       <thead>
         <tr>
           <th>Estudiante</th>
@@ -64,7 +60,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let estudiante of estudiantes">
+        <tr *ngFor="let estudiante of estudiantesFiltrados">
           <td class="student-name">{{ estudiante.nombre }}</td>
           <td>{{ estudiante.carrera }}</td>
           <td><span class="process-type">{{ estudiante.proceso }}</span></td>
@@ -84,8 +80,8 @@
       </tbody>
     </table>
 
-    <div class="empty-box" *ngIf="!cargandoEstudiantes && !errorEstudiantes && !estudiantes.length">
-      No hay estudiantes asignados.
+    <div class="empty-box" *ngIf="!cargandoEstudiantes && !errorEstudiantes && !estudiantesFiltrados.length">
+      No hay estudiantes asignados que coincidan con los filtros seleccionados.
     </div>
   </div>
 </div>
@@ -277,128 +273,3 @@
     </div>
   </div>
 </div>
-
-<section class="card solicitudes-card entregas-panel">
-  <div class="card-header">
-    <div class="card-title">
-      <h3>Entregas recibidas</h3>
-      <p class="muted">Revisa los archivos enviados por tus grupos y marca sus revisiones.</p>
-    </div>
-    <div class="acciones-header">
-      <button type="button" class="btn sm" (click)="exportarNotasCsv()" [disabled]="!entregasRevisadas.length">
-        Exportar notas CSV
-      </button>
-    </div>
-  </div>
-
-  <div class="alert error" *ngIf="entregasError">{{ entregasError }}</div>
-  <p class="muted" *ngIf="entregasCargando && !entregasError">Cargando entregas…</p>
-
-  <ng-container *ngIf="!entregasCargando && !entregasError">
-    <ng-container *ngIf="entregasPorGrupo.length; else sinEntregasDash">
-      <div class="entregas-grupos">
-        <article
-          class="grupo-entrega-card"
-          *ngFor="let grupo of entregasPorGrupo"
-          [class.cerrado]="!grupo.abierto"
-        >
-          <button type="button" class="grupo-toggle" (click)="seleccionarGrupoEntregas(grupo.nombre)">
-            <div class="grupo-titulo">
-              <h4>{{ grupo.nombre }}</h4>
-              <small *ngIf="grupo.abierto">{{ grupo.pendientes.length + grupo.revisadas.length }} entregas</small>
-            </div>
-            <div class="grupo-resumen" *ngIf="grupo.abierto">
-              <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
-              <span class="chip ok">{{ grupo.revisadas.length }} revisadas</span>
-            </div>
-            <span class="caret" [class.open]="grupo.abierto">▼</span>
-          </button>
-
-          <div class="grupo-detalle" *ngIf="grupo.abierto">
-            <div class="entregas-grid detalle-grid">
-              <div class="entregas-col">
-                <div class="col-header">
-                  <h5>Pendientes</h5>
-                  <span class="pill" [class.empty]="!grupo.pendientes.length">{{ grupo.pendientes.length }}</span>
-                </div>
-                <ng-container *ngIf="grupo.pendientes.length; else sinPendientesDash">
-                  <article class="entrega-card pendiente" *ngFor="let entrega of grupo.pendientes">
-                    <header>
-                      <div>
-                        <h5>
-                          <span class="tag info" *ngIf="entrega.esBitacora">
-                            Bitácora {{ entrega.bitacoraIndice || '-' }}
-                          </span>
-                          {{ entrega.evaluacionTitulo }}
-                        </h5>
-                        <span class="tag warn">Por revisar</span>
-                      </div>
-                      <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
-                    </header>
-                    <ul class="info">
-                      <li>
-                        <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
-                        <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
-                      </li>
-                      <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
-                      <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
-                    </ul>
-                    <button class="btn sm" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
-                      Revisar
-                    </button>
-                  </article>
-                </ng-container>
-              </div>
-
-              <div class="entregas-col">
-                <div class="col-header">
-                  <h5>Revisadas</h5>
-                  <span class="pill" [class.empty]="!grupo.revisadas.length">{{ grupo.revisadas.length }}</span>
-                </div>
-                <ng-container *ngIf="grupo.revisadas.length; else sinRevisadasDash">
-                  <article class="entrega-card revisada" *ngFor="let entrega of grupo.revisadas">
-                    <header>
-                      <div>
-                        <h5>
-                          <span class="tag info" *ngIf="entrega.esBitacora">
-                            Bitácora {{ entrega.bitacoraIndice || '-' }}
-                          </span>
-                          {{ entrega.evaluacionTitulo }}
-                        </h5>
-                        <span class="tag ok">Revisada</span>
-                      </div>
-                      <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
-                    </header>
-                    <ul class="info">
-                      <li>
-                        <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
-                        <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
-                      </li>
-                      <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
-                      <li *ngIf="entrega.nota != null"><strong>Nota:</strong> {{ entrega.nota }}</li>
-                      <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
-                    </ul>
-                    <button class="btn sm" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
-                      Ver archivo
-                    </button>
-                  </article>
-                </ng-container>
-              </div>
-            </div>
-
-            <ng-template #sinPendientesDash>
-              <p class="muted">No tienes entregas pendientes de revisión.</p>
-            </ng-template>
-            <ng-template #sinRevisadasDash>
-              <p class="muted">Aún no hay entregas revisadas.</p>
-            </ng-template>
-          </div>
-        </article>
-      </div>
-    </ng-container>
-
-    <ng-template #sinEntregasDash>
-      <p class="muted">Aún no hay entregas registradas para tus grupos.</p>
-    </ng-template>
-  </ng-container>
-</section>

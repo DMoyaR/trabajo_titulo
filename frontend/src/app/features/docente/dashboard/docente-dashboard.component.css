@@ -51,7 +51,8 @@
   font-weight: 500;
 }
 
-select {
+select,
+input[type='text'] {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 10px 12px;
@@ -61,7 +62,8 @@ select {
   min-width: 140px;
 }
 
-select:focus {
+select:focus,
+input[type='text']:focus {
   outline: none;
   border-color: #1976d2;
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
