@@ -80,8 +80,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
   evaluacionComentario = signal('');
+  bitacorasHabilitadas = signal(false);
   bitacorasRequeridas = signal(0);
   bitacoraComentario = signal('');
+  bitacoraFechas = signal<string[]>([]);
   evaluacionRubrica = signal<File | null>(null);
 
   private rubricaInput?: HTMLInputElement | null;
@@ -114,14 +116,44 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const valor = Number((event.target as HTMLInputElement | null)?.value ?? 0);
     if (Number.isNaN(valor) || valor < 0) {
       this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
       return;
     }
-    this.bitacorasRequeridas.set(Math.trunc(valor));
+    const cantidad = Math.trunc(valor);
+    this.bitacorasRequeridas.set(cantidad);
+    this.actualizarFechasManual(cantidad);
+  }
+
+  onBitacorasToggle(event: Event): void {
+    const habilitadas = (event.target as HTMLInputElement | null)?.checked ?? false;
+    this.bitacorasHabilitadas.set(habilitadas);
+
+    if (!habilitadas) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fecha = this.evaluacionFecha();
+    if (fecha) {
+      this.actualizarBitacorasDesdeFecha(fecha);
+    }
+  }
+
+  onBitacoraFechaChange(event: Event, indice: number): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.bitacoraFechas.update((fechas) => {
+      const copia = [...fechas];
+      copia[indice] = valor;
+      return copia;
+    });
   }
 
   private actualizarBitacorasDesdeFecha(fechaSeleccionada: string): void {
     if (!fechaSeleccionada) {
       this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
       return;
     }
 
@@ -142,6 +174,54 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const bitacoras = Math.max(0, semanas - 1);
 
     this.bitacorasRequeridas.set(bitacoras);
+    this.bitacoraFechas.set(this.calcularFechasBitacoras(bitacoras, fecha));
+  }
+
+  private actualizarFechasManual(cantidad: number): void {
+    if (!cantidad) {
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fechaEntrega = this.evaluacionFecha();
+    if (fechaEntrega) {
+      const fecha = new Date(`${fechaEntrega}T00:00:00`);
+      this.bitacoraFechas.set(this.calcularFechasBitacoras(cantidad, fecha));
+      return;
+    }
+
+    const hoy = new Date();
+    const fechas = Array.from({ length: cantidad }).map((_, indice) => {
+      const proxima = new Date(hoy);
+      proxima.setDate(hoy.getDate() + 7 * (indice + 1));
+      return this.formatearFechaInput(proxima);
+    });
+
+    this.bitacoraFechas.set(fechas);
+  }
+
+  private calcularFechasBitacoras(cantidad: number, fechaEntrega: Date): string[] {
+    if (!cantidad) {
+      return [];
+    }
+
+    const fechas: string[] = [];
+    const base = new Date(fechaEntrega);
+
+    for (let i = cantidad; i >= 1; i -= 1) {
+      const punto = new Date(base);
+      punto.setDate(base.getDate() - 7 * i);
+      fechas.push(this.formatearFechaInput(punto));
+    }
+
+    return fechas;
+  }
+
+  private formatearFechaInput(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const day = `${fecha.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private limpiarRubrica(): void {
@@ -162,7 +242,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
-    const bitacoras = Math.max(0, Number(this.bitacorasRequeridas()) || 0);
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
     const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
 
@@ -179,7 +261,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       titulo,
       comentario,
       bitacoras_requeridas: bitacoras,
-      bitacora_comentario: bitacoras > 0 ? bitacoraComentario : null,
+      bitacora_comentario:
+        bitacoras > 0 ? bitacoraComentario : null,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
       rubrica,
@@ -199,8 +282,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
       this.bitacorasRequeridas.set(0);
       this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
       this.limpiarRubrica();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
@@ -220,7 +305,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
-    const bitacoras = Math.max(0, Number(this.bitacorasRequeridas()) || 0);
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
     const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
     const gruposActivos = this.gruposActivos();
@@ -285,8 +372,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
       this.bitacorasRequeridas.set(0);
       this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
       this.limpiarRubrica();
 
       if (hayFallos) {

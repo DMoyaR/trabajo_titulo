@@ -65,34 +65,60 @@
         (input)="onFechaChange($event)"
       />
     </label>
-    <div class="field status-field">
-      <span>Estado según fecha</span>
-      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
-        {{ estadoCalculado() }}
+  </div>
+  <div class="bitacora-panel">
+    <div class="bitacora-header">
+      <div>
+        <p class="bitacora-title">Bitácoras solicitadas</p>
+        <small class="field-hint">Activa esta opción si necesitas bitácoras semanales.</small>
       </div>
+      <label class="toggle">
+        <input
+          type="checkbox"
+          [checked]="bitacorasHabilitadas()"
+          (change)="onBitacorasToggle($event)"
+        />
+        <span>{{ bitacorasHabilitadas() ? 'Activadas' : 'Desactivadas' }}</span>
+      </label>
     </div>
-    <label class="field">
-      <span>Bitácoras solicitadas (opcional)</span>
-      <input
-        type="number"
-        min="0"
-        step="1"
-        placeholder="Ej: 3"
-        [value]="bitacorasRequeridas()"
-        (input)="onBitacorasChange($event)"
-      />
-      <small class="field-hint">Define cuántas bitácoras necesitas para revisar el progreso.</small>
-    </label>
-    <label class="field textarea-field">
-      <span>Instrucciones para las bitácoras</span>
-      <textarea
-        rows="2"
-        placeholder="Describe qué debe registrar el alumno en cada bitácora"
-        [value]="bitacoraComentario()"
-        (input)="bitacoraComentario.set(($any($event.target)).value)"
-      ></textarea>
-      <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
-    </label>
+
+    <div class="bitacora-config" *ngIf="bitacorasHabilitadas()">
+      <label class="field">
+        <span>Bitácoras solicitadas</span>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Ej: 3"
+          [value]="bitacorasRequeridas()"
+          (input)="onBitacorasChange($event)"
+        />
+        <small class="field-hint">
+          Se calculan automáticamente al elegir la fecha de entrega, pero puedes ajustarlas.
+        </small>
+      </label>
+
+      <div class="bitacora-fechas" *ngIf="bitacorasRequeridas() > 0">
+        <p class="bitacora-fechas-title">Fechas estimadas para cada bitácora</p>
+        <div class="bitacora-fechas-grid">
+          <label class="field" *ngFor="let fecha of bitacoraFechas(); let i = index">
+            <span>Bitácora {{ i + 1 }}</span>
+            <input type="date" [value]="fecha" (input)="onBitacoraFechaChange($event, i)" />
+          </label>
+        </div>
+      </div>
+
+      <label class="field textarea-field">
+        <span>Instrucciones para las bitácoras</span>
+        <textarea
+          rows="2"
+          placeholder="Describe qué debe registrar el alumno en cada bitácora"
+          [value]="bitacoraComentario()"
+          (input)="bitacoraComentario.set(($any($event.target)).value)"
+        ></textarea>
+        <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
+      </label>
+    </div>
   </div>
   <div class="form-actions">
     <button
@@ -105,7 +131,7 @@
         !grupoSeleccionadoId() ||
         !evaluacionTitulo().trim() ||
         !evaluacionComentario().trim() ||
-        (bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
       "
     >
       {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
@@ -120,7 +146,7 @@
         !gruposActivos().length ||
         !evaluacionTitulo().trim() ||
         !evaluacionComentario().trim() ||
-        (bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
       "
     >
       {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
