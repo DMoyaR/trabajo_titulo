@@ -46,28 +46,6 @@
       <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
     </label>
     <label class="field">
-      <span>Bitácoras solicitadas (opcional)</span>
-      <input
-        type="number"
-        min="0"
-        step="1"
-        placeholder="Ej: 3"
-        [value]="bitacorasRequeridas()"
-        (input)="onBitacorasChange($event)"
-      />
-      <small class="field-hint">Define cuántas bitácoras necesitas para revisar el progreso.</small>
-    </label>
-    <label class="field textarea-field">
-      <span>Instrucciones para las bitácoras</span>
-      <textarea
-        rows="2"
-        placeholder="Describe qué debe registrar el alumno en cada bitácora"
-        [value]="bitacoraComentario()"
-        (input)="bitacoraComentario.set(($any($event.target)).value)"
-      ></textarea>
-      <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
-    </label>
-    <label class="field">
       <span>Rúbrica (opcional)</span>
       <input
         #rubricaInput
@@ -93,6 +71,28 @@
         {{ estadoCalculado() }}
       </div>
     </div>
+    <label class="field">
+      <span>Bitácoras solicitadas (opcional)</span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        placeholder="Ej: 3"
+        [value]="bitacorasRequeridas()"
+        (input)="onBitacorasChange($event)"
+      />
+      <small class="field-hint">Define cuántas bitácoras necesitas para revisar el progreso.</small>
+    </label>
+    <label class="field textarea-field">
+      <span>Instrucciones para las bitácoras</span>
+      <textarea
+        rows="2"
+        placeholder="Describe qué debe registrar el alumno en cada bitácora"
+        [value]="bitacoraComentario()"
+        (input)="bitacoraComentario.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
+    </label>
   </div>
   <div class="form-actions">
     <button
