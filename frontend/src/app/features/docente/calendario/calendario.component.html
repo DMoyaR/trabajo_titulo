@@ -327,6 +327,15 @@
           </label>
         </div>
         <div class="row">
+          <label>Proyecto
+            <input
+              type="text"
+              list="proyectos-docente"
+              [(ngModel)]="singleForm.proyecto"
+              name="proyecto"
+              placeholder="Selecciona el proyecto"
+            />
+          </label>
           <label>Título
             <input type="text" [(ngModel)]="singleForm.titulo" name="titulo" required />
           </label>
@@ -390,6 +399,15 @@
         </div>
 
         <div class="row">
+          <label>Proyecto
+            <input
+              type="text"
+              list="proyectos-docente"
+              [(ngModel)]="recurForm.proyecto"
+              name="proyectoRecur"
+              placeholder="Selecciona el proyecto"
+            />
+          </label>
           <label>Título
             <input type="text" [(ngModel)]="recurForm.titulo" name="tituloRecur" required />
           </label>
@@ -411,6 +429,10 @@
     </div>
   </div>
 </div>
+
+<datalist id="proyectos-docente">
+  <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto"></option>
+</datalist>
 
 <!-- ===== Modal: Resumen de reuniones ===== -->
 <div class="doc-overlay" *ngIf="showResumenModal()">
