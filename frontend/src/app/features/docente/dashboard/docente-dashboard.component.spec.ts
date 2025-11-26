@@ -61,7 +61,7 @@ class ReunionesServiceStub {
         motivo: `Motivo ${idx + 1}`,
         fechaSugerida: '2024-02-01',
         horaSugerida: '12:00',
-        modalidadSugerida: 'online' as const,
+        modalidadSugerida: 'online',
         creadoEn: new Date(`2024-01-${10 + idx}T12:00:00Z`),
         actualizadoEn: new Date(`2024-01-${10 + idx}T13:00:00Z`),
       })),
@@ -160,7 +160,7 @@ describe('DocenteDashboardComponent', () => {
 
     expect(component.aprobarForm.controls.fecha.disabled).toBeTrue();
     expect(component.aprobarForm.controls.horaInicio.disabled).toBeTrue();
-    expect(component.aprobarForm.controls.modalidad.disabled).toBeTrue();
+    expect(component.aprobarForm.controls.modalidad.disabled).toBeFalse();
 
     component.aprobarForm.controls.duracion.setValue(45);
     expect(component.aprobarForm.controls.horaTermino.value).toBe('10:45');

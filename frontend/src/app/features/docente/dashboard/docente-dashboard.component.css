@@ -436,6 +436,24 @@ select:focus {
   color: #1a3e6a;
 }
 
+.horario-fijo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #eef3fb;
+  border: 1px solid #c8d4f3;
+}
+
+.horario-fijo .etiqueta {
+  display: block;
+  color: #4b5563;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
 .form-grid input.readonly {
   background-color: #f6f7fb;
   color: #6b7280;
