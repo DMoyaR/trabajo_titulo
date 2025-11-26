@@ -108,6 +108,7 @@ export class AlumnoEntregaComponent implements OnInit {
   pendientes = () => this._evaluaciones().filter(e => e.estado === 'pendiente');
   completadas = () => this._evaluaciones().filter(e => e.estado !== 'pendiente');
   bitacoras = () => this._bitacoras();
+  destinoSubida = () => this._destinoSubida();
 
   seleccionada = () => this._seleccion();
 
@@ -185,7 +186,7 @@ export class AlumnoEntregaComponent implements OnInit {
           titulo: bitacora.titulo,
           comentario: bitacora.comentario,
           fechaLimite: this.parseFecha(bitacora.fecha) ?? bitacora.fecha,
-          estado: (bitacora.estado as EstadoBitacora) || 'pendiente',
+          estado: this.mapEstadoBitacora(bitacora.estado),
           entrega: bitacora.entrega ? this.mapEntregaDto(bitacora.entrega) : null,
         }))
       )
@@ -213,6 +214,17 @@ export class AlumnoEntregaComponent implements OnInit {
     }
     if (normalizado === 'en progreso') {
       return 'pendiente';
+    }
+    return 'pendiente';
+  }
+
+  private mapEstadoBitacora(estado: string | null | undefined): EstadoBitacora {
+    const normalizado = (estado ?? '').trim().toLowerCase();
+    if (normalizado === 'entregada') {
+      return 'entregada';
+    }
+    if (normalizado === 'calificada' || normalizado === 'evaluada') {
+      return 'calificada';
     }
     return 'pendiente';
   }
@@ -297,7 +309,7 @@ export class AlumnoEntregaComponent implements OnInit {
     entrega: Entrega,
   ) {
     const indice = destino.bitacora?.indice ?? entrega.bitacoraIndice ?? null;
-    if (!indice) return;
+    if (indice == null) return;
 
     this._bitacoras.set(
       this._bitacoras().map(b => {
@@ -336,6 +348,23 @@ export class AlumnoEntregaComponent implements OnInit {
       case 'calificada': return 'chip ok';
       default: return 'chip';
     }
+  }
+
+  destinoLabel(): string {
+    const destino = this._destinoSubida();
+    if (!destino) return '';
+
+    if (destino.tipo === 'bitacora') {
+      const evaluacionTitulo =
+        this._evaluaciones().find(ev => ev.id === destino.evaluacionId)?.titulo ||
+        destino.bitacora?.evaluacionTitulo ||
+        'Evaluación';
+      const bitacoraTitulo = destino.bitacora?.titulo || 'Bitácora';
+      return `Bitácora: ${bitacoraTitulo} — ${evaluacionTitulo}`;
+    }
+
+    const evaluacionTitulo = this._evaluaciones().find(ev => ev.id === destino.evaluacionId)?.titulo;
+    return `Evaluación: ${evaluacionTitulo || 'Sin título'}`;
   }
 
   getInstrucciones(ev: Evaluacion): string[] {

@@ -251,6 +251,8 @@
       <button class="x" (click)="closeUpload()">✕</button>
     </header>
 
+    <p class="muted" *ngIf="destinoLabel()">Para: {{ destinoLabel() }}</p>
+
     <form class="form" (ngSubmit)="submitUpload()">
       <label class="field">
         <span class="lbl">Título del envío</span>

@@ -83,7 +83,7 @@ export class AlumnoEntregasService {
     }
     formData.append('archivo', payload.archivo);
     formData.append('alumno', String(alumnoId));
-    if (payload.bitacoraIndice) {
+    if (payload.bitacoraIndice !== undefined && payload.bitacoraIndice !== null) {
       formData.append('bitacora_indice', String(payload.bitacoraIndice));
     }
 
