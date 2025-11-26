@@ -82,6 +82,7 @@ export class AlumnoEntregaComponent implements OnInit {
 
   // Selección
   private _seleccion = signal<Evaluacion | null>(null);
+  private _seleccionBitacora = signal<BitacoraProgramada | null>(null);
 
   // Modal subir
   showUpload = signal(false);
@@ -111,6 +112,7 @@ export class AlumnoEntregaComponent implements OnInit {
   destinoSubida = () => this._destinoSubida();
 
   seleccionada = () => this._seleccion();
+  seleccionBitacora = () => this._seleccionBitacora();
 
   cargando = () => this._cargando();
   loadError = () => this._loadError();
@@ -286,6 +288,7 @@ export class AlumnoEntregaComponent implements OnInit {
     const evaluaciones = this._evaluaciones();
     if (!evaluaciones.length) {
       this._seleccion.set(null);
+      this._seleccionBitacora.set(null);
       return;
     }
 
@@ -299,9 +302,7 @@ export class AlumnoEntregaComponent implements OnInit {
   }
 
   onBitacoraClick(bitacora: BitacoraProgramada) {
-    if (bitacora.estado === 'pendiente') {
-      this.openUploadBitacora(bitacora);
-    }
+    this.seleccionarBitacora(bitacora);
   }
 
   private actualizarBitacoraEntregada(
@@ -311,18 +312,27 @@ export class AlumnoEntregaComponent implements OnInit {
     const indice = destino.bitacora?.indice ?? entrega.bitacoraIndice ?? null;
     if (indice == null) return;
 
+    let actualizada: BitacoraProgramada | null = null;
     this._bitacoras.set(
       this._bitacoras().map(b => {
         if (b.evaluacionId === destino.evaluacionId && b.indice === indice) {
-          return {
+          actualizada = {
             ...b,
             estado: entrega.nota != null ? 'calificada' : 'entregada',
             entrega,
           };
+          return actualizada;
         }
         return b;
       })
     );
+
+    if (actualizada) {
+      const seleccion = this._seleccionBitacora();
+      if (seleccion && seleccion.evaluacionId === destino.evaluacionId && seleccion.indice === indice) {
+        this._seleccionBitacora.set(actualizada);
+      }
+    }
   }
 
   archivoInfo() {
@@ -335,13 +345,20 @@ export class AlumnoEntregaComponent implements OnInit {
   // Acciones UI
   seleccionar(e: Evaluacion) {
     this._seleccion.set(e);
+    this._seleccionBitacora.set(null);
+  }
+
+  seleccionarBitacora(bitacora: BitacoraProgramada) {
+    this._seleccionBitacora.set(bitacora);
+    this._seleccion.set(null);
   }
 
   limpiarSeleccion() {
     this._seleccion.set(null);
+    this._seleccionBitacora.set(null);
   }
 
-  estadoClase(estado: EstadoEval) {
+  estadoClase(estado: EstadoEval | EstadoBitacora) {
     switch (estado) {
       case 'pendiente': return 'chip warn';
       case 'entregada': return 'chip info';
@@ -403,6 +420,7 @@ export class AlumnoEntregaComponent implements OnInit {
 
   openUploadBitacora(bitacora: BitacoraProgramada) {
     if (bitacora.estado !== 'pendiente') return;
+    this.seleccionarBitacora(bitacora);
     this._destinoSubida.set({ tipo: 'bitacora', evaluacionId: bitacora.evaluacionId, bitacora });
     this.prepararFormulario(bitacora.titulo, bitacora.comentario || '');
   }
