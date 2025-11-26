@@ -17,6 +17,8 @@ export interface EvaluacionEntregaDto {
   informe_corregido_tipo: string | null;
   nota: number | null;
   estado_revision: 'pendiente' | 'revisada';
+  es_bitacora: boolean;
+  bitacora_indice: number | null;
   creado_en: string;
   actualizado_en: string;
   alumno: {

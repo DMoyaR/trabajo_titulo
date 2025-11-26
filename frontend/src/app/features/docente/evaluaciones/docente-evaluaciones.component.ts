@@ -28,6 +28,8 @@ type EntregaDocente = {
   id: number;
   evaluacionId: number;
   evaluacionTitulo: string;
+  esBitacora: boolean;
+  bitacoraIndice: number | null;
   grupo: string;
   alumnoNombre: string;
   alumnoCorreo: string | null;
@@ -579,6 +581,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       id: entrega.id,
       evaluacionId: evaluacion.id,
       evaluacionTitulo: evaluacion.titulo,
+      esBitacora: entrega.es_bitacora,
+      bitacoraIndice: entrega.bitacora_indice ?? null,
       grupo: grupoNombre,
       alumnoNombre: entrega.alumno?.nombre ?? 'Alumno sin registro',
       alumnoCorreo: entrega.alumno?.correo ?? null,
