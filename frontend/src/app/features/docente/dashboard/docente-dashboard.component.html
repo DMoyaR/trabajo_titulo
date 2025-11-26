@@ -119,11 +119,6 @@
   <p class="muted" *ngIf="solicitudesCargando">Cargando solicitudes…</p>
   <p class="muted" *ngIf="!solicitudesCargando && !solicitudes.length">No hay solicitudes registradas.</p>
 
-  <div class="resumen" *ngIf="!mostrarPendientes && !solicitudesCargando">
-    <p class="muted">Este panel muestra un resumen de tus solicitudes recientes.</p>
-    <p class="muted" *ngIf="!hayPendientes">No tienes solicitudes pendientes por revisar.</p>
-  </div>
-
   <p class="muted" *ngIf="mostrarPendientes && !solicitudesPendientes.length && !solicitudesCargando">
     No hay solicitudes pendientes por revisar.
   </p>
