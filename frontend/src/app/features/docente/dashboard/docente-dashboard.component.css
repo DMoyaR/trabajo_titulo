@@ -31,13 +31,22 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
   gap: 12px;
-  margin-bottom: 20px;
+  margin: 0 auto 20px;
   align-items: end;
   background: white;
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
+  max-width: 1200px;
+}
+
+.card,
+.filters {
+  max-width: 1200px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .filter-group {
