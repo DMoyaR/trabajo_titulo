@@ -1,5 +1,7 @@
+from math import ceil
 from rest_framework import serializers
 import mimetypes
+from django.utils import timezone
 
 from .models import (
     Usuario,
@@ -1123,7 +1125,6 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_url",
             "rubrica_nombre",
             "rubrica_tipo",
-            "bitacoras_requeridas",
             "entregas",
             "ultima_entrega",
         ]
@@ -1183,6 +1184,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         tema = attrs.get("tema")
         docente = attrs.get("docente")
+        fecha = attrs.get("fecha")
 
         if not tema:
             raise serializers.ValidationError(
@@ -1197,7 +1199,20 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
         bitacoras = attrs.get("bitacoras_requeridas") or 0
         bitacora_comentario = (attrs.get("bitacora_comentario") or "").strip()
 
-        if bitacoras > 0 and not bitacora_comentario:
+        bitacoras_por_plazo = self._calcular_bitacoras_por_plazo(fecha)
+        attrs["bitacoras_requeridas"] = bitacoras_por_plazo
+
+        if bitacoras > 0 and bitacoras != bitacoras_por_plazo:
+            raise serializers.ValidationError(
+                {
+                    "bitacoras_requeridas": (
+                        "Las bitácoras deben ser semanales según el plazo: "
+                        "corresponde una bitácora por semana y la última semana es la evaluación."
+                    )
+                }
+            )
+
+        if bitacoras_por_plazo > 0 and not bitacora_comentario:
             raise serializers.ValidationError(
                 {
                     "bitacora_comentario": (
@@ -1212,6 +1227,19 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def _calcular_bitacoras_por_plazo(self, fecha):
+        if not fecha:
+            return 0
+
+        hoy = timezone.localdate()
+        dias_restantes = (fecha - hoy).days
+
+        if dias_restantes <= 0:
+            return 0
+
+        semanas = ceil(dias_restantes / 7)
+        return max(semanas - 1, 0)
 
     def get_grupo(self, obj):
         tema = obj.tema
