@@ -271,3 +271,4 @@ input[type="text"], textarea{
 .bitacora-card .sub{ font-size:12px; }
 .bitacora-card .meta{ gap:12px; }
 .eval-meta{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.bitacora-sub{ margin-top:0; margin-bottom:8px; }
