@@ -23,12 +23,13 @@
             </div>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc">{{ b.comentario || 'Sigue el progreso semanal de tu trabajo.' }}</p>
+          <p class="desc">Sigue el progreso semanal de tu trabajo.</p>
           <div class="meta">
             <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
           </div>
           <div class="bitacora-actions">
             <button class="btn primary" (click)="openUploadBitacora(b); $event.stopPropagation();">Subir bitácora</button>
+            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Ver evaluación</button>
           </div>
         </article>
       </div>
@@ -49,7 +50,7 @@
             </div>
             <span [ngClass]="estadoClase(b.estado)">{{ b.estado }}</span>
           </div>
-          <p class="desc">{{ b.comentario || 'Revisa los comentarios del docente sobre tu avance.' }}</p>
+          <p class="desc">Revisa los envíos y correcciones disponibles para esta bitácora.</p>
           <div class="meta">
             <span *ngIf="b.entrega?.fecha">Entregada: {{ b.entrega?.fecha | date:'d MMM y, HH:mm' }}</span>
             <span *ngIf="b.entrega?.nota != null">Nota: <b>{{ b.entrega?.nota }}</b></span>
@@ -57,6 +58,7 @@
           <div class="bitacora-actions">
             <a *ngIf="b.entrega?.archivoUrl" [href]="b.entrega?.archivoUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver entrega</a>
             <a *ngIf="b.entrega?.informeUrl" [href]="b.entrega?.informeUrl" target="_blank" rel="noopener noreferrer" class="btn ghost" (click)="$event.stopPropagation()">Ver correcciones</a>
+            <button class="btn ghost" (click)="openEvaluacion(b.evaluacionId); $event.stopPropagation();">Ver evaluación</button>
           </div>
         </article>
       </div>
@@ -143,7 +145,7 @@
       <b>Bitácora</b>
       <span class="tag">Para: {{ b.evaluacionTitulo }}</span>
     </div>
-    <p class="muted">{{ b.comentario || 'Revisar instrucciones en Aula Virtual.' }}</p>
+    <p class="muted">Revisa las indicaciones de tu docente en la evaluación asociada antes de subir tu bitácora.</p>
   </div>
 
   <div class="info-row">
@@ -172,12 +174,9 @@
 
     <div class="row">
       <div><b>Evaluación asociada:</b></div>
-      <div>{{ b.evaluacionTitulo }}</div>
-    </div>
-
-    <div class="row">
-      <div><b>Comentario:</b></div>
-      <div>{{ b.comentario || 'Sin comentarios adicionales.' }}</div>
+      <div class="eval-link" (click)="openEvaluacion(b.evaluacionId)">
+        <span class="link">{{ b.evaluacionTitulo }}</span>
+      </div>
     </div>
   </div>
 

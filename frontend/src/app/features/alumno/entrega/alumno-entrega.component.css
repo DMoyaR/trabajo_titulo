@@ -84,6 +84,7 @@ h2.ttl{
   cursor:pointer;
   font-weight:700;
 }
+.eval-link{ cursor:pointer; }
 .info-row{ display:flex; gap:10px; align-items:center; margin:8px 0 12px; }
 .muted{ color:var(--muted); }
 
