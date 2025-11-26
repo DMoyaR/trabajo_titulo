@@ -46,6 +46,32 @@
       <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
     </label>
     <label class="field">
+      <span>Rúbrica (opcional)</span>
+      <input
+        #rubricaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+        (change)="onRubricaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
+      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
+    </label>
+    <label class="field">
+      <span>Fecha (opcional)</span>
+      <input
+        type="date"
+        [value]="evaluacionFecha()"
+        (input)="onFechaChange($event)"
+      />
+    </label>
+    <div class="field status-field">
+      <span>Estado según fecha</span>
+      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
+        {{ estadoCalculado() }}
+      </div>
+    </div>
+    <label class="field">
       <span>Bitácoras solicitadas (opcional)</span>
       <input
         type="number"
@@ -67,32 +93,6 @@
       ></textarea>
       <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
     </label>
-    <label class="field">
-      <span>Rúbrica (opcional)</span>
-      <input
-        #rubricaInput
-        type="file"
-        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
-        (change)="onRubricaSeleccionada($event)"
-        [disabled]="enviando()"
-      />
-      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
-      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
-    </label>
-    <label class="field">
-      <span>Fecha (opcional)</span>
-      <input
-        type="date"
-        [value]="evaluacionFecha()"
-        (input)="evaluacionFecha.set(($any($event.target)).value)"
-      />
-    </label>
-    <div class="field status-field">
-      <span>Estado según fecha</span>
-      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
-        {{ estadoCalculado() }}
-      </div>
-    </div>
   </div>
   <div class="form-actions">
     <button

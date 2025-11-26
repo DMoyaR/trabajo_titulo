@@ -104,6 +104,12 @@ export class DocenteEvaluacionesComponent implements OnInit {
     this.evaluacionRubrica.set(archivo);
   }
 
+  onFechaChange(event: Event): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.evaluacionFecha.set(valor);
+    this.actualizarBitacorasDesdeFecha(valor);
+  }
+
   onBitacorasChange(event: Event): void {
     const valor = Number((event.target as HTMLInputElement | null)?.value ?? 0);
     if (Number.isNaN(valor) || valor < 0) {
@@ -111,6 +117,31 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
     this.bitacorasRequeridas.set(Math.trunc(valor));
+  }
+
+  private actualizarBitacorasDesdeFecha(fechaSeleccionada: string): void {
+    if (!fechaSeleccionada) {
+      this.bitacorasRequeridas.set(0);
+      return;
+    }
+
+    const fecha = new Date(`${fechaSeleccionada}T00:00:00`);
+    const hoy = new Date();
+    const inicioHoy = new Date(
+      hoy.getFullYear(),
+      hoy.getMonth(),
+      hoy.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const diffMs = fecha.getTime() - inicioHoy.getTime();
+    const semanas = Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
+    const bitacoras = Math.max(0, semanas - 1);
+
+    this.bitacorasRequeridas.set(bitacoras);
   }
 
   private limpiarRubrica(): void {
