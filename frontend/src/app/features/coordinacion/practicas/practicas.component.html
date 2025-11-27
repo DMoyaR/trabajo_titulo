@@ -138,9 +138,14 @@
         <h3>Recepción de informes</h3>
         <p class="muted">Visualiza los informes de práctica enviados por los estudiantes y registra la nota.</p>
       </div>
-      <button class="btn sm" type="button" (click)="descargarCsvEntregas()" [disabled]="!entregasEvaluacion().length">
-        Descargar CSV
-      </button>
+      <div class="acciones-head">
+        <button class="btn sm" type="button" (click)="cargarEntregasEvaluacion()" [disabled]="entregasEvaluacionLoading()">
+          {{ entregasEvaluacionLoading() ? 'Actualizando…' : 'Actualizar' }}
+        </button>
+        <button class="btn sm" type="button" (click)="descargarCsvEntregas()" [disabled]="!entregasEvaluacion().length">
+          Descargar CSV
+        </button>
+      </div>
     </div>
 
     <div class="doc-list">

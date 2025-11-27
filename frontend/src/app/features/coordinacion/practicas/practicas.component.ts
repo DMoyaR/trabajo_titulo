@@ -1505,9 +1505,7 @@ cursorY += 6;
       this.cargarDocumentosCompartidos();
     }
     if (tab === 'recepcion' && this.coordinadorId !== null) {
-      if (!this.entregasEvaluacion().length) {
-        this.cargarEntregasEvaluacion();
-      }
+      this.cargarEntregasEvaluacion();
     }
     if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
       this.cargarFirmaCoordinador();
