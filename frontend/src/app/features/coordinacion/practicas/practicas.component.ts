@@ -1088,8 +1088,8 @@ async aprobar() {
 
   let archivo: File;
   try {
-    // true => usar firma como imagen dentro del PDF
-    archivo = await this.generarArchivoCartaPdf(c, true);
+    // Genera el PDF usando la firma guardada del coordinador (si existe)
+    archivo = await this.generarArchivoCartaPdf(c);
   } catch (err) {
     console.error('No se pudo generar el PDF de la carta.', err);
     this.toast.set('No se pudo generar el archivo PDF de la carta.');
@@ -1144,8 +1144,7 @@ async firmarConUrl() {
 
   let archivo: File;
   try {
-    // false => NO se dibuja la firma como imagen en el PDF
-    archivo = await this.generarArchivoCartaPdf(c, false);
+    archivo = await this.generarArchivoCartaPdf(c, urlFirmado);
   } catch (err) {
     console.error('No se pudo generar el PDF de la carta (modo URL).', err);
     this.toast.set('No se pudo generar el archivo PDF de la carta.');
@@ -1446,7 +1445,7 @@ private escribirBullet(
 
 private async generarArchivoCartaPdf(
   solicitud: SolicitudCarta,
-  usarFirmaImagen: boolean
+  firmaUrl?: string | null
 ): Promise<File> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const preview = this.construirCartaPreviewData(solicitud);
@@ -1456,10 +1455,10 @@ private async generarArchivoCartaPdf(
 
   // Firma gráfica del coordinador (si existe y corresponde usar imagen)
   const firmaCoord = this.firmaCoordinador();
-  const firmaImagen =
-    usarFirmaImagen && firmaCoord?.url
-      ? await this.cargarImagenFirma(firmaCoord.url)
-      : null;
+  const firmaFuente = firmaUrl?.trim() || firmaCoord?.url || null;
+  const firmaImagen = firmaFuente
+    ? await this.cargarImagenFirma(firmaFuente)
+    : null;
 
     const margenX = 20;
     let cursorY = 5;
