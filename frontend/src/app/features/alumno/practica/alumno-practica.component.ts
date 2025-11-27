@@ -24,6 +24,22 @@ interface Documento {
   detalle?: string | null;
 }
 
+interface EvaluacionPractica {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  createdAt: string;
+  url: string | null;
+}
+
+interface EntregaEvaluacion {
+  id: number;
+  createdAt: string;
+  archivoNombre: string;
+  url: string | null;
+  evaluacionNombre?: string | null;
+}
+
 interface DocumentoOficialApi {
   id: number;
   nombre: string;
@@ -31,6 +47,23 @@ interface DocumentoOficialApi {
   carrera: string;
   created_at: string;
   url: string | null;
+}
+
+interface EvaluacionPracticaApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
+}
+
+interface EvaluacionEntregaApi {
+  id: number;
+  created_at: string;
+  archivo_url: string | null;
+  archivo_nombre?: string | null;
+  evaluacion?: EvaluacionPracticaApi | null;
 }
 
 type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
@@ -176,6 +209,15 @@ export class AlumnoPracticaComponent implements OnInit {
   documentosOficialesError = signal<string | null>(null);
   oficiales = signal<Documento[]>([]);
 
+  evaluacion = signal<EvaluacionPractica | null>(null);
+  evaluacionEntrega = signal<EntregaEvaluacion | null>(null);
+  evaluacionLoading = signal(false);
+  evaluacionError = signal<string | null>(null);
+  evaluacionUploadError = signal<string | null>(null);
+  evaluacionArchivoNombre = signal<string | null>(null);
+  evaluacionSending = signal(false);
+  private evaluacionArchivo: File | null = null;
+
   solicitudes = signal<SolicitudCarta[]>([]);
   solicitudesLoading = signal(false);
   solicitudesError = signal<string | null>(null);
@@ -186,6 +228,7 @@ export class AlumnoPracticaComponent implements OnInit {
     return sols.some(s => s.estado === 'pendiente' || s.estado === 'aprobado');
   });
 
+  private alumnoId: number | null = null;
   private alumnoRut: string | null = null;
   private carreraAlumno: string | null = null;
 
@@ -422,6 +465,7 @@ export class AlumnoPracticaComponent implements OnInit {
         this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
       }
       this.cargarDocumentosOficiales(storedCarrera);
+      this.cargarEvaluacionPractica(storedCarrera);
     } else {
       this.refrescarDocumentos();
     }
@@ -470,6 +514,8 @@ export class AlumnoPracticaComponent implements OnInit {
       return;
     }
 
+    this.alumnoId = profile.id ?? null;
+
     const patch: Record<string, unknown> = {};
 
     if (profile.nombre) {
@@ -496,6 +542,7 @@ export class AlumnoPracticaComponent implements OnInit {
         if (this.carreraAlumno !== carreraPerfil) {
           this.carreraAlumno = carreraPerfil;
           this.cargarDocumentosOficiales(carreraPerfil);
+          this.cargarEvaluacionPractica(carreraPerfil);
         }
         const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) =>
           carreras.includes(carreraPerfil)
@@ -504,6 +551,10 @@ export class AlumnoPracticaComponent implements OnInit {
           patch['escuelaId'] = escuelaMatch[0];
         }
       }
+    }
+
+    if (this.alumnoId !== null) {
+      this.cargarEntregaEvaluacion(this.alumnoId);
     }
 
     const keys = Object.keys(patch);
@@ -616,6 +667,133 @@ export class AlumnoPracticaComponent implements OnInit {
           this.refrescarDocumentos();
         },
       });
+  }
+
+  private cargarEvaluacionPractica(carrera: string | null): void {
+    const carreraLimpia = (carrera || '').trim();
+    if (!carreraLimpia) {
+      this.evaluacion.set(null);
+      this.evaluacionError.set(null);
+      return;
+    }
+
+    this.evaluacionLoading.set(true);
+    this.evaluacionError.set(null);
+
+    this.http
+      .get<{ item: EvaluacionPracticaApi | null }>('/api/practicas/evaluacion/', {
+        params: { carrera: carreraLimpia },
+      })
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.evaluacion.set(
+            item
+              ? {
+                  id: item.id,
+                  nombre: item.nombre,
+                  descripcion: item.descripcion ?? null,
+                  createdAt: item.created_at,
+                  url: item.url,
+                }
+              : null
+          );
+          this.evaluacionLoading.set(false);
+
+          if (this.alumnoId !== null) {
+            this.cargarEntregaEvaluacion(this.alumnoId);
+          }
+        },
+        error: () => {
+          this.evaluacion.set(null);
+          this.evaluacionError.set('No se pudo cargar la evaluación de práctica.');
+          this.evaluacionLoading.set(false);
+        },
+      });
+  }
+
+  private cargarEntregaEvaluacion(alumnoId: number): void {
+    this.http
+      .get<{ item: EvaluacionEntregaApi | null }>('/api/practicas/evaluacion/entregas/', {
+        params: { alumno: String(alumnoId) },
+      })
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.evaluacionEntrega.set(
+            item
+              ? {
+                  id: item.id,
+                  createdAt: item.created_at,
+                  archivoNombre: item.archivo_nombre || 'Archivo enviado',
+                  url: item.archivo_url,
+                  evaluacionNombre: item.evaluacion?.nombre ?? null,
+                }
+              : null
+          );
+        },
+        error: () => {
+          this.evaluacionEntrega.set(null);
+        },
+      });
+  }
+
+  onEvaluacionArchivoSeleccionado(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    this.evaluacionArchivo = file;
+    this.evaluacionUploadError.set(null);
+    this.evaluacionArchivoNombre.set(file ? file.name : null);
+  }
+
+  subirEvaluacionPractica(): void {
+    if (this.alumnoId === null) {
+      this.evaluacionUploadError.set('No se pudo identificar al alumno actual.');
+      return;
+    }
+
+    if (!this.evaluacionArchivo) {
+      this.evaluacionUploadError.set('Selecciona un archivo para subir tu evaluación.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('alumno', String(this.alumnoId));
+    formData.append('archivo', this.evaluacionArchivo);
+    const evalId = this.evaluacion()?.id;
+    if (evalId) {
+      formData.append('evaluacion', String(evalId));
+    }
+
+    this.evaluacionSending.set(true);
+    this.http
+      .post<EvaluacionEntregaApi>('/api/practicas/evaluacion/entregas/', formData)
+      .subscribe({
+        next: (res) => {
+          this.evaluacionEntrega.set({
+            id: res.id,
+            createdAt: res.created_at,
+            archivoNombre: res.archivo_nombre || this.evaluacionArchivoNombre() || 'Archivo enviado',
+            url: res.archivo_url,
+            evaluacionNombre: res.evaluacion?.nombre ?? null,
+          });
+          this.evaluacionUploadError.set(null);
+          this.evaluacionArchivoNombre.set(null);
+          this.evaluacionArchivo = null;
+          this.evaluacionSending.set(false);
+          this.limpiarEvaluacionArchivo();
+        },
+        error: () => {
+          this.evaluacionUploadError.set('No se pudo subir tu evaluación. Intenta nuevamente.');
+          this.evaluacionSending.set(false);
+        },
+      });
+  }
+
+  limpiarEvaluacionArchivo(): void {
+    this.evaluacionArchivo = null;
+    this.evaluacionArchivoNombre.set(null);
+    this.evaluacionUploadError.set(null);
   }
 
   private cargarSolicitudes(): void {

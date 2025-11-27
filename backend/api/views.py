@@ -37,6 +37,8 @@ from .models import (
     Notificacion,
     PracticaDocumento,
     PracticaFirmaCoordinador,
+    PracticaEvaluacion,
+    PracticaEvaluacionEntrega,
     PropuestaTema,
     PropuestaTemaDocente,
     SolicitudCartaPractica,
@@ -58,6 +60,8 @@ from .serializers import (
     NotificacionSerializer,
     PracticaDocumentoSerializer,
     PracticaFirmaCoordinadorSerializer,
+    PracticaEvaluacionSerializer,
+    PracticaEvaluacionEntregaSerializer,
     PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDocenteDecisionSerializer,
@@ -3247,3 +3251,168 @@ def gestionar_firma_coordinador_practica(request):
     status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     headers = {"Location": f"/api/coordinacion/practicas/firma/"}
     return Response(serializer.data, status=status_code, headers=headers)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_evaluacion_practica(request):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        evaluacion = (
+            PracticaEvaluacion.objects.select_related("uploaded_by")
+            .filter(carrera__iexact=carrera)
+            .order_by("-created_at")
+            .first()
+        )
+        if not evaluacion:
+            return Response({"item": None})
+
+        serializer = PracticaEvaluacionSerializer(
+            evaluacion, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
+    if not nombre:
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    descripcion = (request.data.get("descripcion") or "").strip()
+
+    evaluacion = PracticaEvaluacion.objects.create(
+        carrera=carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaEvaluacionSerializer(
+        evaluacion, context={"request": request}
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/evaluacion/{evaluacion.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def obtener_evaluacion_practica(request):
+    carrera = (request.query_params.get("carrera") or "").strip()
+    if not carrera:
+        return Response({"item": None})
+
+    evaluacion = (
+        PracticaEvaluacion.objects.select_related("uploaded_by")
+        .filter(carrera__iexact=carrera)
+        .order_by("-created_at")
+        .first()
+    )
+    if not evaluacion:
+        return Response({"item": None})
+
+    serializer = PracticaEvaluacionSerializer(
+        evaluacion, context={"request": request}
+    )
+    return Response({"item": serializer.data})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_entrega_evaluacion_practica(request):
+    alumno_param = request.query_params.get("alumno") or request.data.get("alumno")
+    alumno = _obtener_usuario_por_id(alumno_param)
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"detail": "Alumno no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (alumno.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El alumno no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        entrega = (
+            PracticaEvaluacionEntrega.objects.select_related("evaluacion")
+            .filter(alumno=alumno)
+            .order_by("-created_at")
+            .first()
+        )
+        if not entrega:
+            return Response({"item": None})
+
+        serializer = PracticaEvaluacionEntregaSerializer(
+            entrega, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    evaluacion_id = request.data.get("evaluacion") or request.query_params.get(
+        "evaluacion"
+    )
+    if evaluacion_id:
+        evaluacion = (
+            PracticaEvaluacion.objects.filter(pk=evaluacion_id, carrera__iexact=carrera)
+            .order_by("-created_at")
+            .first()
+        )
+    else:
+        evaluacion = (
+            PracticaEvaluacion.objects.filter(carrera__iexact=carrera)
+            .order_by("-created_at")
+            .first()
+        )
+
+    if not evaluacion:
+        return Response(
+            {"detail": "No hay una evaluación disponible para tu carrera."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entrega = PracticaEvaluacionEntrega.objects.create(
+        evaluacion=evaluacion,
+        alumno=alumno,
+        archivo=archivo,
+    )
+
+    serializer = PracticaEvaluacionEntregaSerializer(
+        entrega, context={"request": request}
+    )
+    headers = {"Location": f"/api/practicas/evaluacion/entregas/{entrega.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

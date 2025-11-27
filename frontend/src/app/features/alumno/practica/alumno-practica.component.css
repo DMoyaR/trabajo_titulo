@@ -27,6 +27,16 @@
 .files li { display:grid; grid-template-columns:1fr auto auto; align-items:center; background:#f7faff; border:1px solid #e9eef6; border-radius:10px; padding:10px 12px; }
 .files li .muted { margin-right:8px; color:#667085; font-size:.9rem; }
 
+/* ===== Evaluación de práctica ===== */
+.eval-section { display:grid; grid-template-columns:1fr; gap:14px; }
+.eval-card { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px; border:1px solid #e9eef6; border-radius:10px; background:#f7faff; }
+.eval-download .muted { display:block; }
+.eval-upload .file-input { display:block; cursor:pointer; border:1px dashed #cbd5e1; padding:12px; border-radius:10px; color:#0f274b; background:#f8fafc; }
+.eval-upload .file-input input { display:none; }
+.eval-upload .file-input span { font-weight:700; }
+.eval-actions { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; }
+.eval-status { margin-top:10px; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; }
+
 /* ===== Solicitudes ===== */
 .solicitudes-card { margin-top:18px; }
 .solicitudes-list { list-style:none; margin:0; padding:0; display:grid; gap:12px; }

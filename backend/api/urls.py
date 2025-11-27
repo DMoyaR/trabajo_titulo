@@ -23,6 +23,9 @@ from .views import (
     gestionar_documentos_practica,
     eliminar_documento_practica,
     gestionar_firma_coordinador_practica,
+    gestionar_evaluacion_practica,
+    obtener_evaluacion_practica,
+    gestionar_entrega_evaluacion_practica,
     DocenteEvaluacionListCreateView,
     DocenteEvaluacionEntregaUpdateView,
     DocenteGruposActivosListView,
@@ -97,9 +100,14 @@ urlpatterns = [
         name="gestionar-documentos-practica",
     ),
     path(
-    "coordinacion/practicas/firma/",
-    gestionar_firma_coordinador_practica,
-    name="gestionar-firma-coordinador-practica",
+        "coordinacion/practicas/evaluacion/",
+        gestionar_evaluacion_practica,
+        name="gestionar-evaluacion-practica",
+    ),
+    path(
+        "coordinacion/practicas/firma/",
+        gestionar_firma_coordinador_practica,
+        name="gestionar-firma-coordinador-practica",
     ),
     path(
         "coordinacion/practicas/documentos/<int:pk>/",
@@ -107,9 +115,19 @@ urlpatterns = [
         name="eliminar-documento-practica",
     ),
     path(
-    "coordinacion/titulo/promedios/",
-    CoordinacionPromediosTituloView.as_view(),
-    name="coordinacion-promedios-titulo",
+        "practicas/evaluacion/",
+        obtener_evaluacion_practica,
+        name="listar-evaluacion-practica",
+    ),
+    path(
+        "practicas/evaluacion/entregas/",
+        gestionar_entrega_evaluacion_practica,
+        name="entregas-evaluacion-practica",
+    ),
+    path(
+        "coordinacion/titulo/promedios/",
+        CoordinacionPromediosTituloView.as_view(),
+        name="coordinacion-promedios-titulo",
     ),
     path(
         "practicas/documentos/",
