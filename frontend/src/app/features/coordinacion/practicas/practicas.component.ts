@@ -194,6 +194,7 @@ export class PracticasComponent {
   entregasEvaluacionError = signal<string | null>(null);
   notasEdicion = signal<Record<number, string | undefined>>({});
   guardandoNotas = signal<Record<number, boolean>>({});
+  notaErrores = signal<Record<number, string | null>>({});
 
   
   firmaCoordinador = signal<FirmaCoordinador | null>(null);
@@ -628,12 +629,16 @@ export class PracticasComponent {
           }));
 
           const notas: Record<number, string> = {};
+          const errores: Record<number, string | null> = {};
+
           mapped.forEach((m) => {
             notas[m.id] = m.nota || '';
+            errores[m.id] = null; // sin error al inicio
           });
 
           this.entregasEvaluacion.set(mapped);
           this.notasEdicion.set(notas);
+          this.notaErrores.set(errores);
           this.entregasEvaluacionLoading.set(false);
         },
         error: () => {
@@ -717,8 +722,42 @@ export class PracticasComponent {
     }
   }
 
+
+  private validarNotaRaw(raw: string): { ok: boolean; normalizada: string | null } {
+    if (!raw) {
+      return { ok: false, normalizada: null };
+    }
+
+    // Aceptar coma o punto como separador decimal
+    const limpio = raw.replace(',', '.').trim();
+
+    // Formato: dígito 1–7, opcional un decimal
+    const regex = /^[1-7](\.[0-9])?$/;
+    if (!regex.test(limpio)) {
+      return { ok: false, normalizada: null };
+    }
+
+    const num = Number(limpio);
+    if (Number.isNaN(num) || num < 1 || num > 7) {
+      return { ok: false, normalizada: null };
+    }
+
+    // Siempre guardamos con un decimal, ej: "6.0"
+    const normalizada = num.toFixed(1);
+    return { ok: true, normalizada };
+  }
+
+
   onNotaChange(entregaId: number, valor: string) {
+    // Guardamos lo que va escribiendo
     this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: valor }));
+
+    // Validamos en tiempo real
+    const { ok } = this.validarNotaRaw(valor);
+    this.notaErrores.update((prev) => ({
+      ...prev,
+      [entregaId]: ok ? null : 'La nota debe estar entre 1,0 y 7,0',
+    }));
   }
 
   notaGuardando(entregaId: number): boolean {
@@ -731,7 +770,20 @@ export class PracticasComponent {
       return;
     }
 
-    const nota = (this.notasEdicion()[entregaId] ?? '').trim();
+    const raw = (this.notasEdicion()[entregaId] ?? '').trim();
+    const { ok, normalizada } = this.validarNotaRaw(raw);
+
+    if (!ok || !normalizada) {
+      this.notaErrores.update((prev) => ({
+        ...prev,
+        [entregaId]: 'La nota debe estar entre 1,0 y 7,0',
+      }));
+      this.toast.set('La nota debe estar entre 1,0 y 7,0');
+      return;
+    }
+
+    const nota = normalizada; // aquí ya va algo tipo "6.0"
+
     this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: true }));
 
     this.http
@@ -745,6 +797,11 @@ export class PracticasComponent {
       .subscribe({
         next: (res) => {
           this.actualizarEntregaLocal(entregaId, res.nota ?? '');
+          // limpiamos el error si todo salió bien
+          this.notaErrores.update((prev) => ({
+            ...prev,
+            [entregaId]: null,
+          }));
           this.toast.set('Nota guardada.');
           this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
         },
@@ -754,6 +811,7 @@ export class PracticasComponent {
         },
       });
   }
+
 
   private actualizarEntregaLocal(entregaId: number, nota: string) {
     this.entregasEvaluacion.update((items) => {

@@ -175,6 +175,8 @@
               <span *ngIf="!entrega.archivoUrl">Sin archivo</span>
               <div class="muted">Enviado {{ formatFecha(entrega.createdAt) || entrega.createdAt }}</div>
             </div>
+
+
             <div>
               <input
                 #notaInput
@@ -182,14 +184,25 @@
                 class="nota-input"
                 [value]="notasEdicion()[entrega.id] ?? entrega.nota"
                 (input)="onNotaChange(entrega.id, notaInput.value)"
-                placeholder="Ej: 6.0"
+                placeholder="Ej: 6,0"
               />
+              <div class="help error" *ngIf="notaErrores()[entrega.id]">
+                {{ notaErrores()[entrega.id] }}
+              </div>
             </div>
             <div class="acciones-nota">
-              <button class="btn primary sm" type="button" (click)="guardarNota(entrega.id)" [disabled]="notaGuardando(entrega.id)">
+              <button
+                class="btn primary sm"
+                type="button"
+                (click)="guardarNota(entrega.id)"
+                [disabled]="notaGuardando(entrega.id) || !!notaErrores()[entrega.id]"
+              >
                 {{ notaGuardando(entrega.id) ? 'Guardando…' : 'Guardar' }}
               </button>
             </div>
+
+
+
           </div>
         </div>
       </div>
