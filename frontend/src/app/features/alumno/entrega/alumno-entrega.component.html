@@ -1,5 +1,145 @@
 <h2 class="ttl">{{ titulo }}</h2>
 
+<!-- Bitácoras programadas -->
+<section class="card" *ngIf="bitacoras().length">
+  <div class="bitacoras-head">
+    <div>
+      <h3>Bitácoras</h3>
+      <p class="muted">Seguimiento semanal solicitado por tu docente.</p>
+    </div>
+    <span class="chip warn">{{ bitacorasPendientes().length }} pendientes</span>
+  </div>
+
+  <div class="split bitacoras-split">
+    <div>
+      <h4 class="sec">Pendientes</h4>
+      <div class="grid" *ngIf="bitacorasPendientes().length; else noBitPend">
+        <article class="item" *ngFor="let b of bitacorasPendientes()" (click)="onBitacoraClick(b)">
+          <div class="top">
+            <b class="title">Bitácora {{ b.indice }} de evaluación {{ b.evaluacionTitulo }}</b>
+            <span [ngClass]="estadoClase(b.estado)">{{ estadoBitacoraLabel(b.estado) }}</span>
+          </div>
+          <div class="meta">
+            <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+          </div>
+        </article>
+      </div>
+      <ng-template #noBitPend>
+        <p class="muted">No tienes bitácoras pendientes.</p>
+      </ng-template>
+    </div>
+
+    <div>
+      <h4 class="sec">Completadas</h4>
+      <div class="grid" *ngIf="bitacorasCompletadas().length; else noBitComp">
+        <article class="item" *ngFor="let b of bitacorasCompletadas()" (click)="onBitacoraClick(b)">
+          <div class="top">
+            <b class="title">Bitácora {{ b.indice }} de evaluación {{ b.evaluacionTitulo }}</b>
+            <span [ngClass]="estadoClase(b.estado)">{{ estadoBitacoraLabel(b.estado) }}</span>
+          </div>
+          <div class="meta">
+            <span>Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+          </div>
+        </article>
+      </div>
+      <ng-template #noBitComp>
+        <p class="muted">Aún no tienes bitácoras entregadas.</p>
+      </ng-template>
+    </div>
+  </div>
+</section>
+
+<!-- Panel detalle bitácora -->
+<section class="card" *ngIf="seleccionBitacora() as b">
+  <div class="detail-head bitacora-head">
+    <div>
+      <p class="eyebrow">Bitácora programada</p>
+      <h3>Detalle — Bitácora {{ b.indice }}</h3>
+      <p class="muted bitacora-sub">Asociada a {{ b.evaluacionTitulo }}</p>
+    </div>
+      <div class="detail-actions">
+        <span class="chip" [ngClass]="estadoClase(b.estado)">{{ estadoBitacoraLabel(b.estado) }}</span>
+        <span class="muted">Fecha límite: {{ b.fechaLimite | date:'d MMM y, HH:mm' }}</span>
+        <button class="link" (click)="limpiarSeleccion()">✕ Cerrar</button>
+      </div>
+  </div>
+
+  <div class="detail-section">
+    <div class="section-head">
+      <b>Instrucciones del docente</b>
+    </div>
+    <p class="muted">
+      {{
+        b.comentario
+          || 'Revisa las indicaciones de tu docente y completa la bitácora con tu avance semanal.'
+      }}
+    </p>
+  </div>
+
+  <div class="detail-section">
+    <div class="section-head">
+      <b>Entrega de bitácora</b>
+      <span class="tag ghost">{{ estadoBitacoraLabel(b.estado) }}</span>
+    </div>
+
+    <ng-container *ngIf="b.entrega; else bitacoraPendiente">
+      <div class="entrega">
+        <div class="row" *ngIf="b.entrega.titulo">
+          <div><b>Título:</b></div>
+          <div>{{ b.entrega.titulo }}</div>
+        </div>
+
+        <div class="row">
+          <div><b>Archivo:</b></div>
+          <div>
+            📄
+            <ng-container *ngIf="b.entrega.archivoUrl; else archivoBitSinLink">
+              <a
+                [href]="b.entrega.archivoUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ b.entrega.archivoNombre }}
+              </a>
+            </ng-container>
+            <ng-template #archivoBitSinLink>
+              {{ b.entrega.archivoNombre }}
+            </ng-template>
+            <small class="muted">({{ b.entrega.archivoTipo }})</small>
+          </div>
+        </div>
+
+        <div class="row" *ngIf="b.entrega.comentario">
+          <div>
+            <b>{{ b.estado === 'revisada' ? 'Comentario del docente:' : 'Comentario de la entrega:' }}</b>
+          </div>
+          <div>{{ b.entrega.comentario }}</div>
+        </div>
+
+        <div class="row">
+          <div><b>Fecha envío:</b></div>
+          <div>{{ b.entrega.fecha | date:'d MMM y, HH:mm' }}</div>
+        </div>
+
+        <div class="row" *ngIf="b.estado === 'revisada'">
+          <div><b>Revisión:</b></div>
+          <div><span class="chip ok">Revisada</span></div>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #bitacoraPendiente>
+      <p class="muted" *ngIf="b.estado === 'pendiente'">Aún no has enviado esta bitácora.</p>
+      <p class="muted" *ngIf="b.estado === 'no_entregada'">No enviaste esta bitácora antes del plazo.</p>
+      <p class="muted" *ngIf="b.estado === 'entregada'">Entrega enviada, espera la revisión del docente.</p>
+
+      <div class="cta-row single" *ngIf="b.estado === 'pendiente'">
+        <button class="btn primary" (click)="openUploadBitacora(b)">Subir bitácora</button>
+      </div>
+    </ng-template>
+  </div>
+</section>
+
 <!-- Evaluaciones -->
 <section class="card">
   <h3>Evaluaciones</h3>
@@ -64,7 +204,7 @@
   </div>
 </section>
 
-<!-- Panel detalle -->
+<!-- Panel detalle evaluación -->
 <section class="card" *ngIf="seleccionada() as ev">
   <div class="detail-head">
     <h3>Detalle — {{ ev.titulo }}</h3>
@@ -128,7 +268,7 @@
   <!-- Si pendiente -> botón subir -->
   <div *ngIf="canUpload(); else vistaEntrega">
     <p class="muted">Esta evaluación está pendiente. Debes subir tu archivo para completar la entrega.</p>
-    <button class="btn primary" (click)="openUpload()">Subir archivo</button>
+    <button class="btn primary" (click)="openUploadEvaluacion()">Subir archivo</button>
   </div>
 
   <!-- Entregada / Calificada -->
@@ -218,6 +358,8 @@
       <h3>Subir archivo</h3>
       <button class="x" (click)="closeUpload()">✕</button>
     </header>
+
+    <p class="muted" *ngIf="destinoLabel()">Para: {{ destinoLabel() }}</p>
 
     <form class="form" (ngSubmit)="submitUpload()">
       <label class="field">

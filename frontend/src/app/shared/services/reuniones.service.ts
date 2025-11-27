@@ -27,6 +27,10 @@ export interface SolicitudReunion {
   estado: 'pendiente' | 'aprobada' | 'rechazada';
   motivo: string;
   disponibilidadSugerida: string | null;
+  fechaSugerida?: string | null;
+  horaSugerida?: string | null;
+  modalidadSugerida?: 'presencial' | 'online' | null;
+  proyectoNombre?: string | null;
   creadoEn: Date;
   actualizadoEn: Date;
   alumno: UsuarioResumen | null;
@@ -43,6 +47,8 @@ export interface Reunion {
   horaInicio: string;
   horaTermino: string;
   modalidad: string;
+  proyectoNombre?: string | null;
+  grupoNombre?: string | null;
   creadoEn: Date;
   actualizadoEn: Date;
   alumno: UsuarioResumen | null;
@@ -118,6 +124,12 @@ interface SolicitudReunionApi {
   estado: 'pendiente' | 'aprobada' | 'rechazada';
   motivo: string;
   disponibilidadSugerida: string | null;
+  fechaSugerida?: string | null;
+  horaSugerida?: string | null;
+  modalidadSugerida?: 'presencial' | 'online' | null;
+  proyectoNombre?: string | null;
+  proyecto_nombre?: string | null;
+  proyecto?: { nombre?: string | null; titulo?: string | null } | null;
   creadoEn: string;
   actualizadoEn: string;
   alumno: UsuarioResumen | null;
@@ -134,6 +146,12 @@ interface ReunionApi {
   horaInicio: string;
   horaTermino: string;
   modalidad: string;
+  proyectoNombre?: string | null;
+  proyecto_nombre?: string | null;
+  proyecto?: { nombre?: string | null; titulo?: string | null } | null;
+  grupoNombre?: string | null;
+  grupo_nombre?: string | null;
+  grupo?: { nombre?: string | null } | null;
   creadoEn: string;
   actualizadoEn: string;
   alumno: UsuarioResumen | null;
@@ -207,11 +225,18 @@ export class ReunionesService {
     const trazabilidad = (api.trazabilidad ?? []).map((item) => this.mapEvento(item));
     trazabilidad.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
 
+    const proyectoNombre =
+      api.proyectoNombre ?? api.proyecto_nombre ?? api.proyecto?.nombre ?? api.proyecto?.titulo ?? null;
+
     return {
       id: api.id,
       estado: api.estado,
       motivo: api.motivo,
       disponibilidadSugerida: api.disponibilidadSugerida ?? null,
+      fechaSugerida: api.fechaSugerida ?? null,
+      horaSugerida: api.horaSugerida ?? null,
+      modalidadSugerida: api.modalidadSugerida ?? null,
+      proyectoNombre,
       creadoEn: this.parseDate(api.creadoEn),
       actualizadoEn: this.parseDate(api.actualizadoEn),
       alumno: api.alumno ?? null,
@@ -224,6 +249,11 @@ export class ReunionesService {
     const trazabilidad = (api.trazabilidad ?? []).map((item) => this.mapEvento(item));
     trazabilidad.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
 
+    const proyectoNombre =
+      api.proyectoNombre ?? api.proyecto_nombre ?? api.proyecto?.nombre ?? api.proyecto?.titulo ?? null;
+    const grupoNombre =
+      api.grupoNombre ?? api.grupo_nombre ?? api.grupo?.nombre ?? null;
+
     return {
       id: api.id,
       estado: api.estado,
@@ -233,6 +263,8 @@ export class ReunionesService {
       horaInicio: api.horaInicio,
       horaTermino: api.horaTermino,
       modalidad: api.modalidad,
+      proyectoNombre,
+      grupoNombre,
       creadoEn: this.parseDate(api.creadoEn),
       actualizadoEn: this.parseDate(api.actualizadoEn),
       alumno: api.alumno ?? null,

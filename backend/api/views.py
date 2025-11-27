@@ -12,7 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value, Prefetch, Count, Avg
+from django.db.models import Q, Value, Prefetch, Count, Avg, OuterRef, Subquery
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -30,13 +30,14 @@ try:  # pragma: no cover - dependencia opcional en tiempo de ejecución
     Image = importlib.import_module("PIL.Image")
 except Exception:  # pragma: no cover
     Image = None  # type: ignore
-    Image = None  # type: ignore
 
 from .models import (
     InscripcionTema,
     Notificacion,
     PracticaDocumento,
     PracticaFirmaCoordinador,
+    PracticaEvaluacion,
+    PracticaEvaluacionEntrega,
     PropuestaTema,
     PropuestaTemaDocente,
     SolicitudCartaPractica,
@@ -58,6 +59,9 @@ from .serializers import (
     NotificacionSerializer,
     PracticaDocumentoSerializer,
     PracticaFirmaCoordinadorSerializer,
+    PracticaEvaluacionSerializer,
+    PracticaEvaluacionEntregaSerializer,
+    PracticaEvaluacionEntregaCoordinacionSerializer,
     PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDocenteDecisionSerializer,
@@ -601,6 +605,32 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
         },
     )
 
+    docente = reunion.docente
+    if docente:
+        alumno_nombre = alumno.nombre_completo if alumno else "El alumno"
+        docente_mensaje = (
+            f"Agendaste con {alumno_nombre} el {fecha} entre {inicio} y {termino} "
+            f"({modalidad.lower()})."
+        )
+        if reunion.motivo:
+            docente_mensaje = f"{docente_mensaje} Motivo: {reunion.motivo}."
+        if reunion.observaciones:
+            docente_mensaje = f"{docente_mensaje} Comentario: {reunion.observaciones}."
+
+        Notificacion.objects.create(
+            usuario=docente,
+            titulo="Solicitud de reunión aprobada",
+            mensaje=docente_mensaje,
+            tipo="reunion",
+            meta={
+                "evento": "solicitud_aprobada_docente",
+                "reunionId": reunion.pk,
+                "solicitudId": reunion.solicitud_id,
+                "docenteId": docente.pk,
+                "alumnoId": alumno.pk if alumno else None,
+            },
+        )
+
 
 def _notificar_solicitud_reunion_rechazada(
     solicitud: SolicitudReunion, comentario: str | None
@@ -629,6 +659,29 @@ def _notificar_solicitud_reunion_rechazada(
             "alumnoId": alumno.pk,
         },
     )
+
+    docente = solicitud.docente
+    if docente:
+        alumno_nombre = alumno.nombre_completo if alumno else "El alumno"
+        docente_mensaje = (
+            f"Rechazaste la solicitud de reunión de {alumno_nombre}. "
+            f"Motivo: {solicitud.motivo}."
+        )
+        if comentario:
+            docente_mensaje = f"{docente_mensaje} Comentario: {comentario}."
+
+        Notificacion.objects.create(
+            usuario=docente,
+            titulo="Solicitud de reunión rechazada",
+            mensaje=docente_mensaje,
+            tipo="reunion",
+            meta={
+                "evento": "solicitud_rechazada_docente",
+                "solicitudId": solicitud.pk,
+                "docenteId": docente.pk,
+                "alumnoId": alumno.pk if alumno else None,
+            },
+        )
 
 
 def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
@@ -1255,6 +1308,12 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
                     )
 
                 return queryset.none()
+            if usuario.rol == "docente" and usuario.carrera:
+                return _filtrar_queryset_por_carrera(
+                    queryset,
+                    usuario.carrera,
+                    permitir_equivalencias=False,
+                )
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
@@ -2592,7 +2651,36 @@ class AlumnoEvaluacionEntregaListCreateView(generics.ListCreateAPIView):
                 }
             )
 
-        serializer.save(evaluacion=evaluacion, alumno_id=alumno_id)
+        indice_bitacora = self._obtener_bitacora_indice(serializer.initial_data)
+        if indice_bitacora:
+            total_requeridas = evaluacion.bitacoras_requeridas or 0
+            if indice_bitacora > total_requeridas:
+                raise ValidationError(
+                    {
+                        "bitacora_indice": [
+                            "La bitácora seleccionada no corresponde al plan de esta evaluación.",
+                        ]
+                    }
+                )
+
+        serializer.save(
+            evaluacion=evaluacion,
+            alumno_id=alumno_id,
+            es_bitacora=bool(indice_bitacora),
+            bitacora_indice=indice_bitacora,
+        )
+
+    def _obtener_bitacora_indice(self, data) -> int | None:
+        if not data:
+            return None
+        indice_param = data.get("bitacora_indice")
+        try:
+            indice = int(indice_param)
+        except (TypeError, ValueError):
+            return None
+        if indice <= 0:
+            return None
+        return indice
 
     def _obtener_alumno_id(self, usar_post: bool = False) -> int | None:
         if usar_post:
@@ -2881,18 +2969,6 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
     return tema
 
 
-def _normalizar_carrera(nombre: str) -> str:
-    if not nombre:
-        return ""
-    texto = unicodedata.normalize("NFKD", nombre)
-    texto = texto.encode("ascii", "ignore").decode("ascii")
-    texto = texto.lower()
-    texto = texto.replace("ingenieria", "ing")
-    texto = texto.replace("ing.", "ing")
-    texto = re.sub(r"[^a-z0-9]+", " ", texto)
-    return " ".join(texto.split())
-
-
 def _buscar_coordinador_por_carrera(carrera: str):
     if not carrera:
         return None
@@ -2903,14 +2979,41 @@ def _buscar_coordinador_por_carrera(carrera: str):
     if exacto:
         return exacto
 
-    normalizada = _normalizar_carrera(carrera)
-    if not normalizada:
-        return None
-
     for usuario in qs:
-        if _normalizar_carrera(usuario.carrera or "") == normalizada:
+        if _carreras_compatibles(usuario.carrera, carrera):
             return usuario
     return None
+
+
+def _evaluaciones_ids_por_carrera(carrera: str) -> list[int]:
+    evaluaciones = PracticaEvaluacion.objects.only("id", "carrera")
+    return [
+        ev.pk
+        for ev in evaluaciones
+        if _carreras_compatibles(ev.carrera, carrera)
+    ]
+
+
+def _buscar_evaluacion_practica_por_carrera(carrera: str):
+    evaluacion = (
+        PracticaEvaluacion.objects.select_related("uploaded_by")
+        .filter(carrera__iexact=carrera)
+        .order_by("-created_at")
+        .first()
+    )
+    if evaluacion:
+        return evaluacion
+
+    ids = _evaluaciones_ids_por_carrera(carrera)
+    if not ids:
+        return None
+
+    return (
+        PracticaEvaluacion.objects.select_related("uploaded_by")
+        .filter(pk__in=ids)
+        .order_by("-created_at")
+        .first()
+    )
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -3169,3 +3272,280 @@ def gestionar_firma_coordinador_practica(request):
     status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     headers = {"Location": f"/api/coordinacion/practicas/firma/"}
     return Response(serializer.data, status=status_code, headers=headers)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_evaluacion_practica(request):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        evaluacion = (
+            PracticaEvaluacion.objects.select_related("uploaded_by")
+            .filter(carrera__iexact=carrera)
+            .order_by("-created_at")
+            .first()
+        )
+        if not evaluacion:
+            return Response({"item": None})
+
+        serializer = PracticaEvaluacionSerializer(
+            evaluacion, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    nombre = (request.data.get("nombre") or archivo.name or "").strip()
+    if not nombre:
+        return Response(
+            {"nombre": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    descripcion = (request.data.get("descripcion") or "").strip()
+
+    evaluacion = PracticaEvaluacion.objects.create(
+        carrera=carrera,
+        nombre=nombre,
+        descripcion=descripcion,
+        archivo=archivo,
+        uploaded_by=coordinador,
+    )
+
+    serializer = PracticaEvaluacionSerializer(
+        evaluacion, context={"request": request}
+    )
+    headers = {"Location": f"/api/coordinacion/practicas/evaluacion/{evaluacion.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def obtener_evaluacion_practica(request):
+    carrera = (request.query_params.get("carrera") or "").strip()
+    if not carrera:
+        return Response({"item": None})
+
+    evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
+    if not evaluacion:
+        return Response({"item": None})
+
+    serializer = PracticaEvaluacionSerializer(
+        evaluacion, context={"request": request}
+    )
+    return Response({"item": serializer.data})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
+@parser_classes([MultiPartParser, FormParser])
+def gestionar_entrega_evaluacion_practica(request):
+    alumno_param = request.query_params.get("alumno") or request.data.get("alumno")
+    alumno = _obtener_usuario_por_id(alumno_param)
+    if not alumno or alumno.rol != "alumno":
+        return Response(
+            {"detail": "Alumno no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (alumno.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El alumno no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
+    if request.method == "GET":
+        entrega = (
+            PracticaEvaluacionEntrega.objects.select_related("evaluacion")
+            .filter(
+                Q(evaluacion__carrera__iexact=carrera)
+                | Q(evaluacion_id__in=evaluaciones_ids),
+                alumno=alumno,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if not entrega:
+            return Response({"item": None})
+
+        serializer = PracticaEvaluacionEntregaSerializer(
+            entrega, context={"request": request}
+        )
+        return Response({"item": serializer.data})
+
+    evaluacion_id = request.data.get("evaluacion") or request.query_params.get(
+        "evaluacion"
+    )
+    evaluacion: PracticaEvaluacion | None = None
+
+    if evaluacion_id:
+        evaluacion = (
+            PracticaEvaluacion.objects.filter(pk=evaluacion_id)
+            .filter(Q(carrera__iexact=carrera) | Q(pk__in=evaluaciones_ids))
+            .order_by("-created_at")
+            .first()
+        )
+
+    if not evaluacion:
+        evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
+
+    if not evaluacion:
+        return Response(
+            {"detail": "No hay una evaluación disponible para tu carrera."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    existe_entrega = (
+        PracticaEvaluacionEntrega.objects.filter(
+            evaluacion=evaluacion, alumno=alumno
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+    if existe_entrega:
+        return Response(
+            {
+                "detail": "Ya registraste un documento para esta evaluación y no es posible reemplazarlo.",
+                "item": PracticaEvaluacionEntregaSerializer(
+                    existe_entrega, context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return Response(
+            {"archivo": ["Este campo es obligatorio."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entrega = PracticaEvaluacionEntrega.objects.create(
+        evaluacion=evaluacion,
+        alumno=alumno,
+        archivo=archivo,
+    )
+
+    serializer = PracticaEvaluacionEntregaSerializer(
+        entrega, context={"request": request}
+    )
+    headers = {"Location": f"/api/practicas/evaluacion/entregas/{entrega.pk}/"}
+    return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def listar_entregas_evaluacion_practica(request):
+    coordinador_param = request.query_params.get("coordinador")
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
+    ultima_empresa = (
+        SolicitudCartaPractica.objects.filter(alumno_id=OuterRef("alumno_id"))
+        .order_by("-creado_en")
+        .values("dest_empresa")[:1]
+    )
+
+    entregas = (
+        PracticaEvaluacionEntrega.objects.select_related("alumno", "evaluacion")
+        .filter(
+            Q(evaluacion__carrera__iexact=carrera)
+            | Q(evaluacion_id__in=evaluaciones_ids)
+        )
+        .annotate(empresa=Subquery(ultima_empresa))
+        .order_by("-created_at")
+    )
+
+    serializer = PracticaEvaluacionEntregaCoordinacionSerializer(
+        entregas, many=True, context={"request": request}
+    )
+    return Response({"items": serializer.data})
+
+
+@api_view(["PATCH"])
+@permission_classes([AllowAny])
+def actualizar_nota_entrega_practica(request, entrega_id: int):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
+    entrega = (
+        PracticaEvaluacionEntrega.objects.select_related("evaluacion")
+        .filter(
+            Q(evaluacion__carrera__iexact=carrera)
+            | Q(evaluacion_id__in=evaluaciones_ids),
+            pk=entrega_id,
+        )
+        .first()
+    )
+    if not entrega:
+        return Response({"detail": "Entrega no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+    nota = (request.data.get("nota") or "").strip()
+    if len(nota) > 10:
+        return Response(
+            {"nota": ["La nota no debe exceder 10 caracteres."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entrega.nota = nota
+    entrega.save(update_fields=["nota"])
+
+    serializer = PracticaEvaluacionEntregaCoordinacionSerializer(
+        entrega, context={"request": request}
+    )
+    return Response(serializer.data)

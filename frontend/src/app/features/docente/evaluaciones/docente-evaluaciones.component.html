@@ -62,14 +62,62 @@
       <input
         type="date"
         [value]="evaluacionFecha()"
-        (input)="evaluacionFecha.set(($any($event.target)).value)"
+        (input)="onFechaChange($event)"
       />
     </label>
-    <div class="field status-field">
-      <span>Estado según fecha</span>
-      <div class="status-preview" [ngClass]="estadoCalculado().toLowerCase().replace(' ', '-')">
-        {{ estadoCalculado() }}
+  </div>
+  <div class="bitacora-panel">
+    <div class="bitacora-header">
+      <div>
+        <p class="bitacora-title">Bitácoras solicitadas</p>
+        <small class="field-hint">Activa esta opción si necesitas bitácoras semanales.</small>
       </div>
+      <label class="toggle">
+        <input
+          type="checkbox"
+          [checked]="bitacorasHabilitadas()"
+          (change)="onBitacorasToggle($event)"
+        />
+        <span>{{ bitacorasHabilitadas() ? 'Activadas' : 'Desactivadas' }}</span>
+      </label>
+    </div>
+
+    <div class="bitacora-config" *ngIf="bitacorasHabilitadas()">
+      <label class="field">
+        <span>Bitácoras solicitadas</span>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Ej: 3"
+          [value]="bitacorasRequeridas()"
+          (input)="onBitacorasChange($event)"
+        />
+        <small class="field-hint">
+          Se calculan automáticamente al elegir la fecha de entrega, pero puedes ajustarlas.
+        </small>
+      </label>
+
+      <div class="bitacora-fechas" *ngIf="bitacorasRequeridas() > 0">
+        <p class="bitacora-fechas-title">Fechas estimadas para cada bitácora</p>
+        <div class="bitacora-fechas-grid">
+          <label class="field" *ngFor="let fecha of bitacoraFechas(); let i = index">
+            <span>Bitácora {{ i + 1 }}</span>
+            <input type="date" [value]="fecha" (input)="onBitacoraFechaChange($event, i)" />
+          </label>
+        </div>
+      </div>
+
+      <label class="field textarea-field">
+        <span>Instrucciones para las bitácoras</span>
+        <textarea
+          rows="2"
+          placeholder="Describe qué debe registrar el alumno en cada bitácora"
+          [value]="bitacoraComentario()"
+          (input)="bitacoraComentario.set(($any($event.target)).value)"
+        ></textarea>
+        <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
+      </label>
     </div>
   </div>
   <div class="form-actions">
@@ -82,7 +130,8 @@
         !gruposActivos().length ||
         !grupoSeleccionadoId() ||
         !evaluacionTitulo().trim() ||
-        !evaluacionComentario().trim()
+        !evaluacionComentario().trim() ||
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
       "
     >
       {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
@@ -96,7 +145,8 @@
         cargandoGruposActivos() ||
         !gruposActivos().length ||
         !evaluacionTitulo().trim() ||
-        !evaluacionComentario().trim()
+        !evaluacionComentario().trim() ||
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
       "
     >
       {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
@@ -126,6 +176,14 @@
             <p class="comentario" *ngIf="evaluacion.comentario">
               Comentario: {{ evaluacion.comentario }}
             </p>
+            <div class="bitacora-resumen" *ngIf="evaluacion.bitacorasRequeridas > 0">
+              <span class="chip info">
+                {{ evaluacion.bitacorasRequeridas }} bitácora{{ evaluacion.bitacorasRequeridas === 1 ? '' : 's' }} solicitada{{ evaluacion.bitacorasRequeridas === 1 ? '' : 's' }}
+              </span>
+              <p class="bitacora-texto" *ngIf="evaluacion.bitacoraComentario">
+                Instrucciones: {{ evaluacion.bitacoraComentario }}
+              </p>
+            </div>
             <button
               class="btn link"
               type="button"
@@ -139,144 +197,6 @@
       </section>
     </div>
 
-    <section class="entregas-panel" *ngIf="mostrarPanelEntregas(); else panelOculto">
-      <header class="entregas-header">
-        <div>
-          <h3>Entregas recibidas</h3>
-          <p class="muted">
-            Revisa los archivos subidos por tus estudiantes para cada evaluación registrada.
-          </p>
-        </div>
-        <div class="entregas-actions">
-          <button type="button" class="btn ghost" (click)="mostrarPanelEntregas.set(false)">
-            Ocultar panel
-          </button>
-          <button
-            type="button"
-            class="btn export"
-            (click)="exportarNotasCsv()"
-            [disabled]="!entregasRevisadas().length"
-          >
-            Exportar notas CSV
-          </button>
-        </div>
-      </header>
-
-      <ng-container *ngIf="entregasPorGrupo().length; else sinEntregas">
-        <div class="entregas-grupos">
-          <article
-            class="grupo-entrega-card"
-            *ngFor="let grupo of entregasPorGrupo()"
-            [class.cerrado]="!grupo.abierto"
-          >
-            <button type="button" class="grupo-toggle" (click)="seleccionarGrupoEntregas(grupo.nombre)">
-              <div class="grupo-titulo">
-                <h4>{{ grupo.nombre }}</h4>
-                <small *ngIf="grupo.abierto">{{ grupo.pendientes.length + grupo.revisadas.length }} entregas</small>
-              </div>
-              <div class="grupo-resumen" *ngIf="grupo.abierto">
-                <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
-                <span class="chip ok">{{ grupo.revisadas.length }} evaluadas</span>
-              </div>
-              <span class="caret" [class.open]="grupo.abierto">▼</span>
-            </button>
-
-            <div class="grupo-detalle" *ngIf="grupo.abierto">
-              <div class="entregas-grid detalle-grid">
-                <div class="entregas-col">
-                  <div class="col-header">
-                    <h5>Pendientes</h5>
-                    <span class="pill" [class.empty]="!grupo.pendientes.length">{{ grupo.pendientes.length }}</span>
-                  </div>
-                  <ng-container *ngIf="grupo.pendientes.length; else sinPendientes">
-                    <article class="entrega-card pendiente" *ngFor="let entrega of grupo.pendientes">
-                      <header>
-                        <div>
-                          <h5>{{ entrega.evaluacionTitulo }}</h5>
-                          <span class="tag warn">Por revisar</span>
-                        </div>
-                        <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
-                      </header>
-                      <ul class="info">
-                        <li>
-                          <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
-                          <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
-                        </li>
-                        <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
-                        <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
-                      </ul>
-                      <button class="btn secondary" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
-                        Revisar
-                      </button>
-                    </article>
-                  </ng-container>
-                </div>
-
-                <div class="entregas-col">
-                  <div class="col-header">
-                    <h5>Evaluadas</h5>
-                    <span class="pill" [class.empty]="!grupo.revisadas.length">{{ grupo.revisadas.length }}</span>
-                  </div>
-                  <ng-container *ngIf="grupo.revisadas.length; else sinRevisadas">
-                    <article class="entrega-card revisada" *ngFor="let entrega of grupo.revisadas">
-                      <header>
-                        <div>
-                          <h5>{{ entrega.evaluacionTitulo }}</h5>
-                          <span class="tag ok">Evaluada</span>
-                        </div>
-                        <small>{{ entrega.fecha | date:'d MMM y, HH:mm' }}</small>
-                      </header>
-                      <ul class="info">
-                        <li>
-                          <strong>Alumno:</strong> {{ entrega.alumnoNombre }}
-                          <span class="muted" *ngIf="entrega.alumnoCorreo">({{ entrega.alumnoCorreo }})</span>
-                        </li>
-                        <li><strong>Archivo:</strong> {{ entrega.archivoNombre }}</li>
-                        <li *ngIf="entrega.nota != null"><strong>Nota:</strong> {{ entrega.nota }}</li>
-                        <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
-                      </ul>
-                      <button class="btn secondary" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
-                        Ver resumen
-                      </button>
-                    </article>
-                  </ng-container>
-                </div>
-              </div>
-
-              <ng-template #sinPendientes>
-                <p class="muted">No tienes entregas pendientes de revisión.</p>
-              </ng-template>
-              <ng-template #sinRevisadas>
-                <p class="muted">Aún no hay entregas evaluadas.</p>
-              </ng-template>
-            </div>
-          </article>
-        </div>
-      </ng-container>
-      <ng-template #sinEntregas>
-        <p class="muted">Aún no hay entregas registradas para tus grupos.</p>
-      </ng-template>
-    </section>
-
-    <ng-template #panelOculto>
-      <section class="entregas-panel collapsed">
-        <header class="entregas-header">
-          <div>
-            <h3>Entregas recibidas</h3>
-            <p class="muted">Panel oculto para simplificar la vista de grupos.</p>
-          </div>
-          <div class="entregas-actions">
-            <div class="panel-resumen" *ngIf="entregasPendientes().length || entregasRevisadas().length">
-              <span class="chip warn">{{ entregasPendientes().length }} pendientes</span>
-              <span class="chip ok">{{ entregasRevisadas().length }} evaluadas</span>
-            </div>
-            <button type="button" class="btn ghost" (click)="mostrarPanelEntregas.set(true)">
-              Mostrar panel
-            </button>
-          </div>
-        </header>
-      </section>
-    </ng-template>
   </ng-container>
 </ng-container>
 

@@ -1,8 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-type EstadoEvento = 'Pendiente' | 'Confirmada';
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import { ReunionesService, Reunion, SolicitudReunion } from '../../../shared/services/reuniones.service';
+
+type EstadoEvento = 'Pendiente' | 'Confirmada' | 'Rechazada' | 'Reprogramada';
 
 type Evento = {
   id: string;
@@ -26,7 +29,27 @@ type SummaryItem = {
   templateUrl: './alumno-calendar.component.html',
   styleUrls: ['./alumno-calendar.component.css']
 })
-export class AlumnoCalendarComponent {
+export class AlumnoCalendarComponent implements OnInit {
+  private readonly reunionesService = inject(ReunionesService);
+  private readonly currentUserService = inject(CurrentUserService);
+
+  private alumnoId: number | undefined = undefined;
+
+  private mensajeSig = signal<string | null>(null);
+  mensaje() { return this.mensajeSig(); }
+  private setMensaje(value: string | null) { this.mensajeSig.set(value); }
+
+  private errorSig = signal<string | null>(null);
+  error() { return this.errorSig(); }
+  private setError(value: string | null) { this.errorSig.set(value); }
+
+  private cargandoSig = signal(false);
+  cargando() { return this.cargandoSig(); }
+  private setCargando(value: boolean) { this.cargandoSig.set(value); }
+
+  private enviandoSig = signal(false);
+  enviando() { return this.enviandoSig(); }
+  private setEnviando(value: boolean) { this.enviandoSig.set(value); }
   /* ===== Estado base ===== */
   private ref = new Date();
   month = signal(this.ref.getMonth());
@@ -102,7 +125,18 @@ export class AlumnoCalendarComponent {
 
   constructor() {
     this.buildYearRange(this.yearRangeStart);
-    this.seedDemoEvents(); // demo para ver datos
+  }
+
+  ngOnInit(): void {
+    const perfil = this.currentUserService.getProfile();
+    this.alumnoId = perfil?.id ?? undefined;
+
+    if (this.alumnoId === undefined) {
+      this.setError('No pudimos identificar tu usuario para agendar una reunión.');
+      return;
+    }
+
+    this.cargarDatos();
   }
 
   private syncMini() {
@@ -164,10 +198,11 @@ export class AlumnoCalendarComponent {
     return key ? (this._events()[key]?.length ?? 0) : 0;
   }
 
-  private keyFor(day: number | null = this.selectedDay()) {
+  private keyFor(day: number | null = this.selectedDay(), date: Date | null = null) {
     if (!day) return '';
-    const y = this.year();
-    const m = this.month() + 1;
+    const base = date ?? new Date(this.year(), this.month(), day);
+    const y = base.getFullYear();
+    const m = base.getMonth() + 1;
     const dd = String(day).padStart(2, '0');
     const mm = String(m).padStart(2, '0');
     return `${y}-${mm}-${dd}`;
@@ -204,23 +239,47 @@ export class AlumnoCalendarComponent {
   closeSolicitar() { this.showSolicitudModal.set(false); }
 
   submitSolicitud() {
-    // Alumno NO crea evento confirmado; solo registra "Pendiente" (placeholder)
-    const d = new Date(this.solicitudForm.fecha);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (this.alumnoId === undefined) {
+      this.setError('No pudimos identificar tu usuario. Vuelve a iniciar sesión.');
+      return;
+    }
 
-    const e: Evento = {
-      id: (crypto as any).randomUUID?.() ?? Math.random().toString(36).slice(2),
-      titulo: this.solicitudForm.titulo,
-      hora: this.solicitudForm.hora,
-      lugar: this.solicitudForm.lugar,
-      descripcion: this.solicitudForm.descripcion,
-      estado: 'Pendiente'
-    };
-    const list = [...(this._events()[key] ?? []), e];
-    this._events.update(map => ({ ...map, [key]: list }));
-    this.closeSolicitar();
+    const motivo = this.solicitudForm.descripcion?.trim() || this.solicitudForm.titulo.trim();
+    if (!motivo) {
+      this.setError('Debes indicar un título o descripción para tu solicitud.');
+      return;
+    }
 
-    // En producción: POST /solicitudes (aprobación docente)
+    const disponibilidad = this.buildDisponibilidad();
+
+    this.setEnviando(true);
+    this.setError(null);
+    this.setMensaje(null);
+
+    this.reunionesService
+      .crearSolicitud({
+        alumno: this.alumnoId,
+        motivo,
+        disponibilidadSugerida: disponibilidad,
+      })
+      .subscribe({
+        next: (solicitud) => {
+          this.setEnviando(false);
+          this.setMensaje('Tu solicitud fue enviada al docente guía.');
+          this.closeSolicitar();
+          this.registrarEventoDesdeSolicitud(solicitud);
+        },
+        error: (err) => {
+          console.error('No se pudo enviar la solicitud de reunión', err);
+          this.setEnviando(false);
+          const detalle = err?.error?.detail;
+          if (typeof detalle === 'string') {
+            this.setError(detalle);
+          } else {
+            this.setError('Ocurrió un error al enviar la solicitud. Intenta nuevamente.');
+          }
+        },
+      });
   }
 
   /* ===== Resumen (solo lectura) ===== */
@@ -255,21 +314,107 @@ export class AlumnoCalendarComponent {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // Demo: mezcla Confirmada y Pendiente
-  private seedDemoEvents() {
-    const kToday = this.keyFor(this.selectedDay());
-    const k18 = `${this.year()}-${String(this.month()+1).padStart(2,'0')}-18`;
-    const demo: Record<string, Evento[]> = {};
-
-    if (kToday) {
-      demo[kToday] = [
-        { id: 'e1', titulo:'Reunión con guía', hora:'10:00', lugar:'Sala 204', descripcion:'Avance capítulo 2', estado:'Confirmada' },
-        { id: 'e2', titulo:'Solicitud retroalimentación', hora:'16:30', lugar:'Teams', descripcion:'Feedback del borrador', estado:'Pendiente' }
-      ];
+  private cargarDatos() {
+    if (this.alumnoId === undefined) {
+      return;
     }
-    demo[k18] = [
-      { id:'e3', titulo:'Corrección Informe 1', hora:'09:00', lugar:'Oficina 3', descripcion:'Correcciones de estilo', estado:'Confirmada' }
-    ];
-    this._events.set(demo);
+
+    this.setCargando(true);
+    this._events.set({});
+
+    this.reunionesService.listarSolicitudes({ alumno: this.alumnoId }).subscribe({
+      next: (solicitudes) => {
+        this.sincronizarSolicitudes(solicitudes);
+        this.reunionesService.listarReuniones({ alumno: this.alumnoId }).subscribe({
+          next: (reuniones) => {
+            this.sincronizarReuniones(reuniones);
+            this.setCargando(false);
+          },
+          error: (err) => {
+            console.error('No se pudieron cargar las reuniones del alumno', err);
+            this.setError('No se pudieron cargar tus reuniones.');
+            this.setCargando(false);
+          },
+        });
+      },
+      error: (err) => {
+        console.error('No se pudieron cargar las solicitudes del alumno', err);
+        this.setError('No se pudieron cargar tus solicitudes.');
+        this.setCargando(false);
+      },
+    });
+  }
+
+  private buildDisponibilidad(): string {
+    const fecha = this.solicitudForm.fecha;
+    const hora = this.solicitudForm.hora;
+    const lugar = this.solicitudForm.lugar?.trim();
+
+    const partes = [`${fecha} ${hora}`];
+    if (lugar) {
+      partes.push(`Lugar: ${lugar}`);
+    }
+    return partes.join(' | ');
+  }
+
+  private registrarEventoDesdeSolicitud(solicitud: SolicitudReunion) {
+    const fecha = this.fechaDesdeDisponibilidad(solicitud.disponibilidadSugerida) ?? solicitud.creadoEn;
+    const hora = this.horaDesdeDisponibilidad(solicitud.disponibilidadSugerida) ?? this.solicitudForm.hora;
+    const key = this.keyFor(fecha.getDate(), fecha);
+
+    const estado: EstadoEvento =
+      solicitud.estado === 'aprobada'
+        ? 'Confirmada'
+        : solicitud.estado === 'rechazada'
+          ? 'Rechazada'
+          : 'Pendiente';
+
+    const e: Evento = {
+      id: `sol-${solicitud.id}`,
+      titulo: 'Solicitud de reunión',
+      hora,
+      lugar: solicitud.disponibilidadSugerida ?? '',
+      descripcion: solicitud.motivo,
+      estado,
+    };
+
+    const list = [...(this._events()[key] ?? []).filter((ev) => !ev.id.startsWith(`sol-${solicitud.id}`)), e];
+    this._events.update((map) => ({ ...map, [key]: list }));
+  }
+
+  private sincronizarSolicitudes(solicitudes: SolicitudReunion[]) {
+    solicitudes.forEach((solicitud) => this.registrarEventoDesdeSolicitud(solicitud));
+  }
+
+  private sincronizarReuniones(reuniones: Reunion[]) {
+    reuniones.forEach((reunion) => {
+      const fecha = new Date(reunion.fecha);
+      const key = this.keyFor(fecha.getDate(), fecha);
+      const e: Evento = {
+        id: `reunion-${reunion.id}`,
+        titulo: 'Reunión con docente guía',
+        hora: reunion.horaInicio.slice(0, 5),
+        lugar: reunion.modalidad === 'online' ? 'Modalidad online' : 'Modalidad presencial',
+        descripcion: reunion.motivo,
+        estado: reunion.estado === 'aprobada' ? 'Confirmada' : 'Reprogramada',
+      };
+
+      const list = [...(this._events()[key] ?? []).filter((ev) => !ev.id.startsWith(`reunion-${reunion.id}`)), e];
+      this._events.update((map) => ({ ...map, [key]: list }));
+    });
+  }
+
+  private fechaDesdeDisponibilidad(valor: string | null): Date | null {
+    if (!valor) return null;
+    const match = valor.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!match) return null;
+    const fecha = new Date(`${match[1]}T00:00:00`);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  private horaDesdeDisponibilidad(valor: string | null): string | null {
+    if (!valor) return null;
+    const match = valor.match(/\b(\d{2}:\d{2})\b/);
+    return match ? match[1] : null;
   }
 }

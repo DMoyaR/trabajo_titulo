@@ -1,5 +1,9 @@
+from math import ceil
+from datetime import timedelta
+from pathlib import Path
 from rest_framework import serializers
 import mimetypes
+from django.utils import timezone
 
 from .models import (
     Usuario,
@@ -7,6 +11,8 @@ from .models import (
     SolicitudCartaPractica,
     PracticaDocumento,
     PracticaFirmaCoordinador,
+    PracticaEvaluacion,
+    PracticaEvaluacionEntrega,
     PropuestaTema,
     InscripcionTema,
     Notificacion,
@@ -64,6 +70,34 @@ def _procesar_correos_companeros(
         )
 
     return correos_limpios
+
+
+def _obtener_proyecto_alumno(alumno: Usuario | None) -> str | None:
+    """Devuelve el título del proyecto/tema activo del alumno, si existe."""
+
+    if not alumno or alumno.rol != "alumno":
+        return None
+
+    inscripcion = (
+        InscripcionTema.objects.filter(alumno=alumno, activo=True)
+        .select_related("tema")
+        .order_by("-created_at")
+        .first()
+    )
+
+    if inscripcion and getattr(inscripcion, "tema", None):
+        return inscripcion.tema.titulo
+
+    return None
+
+
+class UsuarioResumenSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="nombre_completo")
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -399,16 +433,121 @@ class PracticaFirmaCoordinadorSerializer(serializers.ModelSerializer):
         }
 
 
-
-
-class UsuarioResumenSerializer(serializers.ModelSerializer):
-    nombre = serializers.CharField(source="nombre_completo")
+class PracticaEvaluacionSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    uploadedBy = serializers.SerializerMethodField()
 
     class Meta:
-        model = Usuario
-        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+        model = PracticaEvaluacion
+        fields = [
+            "id",
+            "nombre",
+            "descripcion",
+            "carrera",
+            "created_at",
+            "url",
+            "uploadedBy",
+        ]
+        read_only_fields = ["id", "carrera", "created_at", "url", "uploadedBy"]
+
+    def get_url(self, obj: PracticaEvaluacion) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_uploadedBy(self, obj: PracticaEvaluacion) -> dict | None:
+        usuario = obj.uploaded_by
+        if not usuario:
+            return None
+        return {
+            "id": usuario.pk,
+            "nombre": usuario.nombre_completo,
+            "correo": usuario.correo,
+        }
 
 
+class PracticaEvaluacionEntregaSerializer(serializers.ModelSerializer):
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.SerializerMethodField()
+    evaluacion = PracticaEvaluacionSerializer(read_only=True)
+    nota = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = PracticaEvaluacionEntrega
+        fields = [
+            "id",
+            "created_at",
+            "nota",
+            "archivo_url",
+            "archivo_nombre",
+            "evaluacion",
+        ]
+        read_only_fields = fields
+
+    def get_archivo_url(self, obj: PracticaEvaluacionEntrega) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_archivo_nombre(self, obj: PracticaEvaluacionEntrega) -> str:
+        if not obj.archivo:
+            return ""
+        return Path(obj.archivo.name).name
+
+
+class PracticaEvaluacionEntregaCoordinacionSerializer(serializers.ModelSerializer):
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.SerializerMethodField()
+    evaluacion = PracticaEvaluacionSerializer(read_only=True)
+    alumno = UsuarioResumenSerializer(read_only=True)
+    empresa = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PracticaEvaluacionEntrega
+        fields = [
+            "id",
+            "created_at",
+            "nota",
+            "archivo_url",
+            "archivo_nombre",
+            "evaluacion",
+            "alumno",
+            "empresa",
+        ]
+        read_only_fields = fields
+
+    def get_archivo_url(self, obj: PracticaEvaluacionEntrega) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_archivo_nombre(self, obj: PracticaEvaluacionEntrega) -> str:
+        if not obj.archivo:
+            return ""
+        return Path(obj.archivo.name).name
+
+    def get_empresa(self, obj: PracticaEvaluacionEntrega) -> str:
+        empresa = getattr(obj, "empresa", "") or ""
+        if empresa:
+            return empresa
+        ultima_solicitud = (
+            SolicitudCartaPractica.objects.filter(alumno=obj.alumno)
+            .order_by("-creado_en")
+            .only("dest_empresa")
+            .first()
+        )
+        if ultima_solicitud and ultima_solicitud.dest_empresa:
+            return ultima_solicitud.dest_empresa
+        return ""
 class TrazabilidadReunionSerializer(serializers.ModelSerializer):
     usuario = UsuarioResumenSerializer(read_only=True)
 
@@ -466,6 +605,7 @@ class SolicitudReunionSerializer(serializers.ModelSerializer):
             "estado": base["estado"],
             "motivo": base["motivo"],
             "disponibilidadSugerida": base.get("disponibilidad_sugerida"),
+            "proyectoNombre": _obtener_proyecto_alumno(instance.alumno),
             "creadoEn": instance.creado_en.isoformat(),
             "actualizadoEn": instance.actualizado_en.isoformat(),
             "alumno": base.get("alumno"),
@@ -531,6 +671,7 @@ class ReunionSerializer(serializers.ModelSerializer):
             "horaInicio": instance.hora_inicio.isoformat(),
             "horaTermino": instance.hora_termino.isoformat(),
             "modalidad": base["modalidad"],
+            "proyectoNombre": _obtener_proyecto_alumno(instance.alumno),
             "creadoEn": instance.creado_en.isoformat(),
             "actualizadoEn": instance.actualizado_en.isoformat(),
             "alumno": base.get("alumno"),
@@ -897,6 +1038,8 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
     informe_corregido_url = serializers.SerializerMethodField()
     informe_corregido_nombre = serializers.CharField(read_only=True)
     informe_corregido_tipo = serializers.SerializerMethodField()
+    es_bitacora = serializers.BooleanField(read_only=True)
+    bitacora_indice = serializers.IntegerField(required=False, allow_null=True)
 
     MAX_ARCHIVO_MB = 50
 
@@ -922,6 +1065,8 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "informe_corregido_tipo",
             "nota",
             "estado_revision",
+            "es_bitacora",
+            "bitacora_indice",
             "creado_en",
             "actualizado_en",
         ]
@@ -942,12 +1087,14 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "informe_corregido_tipo",
             "nota",
             "estado_revision",
+            "es_bitacora",
             "creado_en",
             "actualizado_en",
         ]
         extra_kwargs = {
             "archivo": {"write_only": True},
             "comentario": {"required": False, "allow_null": True, "allow_blank": True},
+            "bitacora_indice": {"required": False, "allow_null": True},
         }
 
     def validate_archivo(self, value):
@@ -1066,6 +1213,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     entregas = serializers.SerializerMethodField()
     ultima_entrega = serializers.SerializerMethodField()
+    bitacoras_programadas = serializers.SerializerMethodField()
     rubrica_url = serializers.SerializerMethodField()
     rubrica_nombre = serializers.SerializerMethodField()
     rubrica_tipo = serializers.SerializerMethodField()
@@ -1083,6 +1231,9 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_url",
             "rubrica_nombre",
             "rubrica_tipo",
+            "bitacoras_requeridas",
+            "bitacora_comentario",
+            "bitacoras_programadas",
             "fecha",
             "estado",
             "created_at",
@@ -1102,6 +1253,7 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             "rubrica_tipo",
             "entregas",
             "ultima_entrega",
+            "bitacoras_programadas",
         ]
 
     def validate_docente(self, docente: Usuario | None) -> Usuario | None:
@@ -1137,18 +1289,29 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
             )
         return comentario_limpio
 
+    def validate_bitacoras_requeridas(self, cantidad: int | None) -> int:
+        cantidad = cantidad or 0
+        if cantidad < 0:
+            raise serializers.ValidationError(
+                "La cantidad de bitácoras no puede ser negativa."
+            )
+        return cantidad
+
     def to_internal_value(self, data):
         data = data.copy()
         if data.get("fecha") in ("", None):
             data["fecha"] = None
         if data.get("rubrica") in ("", None):
             data["rubrica"] = None
+        if data.get("bitacora_comentario") in ("", None):
+            data["bitacora_comentario"] = None
         return super().to_internal_value(data)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         tema = attrs.get("tema")
         docente = attrs.get("docente")
+        fecha = attrs.get("fecha")
 
         if not tema:
             raise serializers.ValidationError(
@@ -1160,12 +1323,96 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
                 {"tema": "El grupo seleccionado no pertenece al docente."}
             )
 
+        bitacoras = attrs.get("bitacoras_requeridas") or 0
+        bitacora_comentario = (attrs.get("bitacora_comentario") or "").strip()
+
+        bitacoras_por_plazo = self._calcular_bitacoras_por_plazo(fecha)
+        attrs["bitacoras_requeridas"] = bitacoras_por_plazo
+
+        if bitacoras > 0 and bitacoras != bitacoras_por_plazo:
+            raise serializers.ValidationError(
+                {
+                    "bitacoras_requeridas": (
+                        "Las bitácoras deben ser semanales según el plazo: "
+                        "corresponde una bitácora por semana y la última semana es la evaluación."
+                    )
+                }
+            )
+
+        if bitacoras_por_plazo > 0 and not bitacora_comentario:
+            raise serializers.ValidationError(
+                {
+                    "bitacora_comentario": (
+                        "Agrega instrucciones para las bitácoras solicitadas."
+                    )
+                }
+            )
+
         if not tema.inscripciones.filter(activo=True).exists():
             raise serializers.ValidationError(
                 {"tema": "Solo puedes registrar evaluaciones para grupos activos."}
             )
 
         return attrs
+
+    def _calcular_bitacoras_por_plazo(self, fecha):
+        if not fecha:
+            return 0
+
+        hoy = timezone.localdate()
+        dias_restantes = (fecha - hoy).days
+
+        if dias_restantes <= 0:
+            return 0
+
+        semanas = ceil(dias_restantes / 7)
+        return max(semanas - 1, 0)
+
+    def get_bitacoras_programadas(self, obj: EvaluacionGrupoDocente):
+        fecha_limite = obj.fecha
+        total = obj.bitacoras_requeridas or 0
+
+        if not fecha_limite or total <= 0:
+            return []
+
+        bitacoras = []
+        entregas = self._obtener_entregas_prefetch(obj)
+        entregas_bitacora: dict[int, EvaluacionEntregaAlumno] = {}
+
+        for entrega in entregas:
+            indice = getattr(entrega, "bitacora_indice", None)
+            if not getattr(entrega, "es_bitacora", False) or not indice:
+                continue
+            if indice not in entregas_bitacora:
+                entregas_bitacora[indice] = entrega
+
+        for indice in range(1, total + 1):
+            semanas_restantes = total - indice + 1
+            fecha = fecha_limite - timedelta(weeks=semanas_restantes)
+
+            entrega = entregas_bitacora.get(indice)
+            estado = "pendiente"
+            entrega_data = None
+
+            if entrega:
+                estado = "calificada" if entrega.estado_revision == "revisada" else "entregada"
+                entrega_serializer = EvaluacionEntregaAlumnoSerializer(
+                    entrega, context=self.context
+                )
+                entrega_data = entrega_serializer.data
+
+            bitacoras.append(
+                {
+                    "indice": indice,
+                    "titulo": f"Bitácora {indice}",
+                    "fecha": fecha,
+                    "comentario": obj.bitacora_comentario,
+                    "estado": estado,
+                    "entrega": entrega_data,
+                }
+            )
+
+        return bitacoras
 
     def get_grupo(self, obj):
         tema = obj.tema
@@ -1205,10 +1452,11 @@ class EvaluacionGrupoDocenteSerializer(serializers.ModelSerializer):
 
     def get_ultima_entrega(self, obj):
         entregas = self._obtener_entregas_prefetch(obj)
-        if not entregas:
+        entregas_formales = [e for e in entregas if not getattr(e, "es_bitacora", False)]
+        if not entregas_formales:
             return None
         serializer = EvaluacionEntregaAlumnoSerializer(
-            entregas[0],
+            entregas_formales[0],
             context=self.context,
         )
         return serializer.data

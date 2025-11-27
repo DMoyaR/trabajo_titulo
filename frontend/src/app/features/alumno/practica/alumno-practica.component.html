@@ -42,6 +42,66 @@
 
 </div>
 
+<div class="card">
+  <div class="card-head">
+    <h3>Evaluación de práctica</h3>
+    <p class="muted">Descarga el formulario oficial y sube tu evaluación completada.</p>
+  </div>
+
+  <div class="eval-section">
+    <div class="eval-download">
+      <p class="muted" *ngIf="evaluacionLoading()">Buscando evaluación…</p>
+      <div class="alert error" *ngIf="evaluacionError()">{{ evaluacionError() }}</div>
+      <p class="muted" *ngIf="!evaluacionLoading() && !evaluacion()">Aún no hay una evaluación publicada para tu carrera.</p>
+
+      <ng-container *ngIf="!evaluacionLoading() && evaluacion() as ev">
+        <div class="eval-card">
+          <div>
+            <strong>{{ ev.nombre }}</strong>
+            <small class="muted">{{ formatFecha(ev.createdAt) }}</small>
+            <small class="muted" *ngIf="ev.descripcion">{{ ev.descripcion }}</small>
+          </div>
+          <a class="btn sm" *ngIf="ev.url; else sinEval" [href]="ev.url!" target="_blank" rel="noopener">Descargar</a>
+          <ng-template #sinEval>
+            <button class="btn sm" disabled aria-disabled="true">Sin archivo</button>
+          </ng-template>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="eval-upload">
+      <label class="file-input" [class.disabled]="!!evaluacionEntrega()">
+        <input
+          type="file"
+          (change)="onEvaluacionArchivoSeleccionado($event)"
+          accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg"
+          [disabled]="!!evaluacionEntrega()"
+        />
+        <span>{{ evaluacionArchivoNombre() || 'Seleccionar archivo de evaluación' }}</span>
+      </label>
+
+      <div class="eval-actions">
+        <button class="btn primary" type="button" (click)="subirEvaluacionPractica()" [disabled]="evaluacionSending() || !!evaluacionEntrega()">
+          {{ evaluacionSending() ? 'Enviando…' : 'Subir evaluación' }}
+        </button>
+        <button class="btn sm" type="button" (click)="limpiarEvaluacionArchivo()" [disabled]="evaluacionSending() || !!evaluacionEntrega()">Limpiar</button>
+      </div>
+
+      <div class="help" *ngIf="!evaluacionEntrega()">Solo puedes enviar tu evaluación una vez.</div>
+      <div class="help error" *ngIf="evaluacionUploadError()">{{ evaluacionUploadError() }}</div>
+
+      <div class="eval-status" *ngIf="evaluacionEntrega() as entrega">
+        <p><strong>Última entrega:</strong> {{ entrega.archivoNombre }}</p>
+        <small class="muted">{{ formatFecha(entrega.createdAt) }}</small>
+        <p class="muted" *ngIf="entrega.nota; else sinNota">Nota asignada: {{ entrega.nota }}</p>
+        <ng-template #sinNota><p class="muted">Aún no hay nota registrada.</p></ng-template>
+        <p class="help">Tu envío ya fue recibido y no puede modificarse.</p>
+        <a *ngIf="entrega.url" class="btn sm" [href]="entrega.url" target="_blank" rel="noopener">Ver archivo</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card solicitudes-card">
   <div class="card-head">
     <h3>Solicitudes de práctica</h3>
@@ -324,7 +384,7 @@
             <div class="c-web">{{firmaActual().institucion || 'Universidad Tecnológica Metropolitana'}}</div>
           </footer>
         </div>
-        <div class="hint">Vista previa exacta — se enviará a Coordinación</div>
+        <div class="hint">Vista previa referencial — se enviará a Coordinación</div>
       </aside>
     </div>
   </div>

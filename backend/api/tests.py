@@ -1,4 +1,5 @@
 import json
+from datetime import date, timedelta
 
 from django.urls import reverse
 from rest_framework import status
@@ -1478,3 +1479,74 @@ class ReunionesAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", response.data)
         self.assertEqual(SolicitudReunion.objects.count(), 0)
+
+    def test_notifica_a_ambos_al_aprobar_solicitud(self):
+        alumno = self._crear_alumno(4)
+        self._asignar_trabajo_titulo(alumno, self.docente)
+
+        solicitud = SolicitudReunion.objects.create(
+            alumno=alumno,
+            docente=self.docente,
+            motivo="Revisar avances",
+            disponibilidad_sugerida="Lunes 10:00",
+        )
+
+        Notificacion.objects.all().delete()
+
+        payload = {
+            "docente": self.docente.pk,
+            "fecha": (date.today() + timedelta(days=1)).isoformat(),
+            "horaInicio": "10:00",
+            "horaTermino": "10:30",
+            "modalidad": "online",
+            "comentario": "Revisión rápida",
+        }
+
+        response = self.client.post(
+            reverse("aprobar-solicitud-reunion", args=[solicitud.pk]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Notificacion.objects.count(), 2)
+
+        eventos = {(
+            notif.usuario_id,
+            notif.meta.get("evento"),
+        ) for notif in Notificacion.objects.all()}
+
+        self.assertIn((alumno.id, "solicitud_aprobada"), eventos)
+        self.assertIn((self.docente.id, "solicitud_aprobada_docente"), eventos)
+
+    def test_notifica_a_ambos_al_rechazar_solicitud(self):
+        alumno = self._crear_alumno(5)
+        self._asignar_trabajo_titulo(alumno, self.docente)
+
+        solicitud = SolicitudReunion.objects.create(
+            alumno=alumno,
+            docente=self.docente,
+            motivo="Revisar avances",
+            disponibilidad_sugerida="Lunes 10:00",
+        )
+
+        Notificacion.objects.all().delete()
+
+        payload = {"docente": self.docente.pk, "comentario": "No disponible"}
+
+        response = self.client.post(
+            reverse("rechazar-solicitud-reunion", args=[solicitud.pk]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Notificacion.objects.count(), 2)
+
+        eventos = {(
+            notif.usuario_id,
+            notif.meta.get("evento"),
+        ) for notif in Notificacion.objects.all()}
+
+        self.assertIn((alumno.id, "solicitud_rechazada"), eventos)
+        self.assertIn((self.docente.id, "solicitud_rechazada_docente"), eventos)

@@ -17,6 +17,15 @@
 .doc-info { display:flex; flex-direction:column; gap:4px; }
 .doc-buttons { display:flex; gap:8px; align-items:center; }
 .help.error { color:#b91c1c; font-size:.85rem; }
+.evaluacion-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.acciones-head { display:flex; gap:8px; align-items:center; }
+.tabla-entregas { border:1px solid #e9eef6; border-radius:12px; overflow:hidden; }
+.tabla-head, .tabla-row { display:grid; grid-template-columns:1.2fr 1fr 1.2fr .6fr .5fr; gap:10px; align-items:center; padding:10px 12px; }
+.tabla-head { background:#f1f5fb; font-weight:700; color:#0a244d; }
+.tabla-row:nth-child(even) { background:#fbfdff; }
+.tabla-row:nth-child(odd) { background:#fff; }
+.nota-input { width:100%; padding:8px 10px; border:1px solid #cfd8e3; border-radius:8px; }
+.acciones-nota { text-align:right; }
 .firma-card { margin-top: 16px; }
 .firma-grid { display: grid; grid-template-columns: 1fr minmax(240px, 360px); gap: 16px; align-items: flex-start; }
 .firma-form { display: flex; flex-direction: column; gap: 12px; }
@@ -29,6 +38,8 @@
   .doc-grid { grid-template-columns: 1fr; }
   .doc-items li { flex-direction: column; }
   .doc-buttons { justify-content:flex-start; }
+  .tabla-head, .tabla-row { grid-template-columns: 1fr; }
+  .evaluacion-head { flex-direction: column; align-items: flex-start; }
   .firma-grid { grid-template-columns: 1fr; }
 }
 

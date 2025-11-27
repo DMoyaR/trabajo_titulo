@@ -45,7 +45,7 @@ export class DocentePerfilComponent implements OnInit {
     this.isLoading = true;
     try {
       const profile = this.currentUserService.getProfile();
-      if (!profile) {
+      if (!profile?.id) {
         throw new Error('Perfil no disponible');
       }
 

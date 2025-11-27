@@ -439,6 +439,8 @@ class EvaluacionGrupoDocente(models.Model):
         null=True,
         max_length=255,
     )
+    bitacoras_requeridas = models.PositiveSmallIntegerField(default=0)
+    bitacora_comentario = models.TextField(blank=True, null=True)
     fecha = models.DateField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="Pendiente")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -522,6 +524,8 @@ class EvaluacionEntregaAlumno(models.Model):
         choices=ESTADOS_REVISION,
         default="pendiente",
     )
+    es_bitacora = models.BooleanField(default=False)
+    bitacora_indice = models.PositiveSmallIntegerField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -532,7 +536,11 @@ class EvaluacionEntregaAlumno(models.Model):
             models.Index(
                 fields=["evaluacion", "alumno", "estado_revision"],
                 name="evaluacione_evaluac_3ae986_idx",
-            )
+            ),
+            models.Index(
+                fields=["evaluacion", "alumno", "es_bitacora", "bitacora_indice"],
+                name="evaluacione_bitacor_idx",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -690,7 +698,43 @@ class PracticaFirmaCoordinador(models.Model):
 
     class Meta:
         db_table = "practica_firmas_coordinador"
-        ordering = ["-updated_at"]
+
+
+class PracticaEvaluacion(models.Model):
+    carrera = models.CharField(max_length=160)
+    nombre = models.CharField(max_length=160)
+    descripcion = models.TextField(blank=True)
+    archivo = models.FileField(upload_to="practicas/evaluaciones/%Y/%m/%d", max_length=255)
+    uploaded_by = models.ForeignKey(
+        Usuario, related_name="evaluaciones_practica", on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "practica_evaluaciones"
+        ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Firma {self.carrera}"
+        return f"Evaluación práctica {self.nombre} ({self.carrera})"
+
+
+class PracticaEvaluacionEntrega(models.Model):
+    evaluacion = models.ForeignKey(
+        PracticaEvaluacion, related_name="entregas", on_delete=models.CASCADE
+    )
+    alumno = models.ForeignKey(
+        Usuario, related_name="entregas_practica", on_delete=models.CASCADE
+    )
+    archivo = models.FileField(
+        upload_to="practicas/evaluaciones/entregas/%Y/%m/%d", max_length=255
+    )
+    nota = models.CharField(max_length=10, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "practica_evaluacion_entregas"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        alumno_nombre = self.alumno.nombre_completo if self.alumno_id else ""
+        return f"Entrega evaluación {alumno_nombre}"

@@ -31,6 +31,13 @@ type Entrega = {
   fechaEntrega: string | null;
   nota: number | null;
   comentarios: string | null;
+  archivoNombre: string | null;
+  archivoUrl: string | null;
+  archivoTipo: string | null;
+  alumnoNombre: string | null;
+  alumnoCorreo: string | null;
+  esBitacora?: boolean;
+  bitacoraIndice?: number | null;
   rubricaNombre: string | null;
   rubricaUrl: string | null;
   rubricaTipo: string | null;
@@ -64,8 +71,7 @@ export class DocenteTrabajoListComponent implements OnInit {
   cargandoEntregas = false;
   errorEntregas: string | null = null;
 
-  tiposEntrega = ['Todos'];
-  filtroTipo = 'Todos';
+  filtroCategoria: 'Todos' | 'Evaluaciones' | 'Bitácoras' = 'Todos';
   filtroBusqueda = '';
 
   showEvalModal = false;
@@ -165,7 +171,6 @@ export class DocenteTrabajoListComponent implements OnInit {
         this.errorEntregas = 'No pudimos obtener las entregas registradas.';
         this.entregasPorGrupo = new Map();
         this.entregas = [];
-        this.actualizarTiposEntrega();
         this.cargandoEntregas = false;
       },
     });
@@ -229,7 +234,7 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   verGrupo(grupo: Grupo) {
     this.grupoSeleccionado = grupo;
-    this.filtroTipo = 'Todos';
+    this.filtroCategoria = 'Todos';
     this.filtroBusqueda = '';
 
     this.actualizarEntregasSeleccionadas();
@@ -238,18 +243,19 @@ export class DocenteTrabajoListComponent implements OnInit {
   volverAListaGrupos() {
     this.grupoSeleccionado = null;
     this.entregas = [];
-    this.actualizarTiposEntrega();
   }
 
   get entregasFiltradas(): Entrega[] {
     const texto = this.filtroBusqueda.trim().toLowerCase();
     return this.entregas.filter((entrega) => {
-      const coincideTipo = this.filtroTipo === 'Todos' || entrega.tipo === this.filtroTipo;
+      const coincideCategoria =
+        this.filtroCategoria === 'Todos' ||
+        (this.filtroCategoria === 'Bitácoras' ? entrega.esBitacora : !entrega.esBitacora);
       const coincideBusqueda =
         !texto ||
         entrega.titulo.toLowerCase().includes(texto) ||
         (entrega.tipo ?? '').toLowerCase().includes(texto);
-      return coincideTipo && coincideBusqueda;
+      return coincideCategoria && coincideBusqueda;
     });
   }
 
@@ -263,7 +269,7 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   revisarEntrega(entrega: Entrega) {
     this.entregaEnRevision = entrega;
-    this.notaInput = null;
+    this.notaInput = entrega.esBitacora ? null : entrega.nota;
     this.comentariosInput = '';
     this.rubricaArchivo = null;
     this.informeArchivo = null;
@@ -282,18 +288,23 @@ export class DocenteTrabajoListComponent implements OnInit {
   }
 
   guardarEvaluacion() {
-    if (!this.entregaEnRevision || this.notaInput == null || this.guardandoEvaluacion) {
+    if (!this.entregaEnRevision || this.guardandoEvaluacion) {
       return;
     }
 
-    const notaNormalizada = this.normalizarNota(this.notaInput);
+    const esBitacora = Boolean(this.entregaEnRevision.esBitacora);
+    if (!esBitacora) {
+      const notaNormalizada = this.normalizarNota(this.notaInput);
 
-    if (notaNormalizada == null) {
-      this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
-      return;
+      if (notaNormalizada == null) {
+        this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
+        return;
+      }
+
+      this.notaInput = notaNormalizada;
+    } else {
+      this.notaInput = null;
     }
-
-    this.notaInput = notaNormalizada;
 
 
     const entregaEnRevision = this.entregaEnRevision;
@@ -301,8 +312,8 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.guardandoEvaluacion = true;
     this.errorEvaluacion = null;
 
-    const rubricaAdjunta = this.adjuntoDesdeArchivo(this.rubricaArchivo);
-    const informeAdjunto = this.adjuntoDesdeArchivo(this.informeArchivo);
+    const rubricaAdjunta = esBitacora ? null : this.adjuntoDesdeArchivo(this.rubricaArchivo);
+    const informeAdjunto = esBitacora ? null : this.adjuntoDesdeArchivo(this.informeArchivo);
 
     this.evaluacionesService
       .actualizarEntrega(
@@ -312,7 +323,7 @@ export class DocenteTrabajoListComponent implements OnInit {
           comentario: this.comentariosInput || 'Sin comentarios adicionales.',
           estado_revision: 'revisada',
         },
-        { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
+        esBitacora ? undefined : { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
       )
       .subscribe({
         next: (entregaActualizada) => {
@@ -394,32 +405,11 @@ export class DocenteTrabajoListComponent implements OnInit {
   private actualizarEntregasSeleccionadas(): void {
     if (!this.grupoSeleccionado) {
       this.entregas = [];
-      this.actualizarTiposEntrega();
       return;
     }
 
     const entregasGrupo = this.entregasPorGrupo.get(this.grupoSeleccionado.id) ?? [];
     this.entregas = [...entregasGrupo];
-    this.actualizarTiposEntrega();
-  }
-
-  private actualizarTiposEntrega(): void {
-    const tipos = new Set<string>();
-    this.entregas.forEach((entrega) => {
-      const tipo = entrega.tipo?.trim();
-      if (tipo) {
-        tipos.add(tipo);
-      }
-    });
-
-    this.tiposEntrega = [
-      'Todos',
-      ...Array.from(tipos).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
-    ];
-
-    if (!this.tiposEntrega.includes(this.filtroTipo)) {
-      this.filtroTipo = 'Todos';
-    }
   }
 
   private mapearEntregasPorGrupo(
@@ -486,6 +476,13 @@ export class DocenteTrabajoListComponent implements OnInit {
       fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
       nota: entrega.nota ?? null,
       comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
+      archivoNombre: entrega.archivo_nombre || null,
+      archivoUrl: entrega.archivo_url || null,
+      archivoTipo: entrega.archivo_tipo || null,
+      alumnoNombre: entrega.alumno?.nombre || null,
+      alumnoCorreo: entrega.alumno?.correo || null,
+      esBitacora: Boolean(entrega.es_bitacora),
+      bitacoraIndice: entrega.bitacora_indice ?? null,
       rubricaNombre: entrega.rubrica_docente_nombre || null,
       rubricaUrl: entrega.rubrica_docente_url || null,
       rubricaTipo: entrega.rubrica_docente_tipo || null,

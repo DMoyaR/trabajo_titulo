@@ -66,12 +66,40 @@ interface DocumentoCompartidoApi {
   uploadedBy?: { id: number; nombre: string; correo: string } | null;
 }
 
+interface EvaluacionPracticaApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
+}
+
 interface DocumentoCompartido {
   id: number;
   nombre: string;
   descripcion?: string | null;
   createdAt: string;
   url: string | null;
+}
+
+interface EvaluacionPractica {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  createdAt: string;
+  url: string | null;
+}
+
+interface PracticaEvaluacionEntrega {
+  id: number;
+  createdAt: string;
+  nota: string;
+  archivoUrl: string | null;
+  archivoNombre: string;
+  empresa: string;
+  alumno: { id: number; nombre: string; correo: string; carrera: string } | null;
+  evaluacion?: EvaluacionPractica | null;
 }
 interface FirmaCoordinadorApi {
   id: number;
@@ -146,12 +174,26 @@ export class PracticasComponent {
 
   @ViewChild('archivoInput') archivoInput?: ElementRef<HTMLInputElement>;
   @ViewChild('firmaInput') firmaInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('evaluacionInput') evaluacionInput?: ElementRef<HTMLInputElement>;
 
   documentosCompartidos = signal<DocumentoCompartido[]>([]);
   documentosLoading = signal(false);
   documentosError = signal<string | null>(null);
   documentoUploadError = signal<string | null>(null);
   gestionDocumentoLoading = signal(false);
+
+  evaluacion = signal<EvaluacionPractica | null>(null);
+  evaluacionLoading = signal(false);
+  evaluacionError = signal<string | null>(null);
+  evaluacionUploadError = signal<string | null>(null);
+  evaluacionGestionLoading = signal(false);
+  evaluacionArchivoNombre = signal<string | null>(null);
+  private evaluacionArchivoSeleccionado: File | null = null;
+  entregasEvaluacion = signal<PracticaEvaluacionEntrega[]>([]);
+  entregasEvaluacionLoading = signal(false);
+  entregasEvaluacionError = signal<string | null>(null);
+  notasEdicion = signal<Record<number, string | undefined>>({});
+  guardandoNotas = signal<Record<number, boolean>>({});
 
   
   firmaCoordinador = signal<FirmaCoordinador | null>(null);
@@ -170,6 +212,11 @@ export class PracticasComponent {
   });
   archivoNombre = signal<string | null>(null);
   private archivoSeleccionado: File | null = null;
+
+  evaluacionForm = this.fb.group({
+    nombre: ['', Validators.required],
+    descripcion: [''],
+  });
 
   estado = signal<Estado>('pendiente');
   query = signal<string>('');
@@ -368,6 +415,7 @@ export class PracticasComponent {
     if (this.coordinadorId !== null) {
       // Documentos compartidos
       this.cargarDocumentosCompartidos();
+      this.cargarEntregasEvaluacion();
       //cargar firma apenas se monta el componente
       this.cargarFirmaCoordinador();
     } else {
@@ -509,6 +557,250 @@ export class PracticasComponent {
           this.gestionDocumentoLoading.set(false);
         },
       });
+  }
+
+  // ====== Evaluación práctica ======
+  cargarEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.evaluacion.set(null);
+      return;
+    }
+
+    this.evaluacionLoading.set(true);
+    this.evaluacionError.set(null);
+
+    this.http
+      .get<{ item: EvaluacionPracticaApi | null }>(`/api/coordinacion/practicas/evaluacion/`, {
+        params: { coordinador: String(this.coordinadorId) },
+      })
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.evaluacion.set(
+            item
+              ? {
+                  id: item.id,
+                  nombre: item.nombre,
+                  descripcion: item.descripcion ?? null,
+                  createdAt: item.created_at,
+                  url: item.url,
+                }
+              : null
+          );
+          this.evaluacionLoading.set(false);
+        },
+        error: () => {
+          this.evaluacionError.set('No se pudo cargar la evaluación de práctica.');
+          this.evaluacion.set(null);
+          this.evaluacionLoading.set(false);
+        },
+      });
+  }
+
+  cargarEntregasEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.entregasEvaluacion.set([]);
+      return;
+    }
+
+    this.entregasEvaluacionLoading.set(true);
+    this.entregasEvaluacionError.set(null);
+
+    this.http
+      .get<{ items: PracticaEvaluacionEntrega[] }>(
+        '/api/coordinacion/practicas/evaluacion/entregas/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped = items.map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt || (item as any).created_at || '',
+            nota: item.nota ?? '',
+            archivoUrl: item.archivoUrl || (item as any).archivo_url || null,
+            archivoNombre: item.archivoNombre || (item as any).archivo_nombre || '',
+            empresa: item.empresa || '',
+            alumno: item.alumno || null,
+            evaluacion: item.evaluacion,
+          }));
+
+          const notas: Record<number, string> = {};
+          mapped.forEach((m) => {
+            notas[m.id] = m.nota || '';
+          });
+
+          this.entregasEvaluacion.set(mapped);
+          this.notasEdicion.set(notas);
+          this.entregasEvaluacionLoading.set(false);
+        },
+        error: () => {
+          this.entregasEvaluacionError.set(
+            'No se pudieron cargar las entregas de los alumnos.'
+          );
+          this.entregasEvaluacion.set([]);
+          this.entregasEvaluacionLoading.set(false);
+        },
+      });
+  }
+
+  onEvaluacionSeleccionada(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    this.evaluacionArchivoSeleccionado = file;
+    this.evaluacionUploadError.set(null);
+    this.evaluacionArchivoNombre.set(file ? file.name : null);
+
+    if (file) {
+      const nombreCtrl = this.evaluacionForm.get('nombre');
+      if (nombreCtrl && !nombreCtrl.value) {
+        nombreCtrl.setValue(file.name);
+      }
+    }
+  }
+
+  subirEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
+      return;
+    }
+
+    if (!this.evaluacionArchivoSeleccionado) {
+      this.evaluacionUploadError.set('Selecciona el formulario de evaluación.');
+      return;
+    }
+
+    if (this.evaluacionForm.invalid) {
+      this.evaluacionForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.evaluacionForm.value;
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.evaluacionArchivoSeleccionado);
+    formData.append('nombre', formValue.nombre || this.evaluacionArchivoSeleccionado.name);
+    if (formValue.descripcion) {
+      formData.append('descripcion', formValue.descripcion);
+    }
+
+    this.evaluacionGestionLoading.set(true);
+    this.http.post<EvaluacionPracticaApi>('/api/coordinacion/practicas/evaluacion/', formData).subscribe({
+      next: (res) => {
+        this.evaluacion.set({
+          id: res.id,
+          nombre: res.nombre,
+          descripcion: res.descripcion ?? null,
+          createdAt: res.created_at,
+          url: res.url,
+        });
+        this.toast.set('Evaluación subida y compartida con los alumnos.');
+        this.limpiarFormularioEvaluacion();
+        this.evaluacionGestionLoading.set(false);
+      },
+      error: () => {
+        this.toast.set('No se pudo subir la evaluación.');
+        this.evaluacionGestionLoading.set(false);
+      },
+    });
+  }
+
+  limpiarFormularioEvaluacion() {
+    this.evaluacionForm.reset();
+    this.evaluacionArchivoSeleccionado = null;
+    this.evaluacionUploadError.set(null);
+    this.evaluacionArchivoNombre.set(null);
+    if (this.evaluacionInput?.nativeElement) {
+      this.evaluacionInput.nativeElement.value = '';
+    }
+  }
+
+  onNotaChange(entregaId: number, valor: string) {
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: valor }));
+  }
+
+  notaGuardando(entregaId: number): boolean {
+    return !!this.guardandoNotas()[entregaId];
+  }
+
+  guardarNota(entregaId: number) {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
+      return;
+    }
+
+    const nota = (this.notasEdicion()[entregaId] ?? '').trim();
+    this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: true }));
+
+    this.http
+      .patch<PracticaEvaluacionEntrega>(
+        `/api/coordinacion/practicas/evaluacion/entregas/${entregaId}/`,
+        { nota },
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          this.actualizarEntregaLocal(entregaId, res.nota ?? '');
+          this.toast.set('Nota guardada.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+        error: () => {
+          this.toast.set('No se pudo guardar la nota.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+      });
+  }
+
+  private actualizarEntregaLocal(entregaId: number, nota: string) {
+    this.entregasEvaluacion.update((items) => {
+      const copia = [...items];
+      const idx = copia.findIndex((e) => e.id === entregaId);
+      if (idx >= 0) {
+        copia[idx] = { ...copia[idx], nota };
+      }
+      return copia;
+    });
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: nota }));
+  }
+
+  descargarCsvEntregas() {
+    const filas = this.entregasEvaluacion();
+    if (!filas.length) {
+      this.toast.set('No hay entregas para exportar.');
+      return;
+    }
+
+    const encabezados = ['Alumno', 'Empresa', 'Informe', 'Nota', 'Fecha de envío'];
+    const contenido = filas
+      .map((f) => {
+        const cols = [
+          f.alumno?.nombre || '',
+          f.empresa || '',
+          f.archivoNombre || '',
+          f.nota || '',
+          this.formatFecha(f.createdAt) || f.createdAt || '',
+        ];
+        return cols
+          .map((c) => {
+            const safe = c.replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(',');
+      })
+      .join('\n');
+
+    const csv = `${encabezados.join(',')}\n${contenido}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'entregas_evaluacion_practica.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
 // ====== Firma del coordinador ======
@@ -1199,10 +1491,10 @@ cursorY += 6;
 
   // ====== Pestañas ======
   // arriba, junto al resto de signals:
-  mainTab = signal<'solicitudes' | 'documentos' | 'firma'>('solicitudes');
+  mainTab = signal<'solicitudes' | 'documentos' | 'recepcion' | 'firma'>('solicitudes');
 
   // función para cambiar de pestaña
-  setMainTab(tab: 'solicitudes' | 'documentos' | 'firma') {
+  setMainTab(tab: 'solicitudes' | 'documentos' | 'recepcion' | 'firma') {
     if (tab === 'firma' && !this.isCoordinador) {
       return;
     }
@@ -1211,6 +1503,9 @@ cursorY += 6;
     if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
       // si entras a Documentos y aún no cargan, los traemos
       this.cargarDocumentosCompartidos();
+    }
+    if (tab === 'recepcion' && this.coordinadorId !== null) {
+      this.cargarEntregasEvaluacion();
     }
     if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
       this.cargarFirmaCoordinador();

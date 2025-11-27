@@ -17,6 +17,8 @@ type GrupoEvaluaciones = {
     comentario: string | null;
     rubricaNombre: string | null;
     rubricaUrl: string | null;
+    bitacorasRequeridas: number;
+    bitacoraComentario: string | null;
     fecha: string | null;
     estado: string;
   }[];
@@ -26,6 +28,8 @@ type EntregaDocente = {
   id: number;
   evaluacionId: number;
   evaluacionTitulo: string;
+  esBitacora: boolean;
+  bitacoraIndice: number | null;
   grupo: string;
   alumnoNombre: string;
   alumnoCorreo: string | null;
@@ -78,6 +82,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
   evaluacionTitulo = signal('');
   evaluacionFecha = signal('');
   evaluacionComentario = signal('');
+  bitacorasHabilitadas = signal(false);
+  bitacorasRequeridas = signal(0);
+  bitacoraComentario = signal('');
+  bitacoraFechas = signal<string[]>([]);
   evaluacionRubrica = signal<File | null>(null);
 
   private rubricaInput?: HTMLInputElement | null;
@@ -100,6 +108,124 @@ export class DocenteEvaluacionesComponent implements OnInit {
     this.evaluacionRubrica.set(archivo);
   }
 
+  onFechaChange(event: Event): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.evaluacionFecha.set(valor);
+    this.actualizarBitacorasDesdeFecha(valor);
+  }
+
+  onBitacorasChange(event: Event): void {
+    const valor = Number((event.target as HTMLInputElement | null)?.value ?? 0);
+    if (Number.isNaN(valor) || valor < 0) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
+      return;
+    }
+    const cantidad = Math.trunc(valor);
+    this.bitacorasRequeridas.set(cantidad);
+    this.actualizarFechasManual(cantidad);
+  }
+
+  onBitacorasToggle(event: Event): void {
+    const habilitadas = (event.target as HTMLInputElement | null)?.checked ?? false;
+    this.bitacorasHabilitadas.set(habilitadas);
+
+    if (!habilitadas) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fecha = this.evaluacionFecha();
+    if (fecha) {
+      this.actualizarBitacorasDesdeFecha(fecha);
+    }
+  }
+
+  onBitacoraFechaChange(event: Event, indice: number): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.bitacoraFechas.update((fechas) => {
+      const copia = [...fechas];
+      copia[indice] = valor;
+      return copia;
+    });
+  }
+
+  private actualizarBitacorasDesdeFecha(fechaSeleccionada: string): void {
+    if (!fechaSeleccionada) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fecha = new Date(`${fechaSeleccionada}T00:00:00`);
+    const hoy = new Date();
+    const inicioHoy = new Date(
+      hoy.getFullYear(),
+      hoy.getMonth(),
+      hoy.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const diffMs = fecha.getTime() - inicioHoy.getTime();
+    const semanas = Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
+    const bitacoras = Math.max(0, semanas - 1);
+
+    this.bitacorasRequeridas.set(bitacoras);
+    this.bitacoraFechas.set(this.calcularFechasBitacoras(bitacoras, fecha));
+  }
+
+  private actualizarFechasManual(cantidad: number): void {
+    if (!cantidad) {
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fechaEntrega = this.evaluacionFecha();
+    if (fechaEntrega) {
+      const fecha = new Date(`${fechaEntrega}T00:00:00`);
+      this.bitacoraFechas.set(this.calcularFechasBitacoras(cantidad, fecha));
+      return;
+    }
+
+    const hoy = new Date();
+    const fechas = Array.from({ length: cantidad }).map((_, indice) => {
+      const proxima = new Date(hoy);
+      proxima.setDate(hoy.getDate() + 7 * (indice + 1));
+      return this.formatearFechaInput(proxima);
+    });
+
+    this.bitacoraFechas.set(fechas);
+  }
+
+  private calcularFechasBitacoras(cantidad: number, fechaEntrega: Date): string[] {
+    if (!cantidad) {
+      return [];
+    }
+
+    const fechas: string[] = [];
+    const base = new Date(fechaEntrega);
+
+    for (let i = cantidad; i >= 1; i -= 1) {
+      const punto = new Date(base);
+      punto.setDate(base.getDate() - 7 * i);
+      fechas.push(this.formatearFechaInput(punto));
+    }
+
+    return fechas;
+  }
+
+  private formatearFechaInput(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const day = `${fecha.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private limpiarRubrica(): void {
     this.evaluacionRubrica.set(null);
     if (this.rubricaInput) {
@@ -118,9 +244,17 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
+    const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
 
     if (!grupoId || !titulo || !comentario) {
+      return;
+    }
+
+    if (bitacoras > 0 && !bitacoraComentario) {
       return;
     }
 
@@ -128,6 +262,9 @@ export class DocenteEvaluacionesComponent implements OnInit {
       tema: grupoId,
       titulo,
       comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario:
+        bitacoras > 0 ? bitacoraComentario : null,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
       rubrica,
@@ -147,6 +284,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
       this.limpiarRubrica();
     } catch (error) {
       console.error('No se pudo registrar la evaluación del grupo', error);
@@ -166,6 +307,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
     const titulo = this.evaluacionTitulo().trim();
     const fecha = this.evaluacionFecha().trim();
     const comentario = this.evaluacionComentario().trim();
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
+    const bitacoraComentario = this.bitacoraComentario().trim();
     const rubrica = this.evaluacionRubrica();
     const gruposActivos = this.gruposActivos();
 
@@ -173,10 +318,16 @@ export class DocenteEvaluacionesComponent implements OnInit {
       return;
     }
 
+    if (bitacoras > 0 && !bitacoraComentario) {
+      return;
+    }
+
     const payloads = gruposActivos.map((grupo) => ({
       tema: grupo.id,
       titulo,
       comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario: bitacoras > 0 ? bitacoraComentario : null,
       fecha: fecha ? fecha : null,
       docente: this.docenteId,
       rubrica,
@@ -223,6 +374,10 @@ export class DocenteEvaluacionesComponent implements OnInit {
       this.evaluacionTitulo.set('');
       this.evaluacionFecha.set('');
       this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
       this.limpiarRubrica();
 
       if (hayFallos) {
@@ -302,6 +457,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
         comentario: evaluacion.comentario,
         rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
         rubricaUrl: evaluacion.rubrica_url,
+        bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+        bitacoraComentario: evaluacion.bitacora_comentario,
         fecha: evaluacion.fecha,
         estado: evaluacion.estado,
       });
@@ -323,6 +480,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       comentario: evaluacion.comentario,
       rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
       rubricaUrl: evaluacion.rubrica_url,
+      bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+      bitacoraComentario: evaluacion.bitacora_comentario,
       fecha: evaluacion.fecha,
       estado: evaluacion.estado,
     };
@@ -422,6 +581,8 @@ export class DocenteEvaluacionesComponent implements OnInit {
       id: entrega.id,
       evaluacionId: evaluacion.id,
       evaluacionTitulo: evaluacion.titulo,
+      esBitacora: entrega.es_bitacora,
+      bitacoraIndice: entrega.bitacora_indice ?? null,
       grupo: grupoNombre,
       alumnoNombre: entrega.alumno?.nombre ?? 'Alumno sin registro',
       alumnoCorreo: entrega.alumno?.correo ?? null,

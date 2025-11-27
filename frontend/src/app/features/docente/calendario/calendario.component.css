@@ -195,8 +195,17 @@
   padding:4px 8px; font-size:12px; border-radius:999px; cursor:pointer;
 }
 .chip.danger{ border-color:#f5c2c2; background:#ffecec; color:#8a1f1f; }
+.chip.subtle{ background:#f5f7fb; border-color:#e5e7eb; color:#374151; cursor:default; }
+.chip.status{ background:#e8f5e9; border-color:#bbdfc0; color:#166534; cursor:default; }
+.chip-badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:18px; height:18px;
+  padding:0 6px; margin-left:6px;
+  background:#1453a5; color:#fff; border-radius:999px; font-size:11px; font-weight:800;
+}
 .ev-sub{ font-size:12px; color:#374151; }
 .ev-desc{ font-size:12px; color:#596375; }
+.ev-meta{ display:flex; gap:6px; flex-wrap:wrap; margin:4px 0; }
 
 .sep{ border:0; border-top:1px solid #e6eefc; margin:6px 0; }
 
@@ -240,3 +249,37 @@
 .summary-item .left b{ font-size:16px; }
 .summary-item .ttl{ font-weight:700; color:#1f2a37; font-size:15px; }
 .summary-item .sub{ color:#596375; font-size:12px; }
+
+/* ===== Solicitudes ===== */
+.solicitudes-modal{
+  width:min(900px, 94vw);
+  max-height:86vh;
+  display:flex;
+  flex-direction:column;
+}
+.solicitudes-body{
+  gap:14px;
+  max-height:calc(86vh - 60px);
+  overflow:auto;
+  padding:14px;
+}
+.solicitudes-section{ border:1px solid #e6eefc; border-radius:12px; padding:10px; background:#f8fbff; display:grid; gap:8px; }
+.section-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.solicitud-card{ border:1px solid #dfe7f5; border-radius:12px; background:#fff; padding:12px; display:grid; gap:8px; box-shadow:0 8px 20px rgba(0,0,0,.04); }
+.solicitud-card header{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.solicitud-card h4{ margin:0 0 4px; }
+.solicitud-card .motivo{ margin:0; font-weight:700; color:#1f2a37; }
+.solicitud-card .estado{ padding:6px 10px; border-radius:999px; font-weight:800; background:#eef3fb; color:#1a3e6a; border:1px solid #cfe3ff; }
+.solicitud-card .estado.pend{ background:#fff4e5; border-color:#ffd29b; color:#b55b00; }
+.solicitud-card .estado.aprobada{ background:#e8f5e9; border-color:#b4dfb7; color:#1b5e20; }
+.solicitud-card .estado.rechazada{ background:#ffebee; border-color:#f5c2c2; color:#8a1f1f; }
+.solicitud-card .acciones{ display:flex; gap:8px; flex-wrap:wrap; }
+.solicitud-card .panel-form{ background:#f7f9fc; border:1px dashed #dfe7f5; border-radius:10px; padding:10px; display:grid; gap:10px; }
+.solicitud-card .form-grid{ grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; }
+.solicitud-card .block{ display:flex; flex-direction:column; gap:6px; font-weight:600; color:#1a3e6a; }
+.solicitud-card .panel-form input,
+.solicitud-card .panel-form select,
+.solicitud-card .panel-form textarea{ border:1px solid #dfe7f5; border-radius:8px; padding:8px 10px; }
+
+.doc-pill.danger{ background:#ffecec; color:#8a1f1f; box-shadow:inset 0 0 0 1px #f5c2c2; }
+.doc-pill.danger:hover{ background:#ffdcdc; }
