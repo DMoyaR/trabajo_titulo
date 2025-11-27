@@ -90,6 +90,15 @@ def _obtener_proyecto_alumno(alumno: Usuario | None) -> str | None:
 
     return None
 
+
+class UsuarioResumenSerializer(serializers.ModelSerializer):
+    nombre = serializers.CharField(source="nombre_completo")
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
+
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
@@ -539,18 +548,6 @@ class PracticaEvaluacionEntregaCoordinacionSerializer(serializers.ModelSerialize
         if ultima_solicitud and ultima_solicitud.dest_empresa:
             return ultima_solicitud.dest_empresa
         return ""
-
-
-
-
-class UsuarioResumenSerializer(serializers.ModelSerializer):
-    nombre = serializers.CharField(source="nombre_completo")
-
-    class Meta:
-        model = Usuario
-        fields = ["id", "nombre", "correo", "carrera", "telefono", "rol"]
-
-
 class TrazabilidadReunionSerializer(serializers.ModelSerializer):
     usuario = UsuarioResumenSerializer(read_only=True)
 

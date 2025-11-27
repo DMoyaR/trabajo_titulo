@@ -22,12 +22,12 @@
 </button>
 
 <button class="tab"
-  [class.active]="mainTab()==='evaluacion'"
-  (click)="setMainTab('evaluacion')"
-  [style.background-color]="mainTab()==='evaluacion' ? '#00a35c' : null"
-  [style.border-color]="mainTab()==='evaluacion' ? '#00a35c' : null"
-  [style.color]="mainTab()==='evaluacion' ? '#fff' : null">
-  Evaluación de práctica
+  [class.active]="mainTab()==='recepcion'"
+  (click)="setMainTab('recepcion')"
+  [style.background-color]="mainTab()==='recepcion' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='recepcion' ? '#00a35c' : null"
+  [style.color]="mainTab()==='recepcion' ? '#fff' : null">
+  Recepción de informes
 </button>
 
 
@@ -130,72 +130,13 @@
   </div>
 </section>
 
-<!-- ======= CONTENIDO: EVALUACIÓN ======= -->
-<section *ngIf="mainTab()==='evaluacion'">
-  <div class="card docs-card">
-    <div class="card-head">
-      <h3>Evaluación (informe) de práctica</h3>
-      <p class="muted">Comparte aquí el formulario oficial para que todos los alumnos puedan descargarlo y subir su versión completada.</p>
-    </div>
-
-    <form class="doc-form" [formGroup]="evaluacionForm" (ngSubmit)="subirEvaluacion()" novalidate>
-      <div class="doc-grid">
-        <label class="file-input">
-          <input
-            #evaluacionInput
-            type="file"
-            (change)="onEvaluacionSeleccionada($event)"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg"
-          />
-          <span>{{ evaluacionArchivoNombre() || 'Seleccionar evaluación' }}</span>
-        </label>
-        <input type="text" placeholder="Nombre para mostrar" formControlName="nombre" />
-        <input type="text" placeholder="Descripción (opcional)" formControlName="descripcion" />
-      </div>
-
-      <div class="doc-actions">
-        <button class="btn primary" type="submit" [disabled]="evaluacionGestionLoading()">
-          {{ evaluacionGestionLoading() ? 'Guardando…' : 'Subir evaluación' }}
-        </button>
-        <button class="btn sm" type="button" (click)="limpiarFormularioEvaluacion()" [disabled]="evaluacionGestionLoading()">
-          Limpiar
-        </button>
-      </div>
-
-      <div class="help error" *ngIf="evaluacionUploadError()">{{ evaluacionUploadError() }}</div>
-      <div class="help error" *ngIf="evaluacionForm.get('nombre')?.invalid && evaluacionForm.get('nombre')?.touched">
-        Ingresa un nombre visible para el archivo.
-      </div>
-    </form>
-
-    <div class="doc-list">
-      <p class="muted" *ngIf="evaluacionLoading()">Cargando evaluación…</p>
-      <div class="alert error" *ngIf="evaluacionError()">{{ evaluacionError() }}</div>
-      <p class="muted" *ngIf="!evaluacionLoading() && !evaluacionError() && !evaluacion()">
-        Aún no has compartido el formulario de evaluación con tus estudiantes.
-      </p>
-
-      <div class="doc-items" *ngIf="!evaluacionLoading() && evaluacion() as ev">
-        <div class="doc-info">
-          <strong>{{ ev.nombre }}</strong>
-          <small class="muted">{{ formatFecha(ev.createdAt) }}</small>
-          <small class="muted" *ngIf="ev.descripcion">{{ ev.descripcion }}</small>
-        </div>
-        <div class="doc-buttons">
-          <a class="btn sm" *ngIf="ev.url; else sinEvaluacion" [href]="ev.url!" target="_blank" rel="noopener">Descargar</a>
-          <ng-template #sinEvaluacion>
-            <button class="btn sm" type="button" disabled>Sin archivo</button>
-          </ng-template>
-        </div>
-      </div>
-    </div>
-  </div>
-
+<!-- ======= CONTENIDO: RECEPCIÓN DE INFORMES ======= -->
+<section *ngIf="mainTab()==='recepcion'">
   <div class="card docs-card">
     <div class="card-head evaluacion-head">
       <div>
-        <h3>Entregas de alumnos</h3>
-        <p class="muted">Revisa quiénes enviaron su informe de práctica y registra la nota.</p>
+        <h3>Recepción de informes</h3>
+        <p class="muted">Visualiza los informes de práctica enviados por los estudiantes y registra la nota.</p>
       </div>
       <button class="btn sm" type="button" (click)="descargarCsvEntregas()" [disabled]="!entregasEvaluacion().length">
         Descargar CSV

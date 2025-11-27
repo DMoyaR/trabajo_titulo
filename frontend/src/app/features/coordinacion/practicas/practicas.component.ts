@@ -415,7 +415,7 @@ export class PracticasComponent {
     if (this.coordinadorId !== null) {
       // Documentos compartidos
       this.cargarDocumentosCompartidos();
-      this.cargarEvaluacion();
+      this.cargarEntregasEvaluacion();
       //cargar firma apenas se monta el componente
       this.cargarFirmaCoordinador();
     } else {
@@ -1491,10 +1491,10 @@ cursorY += 6;
 
   // ====== Pestañas ======
   // arriba, junto al resto de signals:
-  mainTab = signal<'solicitudes' | 'documentos' | 'evaluacion' | 'firma'>('solicitudes');
+  mainTab = signal<'solicitudes' | 'documentos' | 'recepcion' | 'firma'>('solicitudes');
 
   // función para cambiar de pestaña
-  setMainTab(tab: 'solicitudes' | 'documentos' | 'evaluacion' | 'firma') {
+  setMainTab(tab: 'solicitudes' | 'documentos' | 'recepcion' | 'firma') {
     if (tab === 'firma' && !this.isCoordinador) {
       return;
     }
@@ -1504,10 +1504,7 @@ cursorY += 6;
       // si entras a Documentos y aún no cargan, los traemos
       this.cargarDocumentosCompartidos();
     }
-    if (tab === 'evaluacion' && this.coordinadorId !== null) {
-      if (!this.evaluacion()) {
-        this.cargarEvaluacion();
-      }
+    if (tab === 'recepcion' && this.coordinadorId !== null) {
       if (!this.entregasEvaluacion().length) {
         this.cargarEntregasEvaluacion();
       }
