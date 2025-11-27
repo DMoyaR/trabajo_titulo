@@ -18,6 +18,7 @@
 .doc-buttons { display:flex; gap:8px; align-items:center; }
 .help.error { color:#b91c1c; font-size:.85rem; }
 .evaluacion-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.acciones-head { display:flex; gap:8px; align-items:center; }
 .tabla-entregas { border:1px solid #e9eef6; border-radius:12px; overflow:hidden; }
 .tabla-head, .tabla-row { display:grid; grid-template-columns:1.2fr 1fr 1.2fr .6fr .5fr; gap:10px; align-items:center; padding:10px 12px; }
 .tabla-head { background:#f1f5fb; font-weight:700; color:#0a244d; }
