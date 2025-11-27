@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -9,7 +10,7 @@ import { ReunionesService, Reunion, SolicitudReunion } from '../../../shared/ser
 @Component({
   selector: 'alumno-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, HttpClientModule, RouterLink],
   templateUrl: './alumno-dashboard.component.html',
   styleUrls: ['./alumno-dashboard.component.css'],
 })
@@ -18,6 +19,35 @@ export class AlumnoDashboardComponent implements OnInit {
   readonly temaAsignado = signal<TemaDisponible | null>(null);
   readonly temaAsignadoCargando = signal(false);
   readonly temaAsignadoError = signal<string | null>(null);
+
+  readonly practicaEntrega = signal<PracticaEntrega | null>(null);
+  readonly practicaEstadoCargando = signal(false);
+  readonly practicaEstadoError = signal<string | null>(null);
+  readonly practicaEstado = computed<PracticaEstado>(() => {
+    const entrega = this.practicaEntrega();
+    if (!entrega) {
+      return {
+        label: 'Pendiente',
+        detalle: 'Aún no envías tu informe de práctica.',
+        clase: 'warning',
+      };
+    }
+
+    const nota = (entrega.nota ?? '').trim();
+    if (nota) {
+      return {
+        label: 'Aprobado',
+        detalle: `Nota: ${nota}`,
+        clase: 'success',
+      };
+    }
+
+    return {
+      label: 'En revisión',
+      detalle: 'Tu informe está siendo revisado por el coordinador.',
+      clase: 'info',
+    };
+  });
 
   entregas = signal([
     { nombre: 'Informe de avance #2', estado: 'Aprobado', fecha: '15 de abril' },
@@ -99,6 +129,7 @@ export class AlumnoDashboardComponent implements OnInit {
   });
 
   constructor(
+    private readonly http: HttpClient,
     private readonly currentUserService: CurrentUserService,
     private readonly temaService: TemaService,
     private readonly reunionesService: ReunionesService,
@@ -109,6 +140,7 @@ export class AlumnoDashboardComponent implements OnInit {
     this.nombreUsuario.set(this.obtenerPrimerNombre(perfil?.nombre ?? ''));
     this.cargarTemaAsignado();
     this.cargarReuniones();
+    this.cargarEstadoPractica();
   }
 
   private cargarTemaAsignado() {
@@ -135,6 +167,49 @@ export class AlumnoDashboardComponent implements OnInit {
           console.error('No fue posible cargar tu tema asignado', err);
           this.temaAsignadoError.set('No fue posible cargar la información de tu tema asignado.');
           this.temaAsignadoCargando.set(false);
+        },
+      });
+  }
+
+  private cargarEstadoPractica(): void {
+    const perfil = this.currentUserService.getProfile();
+    const alumnoId = perfil?.id ?? null;
+
+    if (!alumnoId) {
+      this.practicaEntrega.set(null);
+      this.practicaEstadoCargando.set(false);
+      return;
+    }
+
+    this.practicaEstadoCargando.set(true);
+    this.practicaEstadoError.set(null);
+
+    this.http
+      .get<{ item: PracticaEntregaApi | null }>('/api/practicas/evaluacion/entregas/', {
+        params: { alumno: String(alumnoId) },
+      })
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.practicaEntrega.set(
+            item
+              ? {
+                  id: item.id,
+                  createdAt: item.created_at,
+                  archivoNombre: item.archivo_nombre || 'Archivo enviado',
+                  url: item.archivo_url,
+                  nota: item.nota ?? null,
+                }
+              : null,
+          );
+          this.practicaEstadoError.set(null);
+          this.practicaEstadoCargando.set(false);
+        },
+        error: (err) => {
+          console.error('No fue posible cargar el estado de la práctica', err);
+          this.practicaEntrega.set(null);
+          this.practicaEstadoError.set('No pudimos obtener el estado de tu informe de práctica.');
+          this.practicaEstadoCargando.set(false);
         },
       });
   }
@@ -223,4 +298,26 @@ export class AlumnoDashboardComponent implements OnInit {
   private obtenerPrimerNombre(nombreCompleto: string): string {
     return nombreCompleto.trim().split(' ').filter(Boolean)[0] ?? '';
   }
+}
+
+interface PracticaEntregaApi {
+  id: number;
+  created_at: string;
+  archivo_nombre: string | null;
+  archivo_url: string | null;
+  nota: string | null;
+}
+
+interface PracticaEntrega {
+  id: number;
+  createdAt: string;
+  archivoNombre: string;
+  url: string | null;
+  nota: string | null;
+}
+
+interface PracticaEstado {
+  label: string;
+  detalle: string;
+  clase: 'warning' | 'info' | 'success';
 }
