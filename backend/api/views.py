@@ -2995,6 +2995,41 @@ def _buscar_coordinador_por_carrera(carrera: str):
             return usuario
     return None
 
+
+def _evaluaciones_ids_por_carrera(carrera: str) -> list[int]:
+    normalizada = _normalizar_carrera(carrera)
+    if not normalizada:
+        return []
+
+    evaluaciones = PracticaEvaluacion.objects.only("id", "carrera")
+    return [
+        ev.pk
+        for ev in evaluaciones
+        if _normalizar_carrera(ev.carrera) == normalizada
+    ]
+
+
+def _buscar_evaluacion_practica_por_carrera(carrera: str):
+    evaluacion = (
+        PracticaEvaluacion.objects.select_related("uploaded_by")
+        .filter(carrera__iexact=carrera)
+        .order_by("-created_at")
+        .first()
+    )
+    if evaluacion:
+        return evaluacion
+
+    ids = _evaluaciones_ids_por_carrera(carrera)
+    if not ids:
+        return None
+
+    return (
+        PracticaEvaluacion.objects.select_related("uploaded_by")
+        .filter(pk__in=ids)
+        .order_by("-created_at")
+        .first()
+    )
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def aprobar_solicitud_carta_practica(request, pk: int):
@@ -3328,12 +3363,7 @@ def obtener_evaluacion_practica(request):
     if not carrera:
         return Response({"item": None})
 
-    evaluacion = (
-        PracticaEvaluacion.objects.select_related("uploaded_by")
-        .filter(carrera__iexact=carrera)
-        .order_by("-created_at")
-        .first()
-    )
+    evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
     if not evaluacion:
         return Response({"item": None})
 
@@ -3362,10 +3392,16 @@ def gestionar_entrega_evaluacion_practica(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
     if request.method == "GET":
         entrega = (
             PracticaEvaluacionEntrega.objects.select_related("evaluacion")
-            .filter(alumno=alumno)
+            .filter(
+                alumno=alumno,
+                Q(evaluacion__carrera__iexact=carrera)
+                | Q(evaluacion_id__in=evaluaciones_ids),
+            )
             .order_by("-created_at")
             .first()
         )
@@ -3380,18 +3416,18 @@ def gestionar_entrega_evaluacion_practica(request):
     evaluacion_id = request.data.get("evaluacion") or request.query_params.get(
         "evaluacion"
     )
+    evaluacion: PracticaEvaluacion | None = None
+
     if evaluacion_id:
         evaluacion = (
-            PracticaEvaluacion.objects.filter(pk=evaluacion_id, carrera__iexact=carrera)
+            PracticaEvaluacion.objects.filter(pk=evaluacion_id)
+            .filter(Q(carrera__iexact=carrera) | Q(pk__in=evaluaciones_ids))
             .order_by("-created_at")
             .first()
         )
-    else:
-        evaluacion = (
-            PracticaEvaluacion.objects.filter(carrera__iexact=carrera)
-            .order_by("-created_at")
-            .first()
-        )
+
+    if not evaluacion:
+        evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
 
     if not evaluacion:
         return Response(
@@ -3437,6 +3473,8 @@ def listar_entregas_evaluacion_practica(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
     ultima_empresa = (
         SolicitudCartaPractica.objects.filter(alumno_id=OuterRef("alumno_id"))
         .order_by("-creado_en")
@@ -3445,7 +3483,10 @@ def listar_entregas_evaluacion_practica(request):
 
     entregas = (
         PracticaEvaluacionEntrega.objects.select_related("alumno", "evaluacion")
-        .filter(evaluacion__carrera__iexact=carrera)
+        .filter(
+            Q(evaluacion__carrera__iexact=carrera)
+            | Q(evaluacion_id__in=evaluaciones_ids)
+        )
         .annotate(empresa=Subquery(ultima_empresa))
         .order_by("-created_at")
     )
@@ -3476,9 +3517,15 @@ def actualizar_nota_entrega_practica(request, entrega_id: int):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+
     entrega = (
         PracticaEvaluacionEntrega.objects.select_related("evaluacion")
-        .filter(pk=entrega_id, evaluacion__carrera__iexact=carrera)
+        .filter(
+            pk=entrega_id,
+            Q(evaluacion__carrera__iexact=carrera)
+            | Q(evaluacion_id__in=evaluaciones_ids),
+        )
         .first()
     )
     if not entrega:
