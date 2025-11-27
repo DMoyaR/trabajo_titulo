@@ -2,12 +2,13 @@
 
 <h3 class="section-subtitle">Estudiantes Asignados</h3>
 
-<div class="filters">
-  <div class="filter-group">
-    <label class="filter-label">Carrera</label>
-    <select [(ngModel)]="filtros.carrera" (change)="aplicarFiltros()">
-      <option value="">Todas las carreras</option>
-      <option *ngFor="let carrera of carrerasDisponibles" [value]="carrera">{{ carrera }}</option>
+<div class="dashboard-container">
+  <div class="filters">
+    <div class="filter-group">
+      <label class="filter-label">Carrera</label>
+      <select [(ngModel)]="filtros.carrera" (change)="aplicarFiltros()">
+        <option value="">Todas las carreras</option>
+        <option *ngFor="let carrera of carrerasDisponibles" [value]="carrera">{{ carrera }}</option>
     </select>
   </div>
   <div class="filter-group">
@@ -84,12 +85,12 @@
   </div>
 </div>
 
-<div class="card solicitudes-card">
-  <div class="card-header">
-    <div class="card-title">
-      <h3>Solicitudes de reunión</h3>
-      <p class="muted">Revisa las solicitudes de tus alumnos y agenda directamente</p>
-    </div>
+  <div class="card solicitudes-card">
+    <div class="card-header">
+      <div class="card-title">
+        <h3>Solicitudes de reunión</h3>
+        <p class="muted">Revisa las solicitudes de tus alumnos y agenda directamente</p>
+      </div>
     <div class="acciones-header">
       <span class="chip alerta" *ngIf="hayPendientes">
         {{ solicitudesPendientes.length }} pendiente{{ solicitudesPendientes.length === 1 ? '' : 's' }}
@@ -272,12 +273,12 @@
   </div>
 </div>
 
-<div class="card solicitudes-card entregas-card">
-  <div class="card-header">
-    <div class="card-title">
-      <h3>Evaluaciones pendientes</h3>
-      <p class="muted">Revisa las entregas recibidas de tus grupos y descarga los archivos.</p>
-    </div>
+  <div class="card solicitudes-card entregas-card">
+    <div class="card-header">
+      <div class="card-title">
+        <h3>Evaluaciones pendientes</h3>
+        <p class="muted">Revisa las entregas recibidas de tus grupos y descarga los archivos.</p>
+      </div>
     <div class="acciones-header">
       <span class="chip alerta" *ngIf="totalEntregasPendientes">
         {{ totalEntregasPendientes }} pendiente{{ totalEntregasPendientes === 1 ? '' : 's' }}
