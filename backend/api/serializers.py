@@ -464,12 +464,14 @@ class PracticaEvaluacionEntregaSerializer(serializers.ModelSerializer):
     archivo_url = serializers.SerializerMethodField()
     archivo_nombre = serializers.SerializerMethodField()
     evaluacion = PracticaEvaluacionSerializer(read_only=True)
+    nota = serializers.CharField(read_only=True)
 
     class Meta:
         model = PracticaEvaluacionEntrega
         fields = [
             "id",
             "created_at",
+            "nota",
             "archivo_url",
             "archivo_nombre",
             "evaluacion",
@@ -488,6 +490,55 @@ class PracticaEvaluacionEntregaSerializer(serializers.ModelSerializer):
         if not obj.archivo:
             return ""
         return Path(obj.archivo.name).name
+
+
+class PracticaEvaluacionEntregaCoordinacionSerializer(serializers.ModelSerializer):
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.SerializerMethodField()
+    evaluacion = PracticaEvaluacionSerializer(read_only=True)
+    alumno = UsuarioResumenSerializer(read_only=True)
+    empresa = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PracticaEvaluacionEntrega
+        fields = [
+            "id",
+            "created_at",
+            "nota",
+            "archivo_url",
+            "archivo_nombre",
+            "evaluacion",
+            "alumno",
+            "empresa",
+        ]
+        read_only_fields = fields
+
+    def get_archivo_url(self, obj: PracticaEvaluacionEntrega) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_archivo_nombre(self, obj: PracticaEvaluacionEntrega) -> str:
+        if not obj.archivo:
+            return ""
+        return Path(obj.archivo.name).name
+
+    def get_empresa(self, obj: PracticaEvaluacionEntrega) -> str:
+        empresa = getattr(obj, "empresa", "") or ""
+        if empresa:
+            return empresa
+        ultima_solicitud = (
+            SolicitudCartaPractica.objects.filter(alumno=obj.alumno)
+            .order_by("-creado_en")
+            .only("dest_empresa")
+            .first()
+        )
+        if ultima_solicitud and ultima_solicitud.dest_empresa:
+            return ultima_solicitud.dest_empresa
+        return ""
 
 
 

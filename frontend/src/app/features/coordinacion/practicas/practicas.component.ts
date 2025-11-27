@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, ElementRef, ViewChild, inject, signal, computed } from '@angular/core';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import jsPDF from 'jspdf';
 import { CurrentUserService } from '../../../shared/services/current-user.service';
+
+type Estado = 'pendiente' | 'aprobado' | 'rechazado';
 
 interface Escuela {
   id: string;
@@ -11,69 +13,16 @@ interface Escuela {
   direccion: string;
   telefono: string;
 }
+
 interface Firma {
   nombre: string;
   cargo: string;
   institucion?: string;
 }
-interface Documento {
-  nombre: string;
-  tipo: 'PDF' | 'Carta' | 'Documento';
-  estado?: 'En revisión' | 'Aprobado' | 'Rechazado';
-  url?: string | null;
-  detalle?: string | null;
-}
-
-interface EvaluacionPractica {
-  id: number;
-  nombre: string;
-  descripcion?: string | null;
-  createdAt: string;
-  url: string | null;
-}
-
-interface EntregaEvaluacion {
-  id: number;
-  createdAt: string;
-  archivoNombre: string;
-  url: string | null;
-  evaluacionNombre?: string | null;
-}
-
-interface DocumentoOficialApi {
-  id: number;
-  nombre: string;
-  descripcion?: string | null;
-  carrera: string;
-  created_at: string;
-  url: string | null;
-}
-
-interface EvaluacionPracticaApi {
-  id: number;
-  nombre: string;
-  descripcion?: string | null;
-  carrera: string;
-  created_at: string;
-  url: string | null;
-}
-
-interface EvaluacionEntregaApi {
-  id: number;
-  created_at: string;
-  archivo_url: string | null;
-  archivo_nombre?: string | null;
-  evaluacion?: EvaluacionPracticaApi | null;
-}
-
-type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
 
 interface SolicitudCarta {
   id: string;
   creadoEn: string;
-  estado: EstadoSolicitud;
-  url: string | null;
-  motivoRechazo?: string | null;
   alumno: {
     rut: string;
     nombres: string;
@@ -82,8 +31,8 @@ interface SolicitudCarta {
   };
   practica: {
     jefeDirecto: string;
-    cargoAlumno: string;
     correoEncargado: string;
+    cargoAlumno: string;
     fechaInicio: string;
     empresaRut: string;
     sectorEmpresa: string;
@@ -96,21 +45,99 @@ interface SolicitudCarta {
     empresa: string;
   };
   escuela: Escuela;
-  meta?: Record<string, unknown>;
+  estado: Estado;
+  url?: string | null;
+  motivoRechazo?: string | null;
+  meta?: Record<string, unknown> | null;
 }
 
-function monthNameES(m: number): string {
-  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  return months[m] || '';
-}
-function formatCartaFecha(d: Date): string {
-  return `Santiago, ${monthNameES(d.getMonth())} ${d.getDate()} del ${d.getFullYear()}.`;
+interface AprobarSolicitudResponse {
+  status: string;
+  url?: string | null;
 }
 
-// ==== Utilidades de RUT (Chile) ====
+interface DocumentoCompartidoApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
+  uploadedBy?: { id: number; nombre: string; correo: string } | null;
+}
+
+interface EvaluacionPracticaApi {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  carrera: string;
+  created_at: string;
+  url: string | null;
+}
+
+interface DocumentoCompartido {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  createdAt: string;
+  url: string | null;
+}
+
+interface EvaluacionPractica {
+  id: number;
+  nombre: string;
+  descripcion?: string | null;
+  createdAt: string;
+  url: string | null;
+}
+
+interface PracticaEvaluacionEntrega {
+  id: number;
+  createdAt: string;
+  nota: string;
+  archivoUrl: string | null;
+  archivoNombre: string;
+  empresa: string;
+  alumno: { id: number; nombre: string; correo: string; carrera: string } | null;
+  evaluacion?: EvaluacionPractica | null;
+}
+interface FirmaCoordinadorApi {
+  id: number;
+  carrera: string;
+  created_at: string;
+  updated_at: string;
+  url: string | null;
+  uploadedBy?: { id: number; nombre: string; correo: string } | null;
+}
+
+interface FirmaCoordinador {
+  id: number;
+  carrera: string;
+  createdAt: string;
+  updatedAt: string;
+  url: string | null;
+}
+
+interface CartaPreviewData {
+  alumnoNombres: string;
+  alumnoApellidos: string;
+  alumnoRut: string;
+  carrera: string;
+  duracionHoras: number;
+  fechaInicio: string;
+  escuelaNombre: string;
+  escuelaDireccion: string;
+  escuelaTelefono: string;
+  destNombres: string;
+  destApellidos: string;
+  destCargo: string;
+  destEmpresa: string;
+}
+
 function limpiarRut(rut: string): string {
   return (rut || '').toUpperCase().replace(/[^0-9K]/g, '');
 }
+
 function formatearRut(rut: string): string {
   const limpio = limpiarRut(rut);
   if (!limpio) return '';
@@ -121,570 +148,430 @@ function formatearRut(rut: string): string {
   for (let j = cuerpo.length - 1; j >= 0; j--) {
     r = cuerpo[j] + r;
     i++;
-    if (i % 3 === 0 && j !== 0) r = '.' + r;
+    if (i % 3 === 0 && j !== 0) {
+      r = '.' + r;
+    }
   }
   return (cuerpo ? r + '-' : '') + dv;
 }
-function calcularDV(cuerpo: string): string {
-  let suma = 0, multiplo = 2;
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo[i], 10) * multiplo;
-    multiplo = multiplo === 7 ? 2 : multiplo + 1;
-  }
-  const res = 11 - (suma % 11);
-  if (res === 11) return '0';
-  if (res === 10) return 'K';
-  return String(res);
-}
-function validarRutStr(rut: string): boolean {
-  const limpio = limpiarRut(rut);
-  if (limpio.length < 2) return false;
-  const cuerpo = limpio.slice(0, -1);
-  const dv = limpio.slice(-1);
-  if (!/^\d+$/.test(cuerpo)) return false;
-  return calcularDV(cuerpo) === dv;
-}
-function rutValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const val = control.value;
-    if (!val) return { required: true };
-    return validarRutStr(val) ? null : { rutInvalido: true };
-  };
-}
-
-function fechaNoPasadaValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const value = control.value as string | null | undefined;
-    if (!value) {
-      return null;
-    }
-
-    const [year, month, day] = value.split('-').map(Number);
-    if (!year || !month || !day) {
-      return { fechaInvalida: true };
-    }
-
-    const fechaSeleccionada = new Date(year, month - 1, day);
-    fechaSeleccionada.setHours(0, 0, 0, 0);
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-
-    return fechaSeleccionada < hoy ? { fechaInvalida: true } : null;
-  };
-}
-
 
 @Component({
-  selector: 'alumno-practica',
+  selector: 'app-practicas',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
-  templateUrl: './alumno-practica.component.html',
-  styleUrls: ['./alumno-practica.component.css'],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule],
+  templateUrl: './practicas.component.html',
+  styleUrls: ['./practicas.component.css'],
 })
-export class AlumnoPracticaComponent implements OnInit {
-  private fb = inject(FormBuilder);
+export class PracticasComponent {
   private http = inject(HttpClient);
-  private readonly currentUserService = inject(CurrentUserService);
+  private fb = inject(FormBuilder);
+  private currentUserService = inject(CurrentUserService);
 
-  // ===== Estado envío =====
-  isSubmitting = signal(false);
-  submitOk = signal<string | null>(null);
-  submitError = signal<string | null>(null);
+  private coordinadorId: number | null = null;
+  isCoordinador = false;
+  coordinadorCarrera: string | null = null;
 
-  // ===== Pantalla base =====
-  indicadores = signal([
-    { etapa: 'Inicio', pct: 25 },
-    { etapa: 'Entrega', pct: 60 },
-    { etapa: 'Evaluación', pct: 80 },
-    { etapa: 'Cierre', pct: 10 },
-  ]);
 
-  private readonly documentosPredefinidos: Documento[] = [
-    { nombre: 'Certificado de práctica', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-practica.pdf' },
-    { nombre: 'Certificado de cumplimiento', tipo: 'PDF', estado: 'Aprobado', url: '/docs/certificado-cumplimiento.pdf' },
-  ];
-  private documentosOficiales: Documento[] = [];
-  private documentosCartas: Documento[] = [];
-  documentos = signal<Documento[]>([...this.documentosPredefinidos]);
-  documentosOficialesError = signal<string | null>(null);
-  oficiales = signal<Documento[]>([]);
+  @ViewChild('archivoInput') archivoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('firmaInput') firmaInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('evaluacionInput') evaluacionInput?: ElementRef<HTMLInputElement>;
+
+  documentosCompartidos = signal<DocumentoCompartido[]>([]);
+  documentosLoading = signal(false);
+  documentosError = signal<string | null>(null);
+  documentoUploadError = signal<string | null>(null);
+  gestionDocumentoLoading = signal(false);
 
   evaluacion = signal<EvaluacionPractica | null>(null);
-  evaluacionEntrega = signal<EntregaEvaluacion | null>(null);
   evaluacionLoading = signal(false);
   evaluacionError = signal<string | null>(null);
   evaluacionUploadError = signal<string | null>(null);
+  evaluacionGestionLoading = signal(false);
   evaluacionArchivoNombre = signal<string | null>(null);
-  evaluacionSending = signal(false);
-  private evaluacionArchivo: File | null = null;
+  private evaluacionArchivoSeleccionado: File | null = null;
+  entregasEvaluacion = signal<PracticaEvaluacionEntrega[]>([]);
+  entregasEvaluacionLoading = signal(false);
+  entregasEvaluacionError = signal<string | null>(null);
+  notasEdicion = signal<Record<number, string>>({});
+  guardandoNotas = signal<Record<number, boolean>>({});
 
-  solicitudes = signal<SolicitudCarta[]>([]);
-  solicitudesLoading = signal(false);
-  solicitudesError = signal<string | null>(null);
+  
+  firmaCoordinador = signal<FirmaCoordinador | null>(null);
+  firmaLoading = signal(false);
+  firmaError = signal<string | null>(null);
+  firmaUploadError = signal<string | null>(null);
+  firmaGestionLoading = signal(false);
+  firmaArchivoNombre = signal<string | null>(null);
+  private firmaArchivoSeleccionado: File | null = null;
+  private logoHeaderDataUrl: string | null = null;
+  private logoHeaderPromise: Promise<string | null> | null = null;
 
-  // Computed para verificar si existe alguna solicitud en revisión o aprobada
-  tieneSolicitudActivaOAprobada = computed(() => {
-    const sols = this.solicitudes();
-    return sols.some(s => s.estado === 'pendiente' || s.estado === 'aprobado');
+  documentoForm = this.fb.group({
+    nombre: ['', Validators.required],
+    descripcion: [''],
+  });
+  archivoNombre = signal<string | null>(null);
+  private archivoSeleccionado: File | null = null;
+
+  evaluacionForm = this.fb.group({
+    nombre: ['', Validators.required],
+    descripcion: [''],
   });
 
-  private alumnoId: number | null = null;
-  private alumnoRut: string | null = null;
-  private carreraAlumno: string | null = null;
+  estado = signal<Estado>('pendiente');
+  query = signal<string>('');
+  page = signal(1);
+  size = signal(10);
+  total = signal(0);
 
-  // ===== Modal incrustado =====
-  showCarta = signal(false);
-  openCarta()  { this.showCarta.set(true); document.body.classList.add('no-scroll'); this.submitOk.set(null); this.submitError.set(null); }
-  closeCarta() { this.showCarta.set(false); document.body.classList.remove('no-scroll'); }
+  loading = signal(false);
+  error = signal<string | null>(null);
+  toast = signal<string | null>(null);
 
-  // ===== Catálogos =====
-  escuelas: Escuela[] = [
-    { id: 'inf',  nombre: 'Escuela de Informática',           direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7100' },
-    { id: 'ind',  nombre: 'Escuela de Industria',             direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7073 – 2787 7196' },
-    { id: 'elec', nombre: 'Escuela de Electrónica',           direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7034' },
-    { id: 'mec',  nombre: 'Escuela de Mecánica',              direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7169 – 2787 7039 – 2787 7045' },
-    { id: 'geo',  nombre: 'Escuela de Geomensura',            direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7111' },
-    { id: 'trans',nombre: 'Escuela de Transporte y Tránsito', direccion: 'José Pedro Alessandri 1242, Ñuñoa', telefono: '(+56-2) 2787 7157 – 2787 7030' },
-  ];
+  solicitudes = signal<SolicitudCarta[]>([]);
+  current = signal<SolicitudCarta | null>(null);
+  showDetalle = signal(false);
 
-  sectorOpciones: string[] = [
-    'Tecnologías de la Información (TI)',
-    'Manufactura',
-    'Retail / Comercio',
-    'Salud',
-    'Banca / Servicios Financieros',
-    'Educación',
-    'Construcción',
-    'Energía / Minería',
-    'Transporte / Logística',
-    'Sector Público',
-    'Otro'
-  ];
+  aprobarForm = this.fb.group({ urlFirmado: [''] });
+  rechazarForm = this.fb.group({ motivo: ['', Validators.required] });
 
-  todasCarreras: string[] = [
-    'Química y Farmacia','Ingeniería Civil Biomédica','Ingeniería Civil Química','Ingeniería Civil Matemática',
-    'Bachillerato en Ciencias de la Ingeniería','Dibujante Proyectista','Ingeniería Civil en Ciencia de Datos',
-    'Ingeniería Civil en Computación mención Informática','Ingeniería Civil Electrónica','Ingeniería Civil en Mecánica',
-    'Ingeniería Civil Industrial','Ingeniería en Biotecnología','Ingeniería en Geomensura','Ingeniería en Alimentos',
-    'Ingeniería en Informática','Ingeniería Industrial','Química Industrial','Ingeniería Electrónica'
-  ];
-
-  private readonly carreraAliasMap: Record<string, string> = {
-    'Ing. Civil Biomédica': 'Ingeniería Civil Biomédica',
-    'Ing. Civil Química': 'Ingeniería Civil Química',
-    'Ing. Civil Matemática': 'Ingeniería Civil Matemática',
-    'Bachillerato en Ciencias de la Ing.': 'Bachillerato en Ciencias de la Ingeniería',
-    'Ing. Civil en Ciencia de Datos': 'Ingeniería Civil en Ciencia de Datos',
-    'Ing. Civil en Computación mención Informática': 'Ingeniería Civil en Computación mención Informática',
-    'Ing. Civil Electrónica': 'Ingeniería Civil Electrónica',
-    'Ing. Civil en Mecánica': 'Ingeniería Civil en Mecánica',
-    'Ing. Civil Industrial': 'Ingeniería Civil Industrial',
-    'Ing. en Biotecnología': 'Ingeniería en Biotecnología',
-    'Ing. en Geomensura': 'Ingeniería en Geomensura',
-    'Ing. en Alimentos': 'Ingeniería en Alimentos',
-    'Ing. en Informática': 'Ingeniería en Informática',
-    'Ing. Industrial': 'Ingeniería Industrial',
-    'Ing. Electrónica': 'Ingeniería Electrónica',
+  firmasPorCarrera: Record<string, Firma> = {
+    'Ingeniería Civil en Computación mención Informática': {
+      nombre: 'Víctor Escobar Jeria',
+      cargo:
+        'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática',
+      institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería en Informática': {
+      nombre: 'Patricia Mellado Acevedo',
+      cargo: 'Jefa de Carrera Ingeniería en Informática',
+      institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Civil en Ciencia de Datos': {
+      nombre: 'Jorge Vergara Quezada',
+      cargo: 'Jefe de Carrera Ingeniería Civil en Ciencia de Datos',
+      institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Civil Industrial': {
+      nombre: 'Evelyn Gajardo Gutiérrez',
+      cargo: 'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial',
+      institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Industrial': {
+      nombre: 'Alexis Rufatt Zafira',
+      cargo: 'Jefe de Carrera Ingeniería Industrial',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Civil Electrónica': {
+      nombre: 'Patricio Santos López',
+      cargo: 'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Electrónica': {
+      nombre: 'Patricio Santos López',
+      cargo: 'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Civil en Mecánica': {
+      nombre: 'Christian Muñoz Valenzuela',
+      cargo: 'Director Escuela de Mecánica',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería en Geomensura': {
+      nombre: 'Juan Toledo Ibarra',
+      cargo: 'Director Escuela de Geomensura',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Bachillerato en Ciencias de la Ingeniería': {
+      nombre: 'Rafael Loyola Berríos',
+      cargo: 'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Dibujante Proyectista': {
+      nombre: 'Marcelo Borges Quintanilla',
+      cargo: 'Jefe de Carrera Dibujante Proyectista',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
+    'Ingeniería Civil Biomédica': {
+      nombre: 'Raúl Caulier Cisterna',
+      cargo: 'Jefe de Carrera Ingeniería Civil Biomédica',
+            institucion: 'Universidad Tecnológica Metropolitana',
+    },
   };
-
-  carrerasPorEscuela: Record<string, string[]> = {
-    inf: ['Ingeniería Civil en Computación mención Informática','Ingeniería en Informática','Ingeniería Civil en Ciencia de Datos'],
-    ind: ['Ingeniería Civil Industrial','Ingeniería Industrial','Bachillerato en Ciencias de la Ingeniería','Dibujante Proyectista'],
-    elec: ['Ingeniería Civil Electrónica','Ingeniería Electrónica'],
-    mec: ['Ingeniería Civil en Mecánica'],
-    geo: ['Ingeniería en Geomensura'],
-    trans: []
-  };
-
-  firmasPorCarrera = {
-     'Ingeniería Civil en Computación mención Informática': { nombre:'Víctor Escobar Jeria', cargo:'Director Escuela de Informática y Jefe de Carrera Ingeniería Civil en Computación mención Informática', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería en Informática': { nombre:'Patricia Mellado Acevedo', cargo:'Jefa de Carrera Ingeniería en Informática', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Civil en Ciencia de Datos': { nombre:'Jorge Vergara Quezada', cargo:'Jefe de Carrera Ingeniería Civil en Ciencia de Datos', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Civil Industrial': { nombre:'Evelyn Gajardo Gutiérrez', cargo:'Directora Escuela de Industria y Jefa de Carrera Ingeniería Civil Industrial', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Industrial': { nombre:'Alexis Rufatt Zafira', cargo:'Jefe de Carrera Ingeniería Industrial', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Civil Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Electrónica': { nombre:'Patricio Santos López', cargo:'Director Escuela de Electrónica y Jefe de Carrera Ingeniería Civil Electrónica / Ingeniería Electrónica', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Civil en Mecánica': { nombre:'Christian Muñoz Valenzuela', cargo:'Director Escuela de Mecánica', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería en Geomensura': { nombre:'Juan Toledo Ibarra', cargo:'Director Escuela de Geomensura', institucion:'Universidad Tecnológica Metropolitana' },
-    'Bachillerato en Ciencias de la Ingeniería': { nombre:'Rafael Loyola Berríos', cargo:'Coordinador del Plan Común de Ingeniería y Jefe de Carrera de Bachillerato en Ciencias de la Ingeniería', institucion:'Universidad Tecnológica Metropolitana' },
-    'Dibujante Proyectista': { nombre:'Marcelo Borges Quintanilla', cargo:'Jefe de Carrera Dibujante Proyectista', institucion:'Universidad Tecnológica Metropolitana' },
-    'Ingeniería Civil Biomédica': { nombre:'Raúl Caulier Cisterna', cargo:'Jefe de Carrera Ingeniería Civil Biomédica', institucion:'Universidad Tecnológica Metropolitana' }
-  } as const;
-   firmaFallback: Firma = { nombre: 'Coordinación de Carrera — UTEM', cargo: '', institucion: 'Universidad Tecnológica Metropolitana' };
 
   objetivosPorEscuela: Record<string, string[]> = {
     inf: [
       'Interactuar con profesionales del área informática y con otros de áreas relacionadas.',
       'Desarrollar capacidades informáticas que le permitan desenvolverse en el ámbito profesional.',
       'Comprobar empíricamente la importancia de las tecnologías de información.',
-      'Participar en el diseño y/o implementación de soluciones informáticas.'
+      'Participar en el diseño y/o implementación de soluciones informáticas.',
     ],
     ind: [
       'Aplicar metodologías de mejora continua (Lean/Seis Sigma) en procesos productivos o de servicios.',
       'Levantar y analizar indicadores de gestión (KPI), costos y productividad.',
       'Participar en la planificación de la cadena de suministro, logística y gestión de inventarios.',
-      'Colaborar en sistemas de gestión de calidad y seguridad industrial.'
+      'Colaborar en sistemas de gestión de calidad y seguridad industrial.',
     ],
     elec: [
       'Apoyar el diseño, simulación y pruebas de circuitos electrónicos y sistemas embebidos.',
       'Implementar e integrar instrumentación, sensores y adquisición de datos.',
       'Participar en el diseño/ensamble de PCB y protocolos de comunicación.',
-      'Aplicar normas de seguridad y estándares eléctricos en laboratorio y terreno.'
+      'Aplicar normas de seguridad y estándares eléctricos en laboratorio y terreno.',
     ],
     mec: [
       'Apoyar el diseño y análisis mecánico mediante herramientas CAD/CAE.',
       'Participar en procesos de manufactura, mantenimiento y confiabilidad.',
       'Realizar análisis térmico y de fluidos en equipos/sistemas cuando aplique.',
-      'Aplicar normas de seguridad industrial en talleres y plantas.'
+      'Aplicar normas de seguridad industrial en talleres y plantas.',
     ],
     geo: [
       'Realizar levantamientos topográficos con equipos GNSS/estación total.',
       'Procesar y validar datos geoespaciales para generar planos y modelos.',
       'Aplicar técnicas de georreferenciación, nivelación y replanteo.',
-      'Elaborar cartografía y reportes técnicos utilizando SIG.'
+      'Elaborar cartografía y reportes técnicos utilizando SIG.',
     ],
     trans: [
       'Apoyar estudios de tránsito: aforos, velocidad y nivel de servicio.',
       'Analizar y modelar la demanda de transporte para la planificación de rutas.',
       'Colaborar en medidas de seguridad vial e infraestructura asociada.',
-      'Contribuir a la gestión operativa del transporte público/privado.'
+      'Contribuir a la gestión operativa del transporte público/privado.',
     ],
   };
 
-  private _objetivosPorCarrera: Record<string, string[]> = {
+  private objetivosPorCarrera: Record<string, string[]> = {
     'Ingeniería Civil Biomédica': [
       'Apoyar la integración y validación de equipos biomédicos en entornos clínicos.',
       'Aplicar normas y estándares de seguridad (IEC/ISO) y gestión de riesgos clínicos.',
       'Desarrollar y/o mantener sistemas de bioinstrumentación y monitoreo.',
-      'Colaborar en interoperabilidad de sistemas de información en salud.'
+      'Colaborar en interoperabilidad de sistemas de información en salud.',
     ],
     'Ingeniería en Alimentos': [
       'Apoyar el control de calidad bajo BPM y sistema HACCP.',
       'Realizar análisis fisicoquímicos y/o microbiológicos según protocolos.',
       'Participar en mejora de procesos y trazabilidad en planta.',
-      'Colaborar en desarrollo o reformulación de productos alimentarios.'
+      'Colaborar en desarrollo o reformulación de productos alimentarios.',
     ],
     'Ingeniería Civil Química': [
       'Participar en operaciones unitarias y control de procesos químicos.',
       'Apoyar en control de calidad y cumplimiento normativo ambiental.',
       'Realizar balances de materia y energía y análisis de datos de planta.',
-      'Contribuir a seguridad de procesos y gestión de residuos.'
+      'Contribuir a seguridad de procesos y gestión de residuos.',
     ],
     'Química Industrial': [
       'Apoyar en control de calidad y análisis químico instrumental.',
       'Participar en operación/optimización de procesos y seguridad industrial.',
       'Gestionar documentación técnica y cumplimiento normativo.',
-      'Colaborar en implementación de mejoras de proceso.'
+      'Colaborar en implementación de mejoras de proceso.',
     ],
     'Ingeniería Civil Matemática': [
       'Aplicar modelamiento matemático a problemas de ingeniería.',
       'Desarrollar análisis estadístico y métodos de optimización.',
       'Implementar soluciones computacionales para simulación numérica.',
-      'Elaborar reportes técnicos con interpretación de resultados.'
+      'Elaborar reportes técnicos con interpretación de resultados.',
     ],
     'Ingeniería Civil en Ciencia de Datos': [
       'Adquirir, depurar y preparar datos desde fuentes heterogéneas.',
       'Construir modelos de analítica/aprendizaje supervisado y no supervisado.',
       'Validar y evaluar modelos; comunicar hallazgos con visualizaciones.',
-      'Apoyar el despliegue y monitoreo de soluciones de data science.'
+      'Apoyar el despliegue y monitoreo de soluciones de data science.',
     ],
     'Ingeniería en Biotecnología': [
       'Apoyar cultivos, bioprocesos y análisis en laboratorio biotecnológico.',
       'Aplicar normas de bioseguridad y buenas prácticas de laboratorio.',
       'Procesar y analizar datos experimentales para toma de decisiones.',
-      'Colaborar en escalamiento o transferencia tecnológica cuando aplique.'
+      'Colaborar en escalamiento o transferencia tecnológica cuando aplique.',
     ],
     'Ingeniería en Geomensura': [
       'Realizar levantamientos topográficos con equipos GNSS/estación total.',
       'Procesar y validar datos geoespaciales para generar planos y modelos.',
       'Aplicar técnicas de georreferenciación, nivelación y replanteo.',
-      'Elaborar cartografía y reportes técnicos utilizando SIG.'
+      'Elaborar cartografía y reportes técnicos utilizando SIG.',
     ],
   };
 
-  // ===== Form carta =====
-  // NOTA: escuelaId y carrera ya NO tienen Validators.required porque son solo lectura
-  cartaForm: FormGroup = this.fb.group({
-    // Datos para la carta
-    alumnoNombres: ['', Validators.required],
-    alumnoApellidos: ['', Validators.required],
-    alumnoRut: ['', [Validators.required, rutValidator()]],
-    escuelaId: [''],      // Sin validación required - solo lectura
-    carrera: [''],        // Sin validación required - solo lectura
-    duracionHoras: [320, Validators.required],
-    destNombres: ['', Validators.required],
-    destApellidos: ['', Validators.required],
-    destCargo: ['', Validators.required],
-    destEmpresa: ['', Validators.required],
+  private objetivosGenericos: string[] = [
+    'Aplicar conocimientos disciplinares en un contexto profesional real.',
+    'Integrarse a equipos de trabajo, comunicando avances y resultados.',
+    'Cumplir con normas de seguridad, calidad y medioambiente vigentes.',
+    'Elaborar informes técnicos con conclusiones basadas en evidencia.',
+  ];
 
-    // Datos de la práctica (empresa)
-    empresaRut: ['', [Validators.required, rutValidator()]],
-    sectorEmpresa: ['', Validators.required],
-    sectorEmpresaOtro: [''],
-    jefeDirecto: ['', Validators.required],
-    correoEncargado: ['', [Validators.required, Validators.email]],
-    fechaInicio: ['', [Validators.required, fechaNoPasadaValidator()]],
-    cargoAlumno: ['', Validators.required],
-  });
 
-  constructor() {
-    const sectorCtrl = this.cartaForm.get('sectorEmpresa')!;
-    const otroCtrl   = this.cartaForm.get('sectorEmpresaOtro')!;
-    otroCtrl.disable({ emitEvent: false });
+  private firmaFallback: Firma = {
+    nombre: 'Coordinación de Carrera — UTEM',
+    cargo: '',
+          institucion: 'Universidad Tecnológica Metropolitana',
+  };
 
-    sectorCtrl.valueChanges.subscribe((val) => {
-      if (val === 'Otro') {
-        otroCtrl.enable({ emitEvent: false });
-        otroCtrl.setValidators([Validators.required]);
-      } else {
-        otroCtrl.setValue('', { emitEvent: false });
-        otroCtrl.clearValidators();
-        otroCtrl.disable({ emitEvent: false });
-      }
-      otroCtrl.updateValueAndValidity({ emitEvent: false });
-    });
-  }
-
-  ngOnInit(): void {
-    const storedRutRaw = localStorage.getItem('alumnoRut');
-    const storedCarrera = this.normalizarCarrera(localStorage.getItem('alumnoCarrera'));
-
-    if (storedRutRaw) {
-      const rutFormateado = formatearRut(storedRutRaw);
-      this.alumnoRut = rutFormateado;
-      this.cartaForm.get('alumnoRut')?.setValue(rutFormateado);
-      localStorage.setItem('alumnoRut', rutFormateado);
-    }
-
-    if (storedCarrera) {
-      this.carreraAlumno = storedCarrera;
-      this.cartaForm.get('carrera')?.setValue(storedCarrera);
-      localStorage.setItem('alumnoCarrera', storedCarrera);
-      const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) => carreras.includes(storedCarrera));
-      if (escuelaMatch) {
-        this.cartaForm.get('escuelaId')?.setValue(escuelaMatch[0]);
-      }
-      this.cargarDocumentosOficiales(storedCarrera);
-      this.cargarEvaluacionPractica(storedCarrera);
-    } else {
-      this.refrescarDocumentos();
-    }
-    this.cargarDatosAlumnoDesdePerfil();
-    this.cargarSolicitudes();
-  }
-
-  fv = toSignal(this.cartaForm.valueChanges, { initialValue: this.cartaForm.value });
-  fechaHoy = computed(() => formatCartaFecha(new Date()));
-
-  carrerasDisponibles = computed(() => {
-    const esc = (this.fv().escuelaId || '') as string;
-    const list = this.carrerasPorEscuela[esc];
-    return (list && list.length) ? list : this.todasCarreras;
-  });
-
-  escuelaSel = computed<Escuela | null>(() => {
-    const escId = (this.fv().escuelaId || '') as string;
-    return this.escuelas.find(e => e.id === escId) || null;
-  });
-
-  firmaActual = computed<Firma>(() => {
-    const c = (this.fv().carrera || '') as string;
-    // @ts-ignore
-    return (this.firmasPorCarrera as any)[c] || { ...this.firmaFallback };
-  });
-
-  objetivosActuales = computed<string[]>(() => {
-    const c = (this.fv().carrera || '') as string;
-    const esc = (this.fv().escuelaId || '') as string;
-    const porCarrera = this._objetivosPorCarrera[c];
-    if (porCarrera && porCarrera.length) return porCarrera;
-    const porEscuela = this.objetivosPorEscuela[esc];
-    if (porEscuela && porEscuela.length) return porEscuela;
-    return [
-      'Aplicar conocimientos disciplinares en un contexto profesional real.',
-      'Integrarse a equipos de trabajo, comunicando avances y resultados.',
-      'Cumplir con normas de seguridad, calidad y medioambiente vigentes.',
-      'Elaborar informes técnicos con conclusiones basadas en evidencia.'
-    ];
-  });
-
-  private cargarDatosAlumnoDesdePerfil(): void {
+  // ====== Cargar datos ======
+  ngOnInit() {
     const profile = this.currentUserService.getProfile();
-    if (!profile || profile.rol !== 'alumno') {
+    this.isCoordinador = profile?.rol === 'coordinador';
+    this.coordinadorId = this.isCoordinador ? profile?.id ?? null : null;
+    this.coordinadorCarrera = this.isCoordinador ? profile?.carrera ?? null : null;
+
+    this.cargarSolicitudes();
+
+    if (this.coordinadorId !== null) {
+      // Documentos compartidos
+      this.cargarDocumentosCompartidos();
+      this.cargarEvaluacion();
+      //cargar firma apenas se monta el componente
+      this.cargarFirmaCoordinador();
+    } else {
+      this.documentosCompartidos.set([]);
+      this.firmaCoordinador.set(null);
+    }
+  }
+
+  // ====== Documentos oficiales ======
+  cargarDocumentosCompartidos() {
+    if (this.coordinadorId === null) {
+      this.documentosCompartidos.set([]);
       return;
     }
 
-    this.alumnoId = profile.id ?? null;
-
-    const patch: Record<string, unknown> = {};
-
-    if (profile.nombre) {
-      const { nombres, apellidos } = this.separarNombreCompleto(profile.nombre);
-      patch['alumnoNombres'] = nombres;
-      patch['alumnoApellidos'] = apellidos;
-    }
-
-    if (profile.rut) {
-      const rutFormateado = formatearRut(profile.rut);
-      if (rutFormateado) {
-        patch['alumnoRut'] = rutFormateado;
-        this.alumnoRut = rutFormateado;
-        localStorage.setItem('alumnoRut', rutFormateado);
-      }
-    }
-
-    if (profile.carrera) {
-      const carreraPerfil = this.normalizarCarrera(profile.carrera);
-      if (carreraPerfil) {
-        patch['carrera'] = carreraPerfil;
-        localStorage.setItem('alumnoCarrera', carreraPerfil);
-
-        if (this.carreraAlumno !== carreraPerfil) {
-          this.carreraAlumno = carreraPerfil;
-          this.cargarDocumentosOficiales(carreraPerfil);
-          this.cargarEvaluacionPractica(carreraPerfil);
-        }
-        const escuelaMatch = Object.entries(this.carrerasPorEscuela).find(([, carreras]) =>
-          carreras.includes(carreraPerfil)
-        );
-        if (escuelaMatch) {
-          patch['escuelaId'] = escuelaMatch[0];
-        }
-      }
-    }
-
-    if (this.alumnoId !== null) {
-      this.cargarEntregaEvaluacion(this.alumnoId);
-    }
-
-    const keys = Object.keys(patch);
-    if (!keys.length) {
-      return;
-    }
-
-    this.cartaForm.patchValue(patch);
-    keys.forEach((key) => {
-      const control = this.cartaForm.get(key);
-      control?.markAsPristine();
-      control?.markAsUntouched();
-      control?.updateValueAndValidity({ emitEvent: false });
-    });
-  }
-
-  private separarNombreCompleto(nombreCompleto: string | null | undefined): { nombres: string; apellidos: string } {
-    const limpio = (nombreCompleto ?? '').trim().replace(/\s+/g, ' ');
-    if (!limpio) {
-      return { nombres: '', apellidos: '' };
-    }
-    const partes = limpio.split(' ');
-    if (partes.length === 1) {
-      return { nombres: partes[0], apellidos: '' };
-    }
-    if (partes.length === 2) {
-      return { nombres: partes[0], apellidos: partes[1] };
-    }
-    return {
-      nombres: partes.slice(0, partes.length - 2).join(' '),
-      apellidos: partes.slice(-2).join(' '),
-    };
-  }
-
-  private normalizarCarrera(carrera: string | null | undefined): string {
-    const raw = (carrera ?? '').trim();
-    if (!raw) {
-      return '';
-    }
-    return this.carreraAliasMap[raw] || raw;
-  }
-
-  private carreraParaApi(carrera: string | null | undefined): string {
-    const limpia = (carrera ?? '').trim();
-    if (!limpia) {
-      return '';
-    }
-
-    const aliasEntry = Object.entries(this.carreraAliasMap).find(([, nombreLargo]) => nombreLargo === limpia);
-    if (aliasEntry) {
-      return aliasEntry[0];
-    }
-
-    return limpia;
-  }
-
-  private refrescarDocumentos(): void {
-    const combinados: Documento[] = [
-      ...this.documentosPredefinidos,
-      ...this.documentosOficiales,
-      ...this.documentosCartas,
-    ];
-    this.documentos.set(combinados);
-  }
-
-  private cargarDocumentosOficiales(carrera: string): void {
-    const carreraLimpia = (carrera || '').trim();
-    if (!carreraLimpia) {
-      this.documentosOficiales = [];
-      this.oficiales.set([]);
-      this.documentosOficialesError.set(null);
-      this.refrescarDocumentos();
-      return;
-    }
-
-    this.documentosOficialesError.set(null);
-
-    const carreraApi = this.carreraParaApi(carreraLimpia);
+    this.documentosLoading.set(true);
+    this.documentosError.set(null);
 
     this.http
-      .get<{ items: DocumentoOficialApi[]; total: number }>('/api/practicas/documentos/', {
-        params: { carrera: carreraApi },
-      })
+      .get<{ items: DocumentoCompartidoApi[]; total: number }>(
+        '/api/coordinacion/practicas/documentos/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
       .subscribe({
         next: (res) => {
           const items = Array.isArray(res.items) ? res.items : [];
-          const mapped: Documento[] = items.map((doc) => {
-            const fecha = this.formatFechaCorta(doc.created_at);
-            const partes: string[] = [];
-            if (doc.descripcion) partes.push(doc.descripcion);
-            if (fecha && fecha !== '—') partes.push(`Publicado: ${fecha}`);
-            return {
-              nombre: doc.nombre,
-              tipo: 'Documento',
-              url: doc.url,
-              detalle: partes.length ? partes.join(' · ') : undefined,
-            };
-          });
-
-          this.documentosOficiales = mapped;
-          this.oficiales.set(mapped);
-          this.documentosOficialesError.set(null);
-          this.refrescarDocumentos();
+          const mapped = items.map((doc) => ({
+            id: doc.id,
+            nombre: doc.nombre,
+            descripcion: doc.descripcion ?? null,
+            createdAt: doc.created_at,
+            url: doc.url,
+          }));
+          this.documentosCompartidos.set(mapped);
+          this.documentosLoading.set(false);
         },
-        error: (error) => {
-          console.error('Error cargando documentos oficiales:', error);
-          this.documentosOficiales = [];
-          this.oficiales.set([]);
-          this.documentosOficialesError.set('No se pudieron cargar los documentos oficiales de tu carrera.');
-          this.refrescarDocumentos();
+        error: () => {
+          this.documentosError.set('No se pudieron cargar los documentos compartidos.');
+          this.documentosCompartidos.set([]);
+          this.documentosLoading.set(false);
         },
       });
   }
 
-  private cargarEvaluacionPractica(carrera: string | null): void {
-    const carreraLimpia = (carrera || '').trim();
-    if (!carreraLimpia) {
-      this.evaluacion.set(null);
-      this.evaluacionError.set(null);
+  onArchivoSeleccionado(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] ?? null;
+    this.archivoSeleccionado = file;
+    this.documentoUploadError.set(null);
+    this.archivoNombre.set(file ? file.name : null);
+
+    if (file) {
+      const nombreCtrl = this.documentoForm.get('nombre');
+      if (nombreCtrl && !nombreCtrl.value) {
+        nombreCtrl.setValue(file.name);
+      }
+    }
+  }
+
+  subirDocumento() {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
       return;
     }
 
-    const carreraApi = this.carreraParaApi(carreraLimpia);
+    if (!this.archivoSeleccionado) {
+      this.documentoUploadError.set('Selecciona un archivo para compartir.');
+      return;
+    }
+
+    if (this.documentoForm.invalid) {
+      this.documentoForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.documentoForm.value;
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.archivoSeleccionado);
+    formData.append('nombre', formValue.nombre || this.archivoSeleccionado.name);
+    if (formValue.descripcion) {
+      formData.append('descripcion', formValue.descripcion);
+    }
+
+    this.gestionDocumentoLoading.set(true);
+    this.http
+      .post<DocumentoCompartidoApi>('/api/coordinacion/practicas/documentos/', formData)
+      .subscribe({
+        next: (res) => {
+          const nuevo: DocumentoCompartido = {
+            id: res.id,
+            nombre: res.nombre,
+            descripcion: res.descripcion ?? null,
+            createdAt: res.created_at,
+            url: res.url,
+          };
+          this.documentosCompartidos.update((docs) => [nuevo, ...docs]);
+          this.toast.set('Documento compartido correctamente.');
+          this.limpiarFormularioDocumento();
+          this.gestionDocumentoLoading.set(false);
+        },
+        error: () => {
+          this.toast.set('No se pudo subir el documento.');
+          this.gestionDocumentoLoading.set(false);
+        },
+      });
+  }
+
+  limpiarFormularioDocumento() {
+    this.documentoForm.reset();
+    this.archivoSeleccionado = null;
+    this.documentoUploadError.set(null);
+    this.archivoNombre.set(null);
+    if (this.archivoInput?.nativeElement) {
+      this.archivoInput.nativeElement.value = '';
+    }
+  }
+
+  eliminarDocumento(id: number) {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    this.gestionDocumentoLoading.set(true);
+    this.http
+      .delete(`/api/coordinacion/practicas/documentos/${id}/`, {
+        params: { coordinador: String(this.coordinadorId) },
+      })
+      .subscribe({
+        next: () => {
+          this.documentosCompartidos.update((docs) => docs.filter((doc) => doc.id !== id));
+          this.toast.set('Documento eliminado.');
+          this.gestionDocumentoLoading.set(false);
+        },
+        error: () => {
+          this.toast.set('No se pudo eliminar el documento.');
+          this.gestionDocumentoLoading.set(false);
+        },
+      });
+  }
+
+  // ====== Evaluación práctica ======
+  cargarEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.evaluacion.set(null);
+      return;
+    }
 
     this.evaluacionLoading.set(true);
     this.evaluacionError.set(null);
 
     this.http
-      .get<{ item: EvaluacionPracticaApi | null }>('/api/practicas/evaluacion/', {
-        params: { carrera: carreraApi },
+      .get<{ item: EvaluacionPracticaApi | null }>(`/api/coordinacion/practicas/evaluacion/`, {
+        params: { coordinador: String(this.coordinadorId) },
       })
       .subscribe({
         next: (res) => {
@@ -701,324 +588,932 @@ export class AlumnoPracticaComponent implements OnInit {
               : null
           );
           this.evaluacionLoading.set(false);
-
-          if (this.alumnoId !== null) {
-            this.cargarEntregaEvaluacion(this.alumnoId);
-          }
         },
         error: () => {
-          this.evaluacion.set(null);
           this.evaluacionError.set('No se pudo cargar la evaluación de práctica.');
+          this.evaluacion.set(null);
           this.evaluacionLoading.set(false);
         },
       });
   }
 
-  private cargarEntregaEvaluacion(alumnoId: number): void {
+  cargarEntregasEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.entregasEvaluacion.set([]);
+      return;
+    }
+
+    this.entregasEvaluacionLoading.set(true);
+    this.entregasEvaluacionError.set(null);
+
     this.http
-      .get<{ item: EvaluacionEntregaApi | null }>('/api/practicas/evaluacion/entregas/', {
-        params: { alumno: String(alumnoId) },
-      })
+      .get<{ items: PracticaEvaluacionEntrega[] }>(
+        '/api/coordinacion/practicas/evaluacion/entregas/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
       .subscribe({
         next: (res) => {
-          const item = res?.item ?? null;
-          this.evaluacionEntrega.set(
-            item
-              ? {
-                  id: item.id,
-                  createdAt: item.created_at,
-                  archivoNombre: item.archivo_nombre || 'Archivo enviado',
-                  url: item.archivo_url,
-                  evaluacionNombre: item.evaluacion?.nombre ?? null,
-                }
-              : null
-          );
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped = items.map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt || (item as any).created_at || '',
+            nota: item.nota ?? '',
+            archivoUrl: item.archivoUrl || (item as any).archivo_url || null,
+            archivoNombre: item.archivoNombre || (item as any).archivo_nombre || '',
+            empresa: item.empresa || '',
+            alumno: item.alumno || null,
+            evaluacion: item.evaluacion,
+          }));
+
+          const notas: Record<number, string> = {};
+          mapped.forEach((m) => {
+            notas[m.id] = m.nota || '';
+          });
+
+          this.entregasEvaluacion.set(mapped);
+          this.notasEdicion.set(notas);
+          this.entregasEvaluacionLoading.set(false);
         },
         error: () => {
-          this.evaluacionEntrega.set(null);
+          this.entregasEvaluacionError.set(
+            'No se pudieron cargar las entregas de los alumnos.'
+          );
+          this.entregasEvaluacion.set([]);
+          this.entregasEvaluacionLoading.set(false);
         },
       });
   }
 
-  onEvaluacionArchivoSeleccionado(event: Event): void {
+  onEvaluacionSeleccionada(event: Event) {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] ?? null;
-    this.evaluacionArchivo = file;
+    this.evaluacionArchivoSeleccionado = file;
     this.evaluacionUploadError.set(null);
     this.evaluacionArchivoNombre.set(file ? file.name : null);
+
+    if (file) {
+      const nombreCtrl = this.evaluacionForm.get('nombre');
+      if (nombreCtrl && !nombreCtrl.value) {
+        nombreCtrl.setValue(file.name);
+      }
+    }
   }
 
-  subirEvaluacionPractica(): void {
-    if (this.alumnoId === null) {
-      this.evaluacionUploadError.set('No se pudo identificar al alumno actual.');
+  subirEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
       return;
     }
 
-    if (!this.evaluacionArchivo) {
-      this.evaluacionUploadError.set('Selecciona un archivo para subir tu evaluación.');
+    if (!this.evaluacionArchivoSeleccionado) {
+      this.evaluacionUploadError.set('Selecciona el formulario de evaluación.');
+      return;
+    }
+
+    if (this.evaluacionForm.invalid) {
+      this.evaluacionForm.markAllAsTouched();
+      return;
+    }
+
+    const formValue = this.evaluacionForm.value;
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.evaluacionArchivoSeleccionado);
+    formData.append('nombre', formValue.nombre || this.evaluacionArchivoSeleccionado.name);
+    if (formValue.descripcion) {
+      formData.append('descripcion', formValue.descripcion);
+    }
+
+    this.evaluacionGestionLoading.set(true);
+    this.http.post<EvaluacionPracticaApi>('/api/coordinacion/practicas/evaluacion/', formData).subscribe({
+      next: (res) => {
+        this.evaluacion.set({
+          id: res.id,
+          nombre: res.nombre,
+          descripcion: res.descripcion ?? null,
+          createdAt: res.created_at,
+          url: res.url,
+        });
+        this.toast.set('Evaluación subida y compartida con los alumnos.');
+        this.limpiarFormularioEvaluacion();
+        this.evaluacionGestionLoading.set(false);
+      },
+      error: () => {
+        this.toast.set('No se pudo subir la evaluación.');
+        this.evaluacionGestionLoading.set(false);
+      },
+    });
+  }
+
+  limpiarFormularioEvaluacion() {
+    this.evaluacionForm.reset();
+    this.evaluacionArchivoSeleccionado = null;
+    this.evaluacionUploadError.set(null);
+    this.evaluacionArchivoNombre.set(null);
+    if (this.evaluacionInput?.nativeElement) {
+      this.evaluacionInput.nativeElement.value = '';
+    }
+  }
+
+  onNotaChange(entregaId: number, valor: string) {
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: valor }));
+  }
+
+  notaGuardando(entregaId: number): boolean {
+    return !!this.guardandoNotas()[entregaId];
+  }
+
+  guardarNota(entregaId: number) {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
+      return;
+    }
+
+    const nota = (this.notasEdicion()[entregaId] ?? '').trim();
+    this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: true }));
+
+    this.http
+      .patch<PracticaEvaluacionEntrega>(
+        `/api/coordinacion/practicas/evaluacion/entregas/${entregaId}/`,
+        { nota },
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          this.actualizarEntregaLocal(entregaId, res.nota ?? '');
+          this.toast.set('Nota guardada.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+        error: () => {
+          this.toast.set('No se pudo guardar la nota.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+      });
+  }
+
+  private actualizarEntregaLocal(entregaId: number, nota: string) {
+    this.entregasEvaluacion.update((items) => {
+      const copia = [...items];
+      const idx = copia.findIndex((e) => e.id === entregaId);
+      if (idx >= 0) {
+        copia[idx] = { ...copia[idx], nota };
+      }
+      return copia;
+    });
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: nota }));
+  }
+
+  descargarCsvEntregas() {
+    const filas = this.entregasEvaluacion();
+    if (!filas.length) {
+      this.toast.set('No hay entregas para exportar.');
+      return;
+    }
+
+    const encabezados = ['Alumno', 'Empresa', 'Informe', 'Nota', 'Fecha de envío'];
+    const contenido = filas
+      .map((f) => {
+        const cols = [
+          f.alumno?.nombre || '',
+          f.empresa || '',
+          f.archivoNombre || '',
+          f.nota || '',
+          this.formatFecha(f.createdAt) || f.createdAt || '',
+        ];
+        return cols
+          .map((c) => {
+            const safe = c.replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(',');
+      })
+      .join('\n');
+
+    const csv = `${encabezados.join(',')}\n${contenido}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'entregas_evaluacion_practica.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+// ====== Firma del coordinador ======
+  cargarFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      this.firmaCoordinador.set(null);
+      return;
+    }
+
+    this.firmaLoading.set(true);
+    this.firmaError.set(null);
+
+    this.http
+      .get<{ item: FirmaCoordinadorApi | null }>(
+        '/api/coordinacion/practicas/firma/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.firmaCoordinador.set(item ? this.mapFirmaApi(item) : null);
+          this.firmaLoading.set(false);
+        },
+        error: () => {
+          this.firmaError.set('No se pudo cargar la firma del coordinador.');
+          this.firmaLoading.set(false);
+        },
+      });
+  }
+
+  onFirmaSeleccionada(event: Event) {
+    this.firmaUploadError.set(null);
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) {
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    const tipo = (file.type || '').toLowerCase();
+    if (tipo && !tipo.startsWith('image/')) {
+      this.firmaUploadError.set('La firma debe ser una imagen (PNG o JPG).');
+      this.firmaArchivoSeleccionado = null;
+      this.firmaArchivoNombre.set(null);
+      return;
+    }
+
+    this.firmaArchivoSeleccionado = file;
+    this.firmaArchivoNombre.set(file.name);
+  }
+
+  subirFirmaCoordinador() {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    if (!this.firmaArchivoSeleccionado) {
+      this.firmaUploadError.set('Selecciona una imagen de firma.');
+      return;
+    }
+
+    this.firmaGestionLoading.set(true);
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('archivo', this.firmaArchivoSeleccionado);
+
+    this.http
+      .post<FirmaCoordinadorApi>('/api/coordinacion/practicas/firma/', formData)
+      .subscribe({
+        next: (res) => {
+          this.firmaCoordinador.set(this.mapFirmaApi(res));
+          this.toast.set('Firma guardada correctamente.');
+          this.limpiarArchivoFirma();
+          this.firmaGestionLoading.set(false);
+        },
+        error: () => {
+          this.firmaUploadError.set('No se pudo guardar la firma.');
+          this.firmaGestionLoading.set(false);
+        },
+      });
+  }
+
+  limpiarArchivoFirma() {
+    this.firmaArchivoSeleccionado = null;
+    this.firmaArchivoNombre.set(null);
+    this.firmaUploadError.set(null);
+    if (this.firmaInput?.nativeElement) {
+      this.firmaInput.nativeElement.value = '';
+    }
+  }
+
+  private mapFirmaApi(api: FirmaCoordinadorApi): FirmaCoordinador {
+    return {
+      id: api.id,
+      carrera: api.carrera,
+      createdAt: api.created_at,
+      updatedAt: api.updated_at,
+      url: api.url,
+    };
+  }
+
+
+
+
+  cargarSolicitudes() {
+    this.loading.set(true);
+    const params: Record<string, string> = {
+      estado: this.estado(),
+      q: this.query(),
+      page: String(this.page()),
+      size: String(this.size()),
+    };
+    if (this.coordinadorId !== null) {
+      params['coordinador'] = String(this.coordinadorId);
+    }
+    this.http.get<{ items: SolicitudCarta[]; total: number }>(
+      '/api/coordinacion/solicitudes-carta',
+      { params }
+    ).subscribe({
+      next: (res) => {
+        this.solicitudes.set(res.items);
+        this.total.set(res.total);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('No se pudieron cargar las solicitudes');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  setEstado(est: Estado) {
+    this.estado.set(est);
+    this.page.set(1);
+    this.cargarSolicitudes();
+  }
+
+  buscar() {
+    this.page.set(1);
+    this.cargarSolicitudes();
+  }
+
+  nextPage() {
+    if (this.page() * this.size() < this.total()) {
+      this.page.update((v) => v + 1);
+      this.cargarSolicitudes();
+    }
+  }
+
+  prevPage() {
+    if (this.page() > 1) {
+      this.page.update((v) => v - 1);
+      this.cargarSolicitudes();
+    }
+  }
+
+  // ====== Detalle ======
+  abrirDetalle(s: SolicitudCarta) {
+    this.current.set(s);
+    this.showDetalle.set(true);
+    document.body.classList.add('no-scroll');
+  }
+
+  cerrarDetalle() {
+    this.showDetalle.set(false);
+    this.current.set(null);
+    document.body.classList.remove('no-scroll');
+  }
+
+  // ====== Acciones ======
+    async aprobar() {
+    const c = this.current();
+    if (!c) return;
+
+    let archivo: File;
+    try {
+      archivo = await this.generarArchivoCartaPdf(c);
+    } catch (err) {
+      console.error('No se pudo generar el PDF de la carta.', err);
+      this.toast.set('No se pudo generar el archivo PDF de la carta.');
       return;
     }
 
     const formData = new FormData();
-    formData.append('alumno', String(this.alumnoId));
-    formData.append('archivo', this.evaluacionArchivo);
-    const evalId = this.evaluacion()?.id;
-    if (evalId) {
-      formData.append('evaluacion', String(evalId));
-    }
+    formData.append('documento', archivo, archivo.name);
 
-    this.evaluacionSending.set(true);
-    this.http
-      .post<EvaluacionEntregaApi>('/api/practicas/evaluacion/entregas/', formData)
-      .subscribe({
-        next: (res) => {
-          this.evaluacionEntrega.set({
-            id: res.id,
-            createdAt: res.created_at,
-            archivoNombre: res.archivo_nombre || this.evaluacionArchivoNombre() || 'Archivo enviado',
-            url: res.archivo_url,
-            evaluacionNombre: res.evaluacion?.nombre ?? null,
-          });
-          this.evaluacionUploadError.set(null);
-          this.evaluacionArchivoNombre.set(null);
-          this.evaluacionArchivo = null;
-          this.evaluacionSending.set(false);
-          this.limpiarEvaluacionArchivo();
-        },
-        error: () => {
-          this.evaluacionUploadError.set('No se pudo subir tu evaluación. Intenta nuevamente.');
-          this.evaluacionSending.set(false);
-        },
-      });
-  }
-
-  limpiarEvaluacionArchivo(): void {
-    this.evaluacionArchivo = null;
-    this.evaluacionArchivoNombre.set(null);
-    this.evaluacionUploadError.set(null);
-  }
-
-  private cargarSolicitudes(): void {
-    this.solicitudesLoading.set(true);
-    this.solicitudesError.set(null);
-
-    const params: Record<string, string> = {
-      page: '1',
-      size: '50',
-    };
-    if (this.alumnoRut) {
-      params['alumno_rut'] = this.alumnoRut;
+    const urlFirmado = this.aprobarForm.value.urlFirmado;
+    if (urlFirmado) {
+      formData.append('url', urlFirmado);
     }
 
     this.http
-      .get<{ items: SolicitudCarta[]; total: number }>('/api/practicas/solicitudes-carta/listar', { params })
+      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, formData)
       .subscribe({
         next: (res) => {
-          const items = Array.isArray(res.items) ? res.items : [];
-          this.solicitudes.set(items);
-
-          const cartas: Documento[] = [];
-
-          items
-            .filter((solicitud) => solicitud.estado === 'aprobado' && !!solicitud.url)
-            .forEach((solicitud) => {
-              const fechaCreacion = this.formatFechaCorta(solicitud.creadoEn);
-              const nombreCarta =
-                fechaCreacion && fechaCreacion !== '—'
-                  ? `Carta de práctica aprobada — ${fechaCreacion}`
-                  : 'Carta de práctica aprobada';
-              const detalle = solicitud.destinatario.cargo
-                ? `Dirigida a ${solicitud.destinatario.empresa}. Cargo: ${solicitud.destinatario.cargo}.`
-                : `Dirigida a ${solicitud.destinatario.empresa}.`;
-
-              cartas.push({
-                nombre: nombreCarta,
-                tipo: 'Carta',
-                estado: 'Aprobado',
-                url: solicitud.url,
-                detalle,
-              });
-            });
-
-          this.documentosCartas = cartas;
-          this.refrescarDocumentos();
-
-          if (!this.alumnoRut) {
-            const firstRut = items.find((sol) => sol?.alumno?.rut)?.alumno?.rut;
-            if (firstRut) {
-              const rutFormateado = formatearRut(firstRut);
-              this.alumnoRut = rutFormateado;
-              localStorage.setItem('alumnoRut', rutFormateado);
-              this.cartaForm.get('alumnoRut')?.setValue(rutFormateado, { emitEvent: false });
-            }
-          }
-          this.solicitudesLoading.set(false);
+          this.toast.set('Solicitud aprobada correctamente.');
+          const nuevaUrl = res?.url ?? null;
+          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
+          this.cerrarDetalle();
         },
         error: (err) => {
-          console.error('Error cargando solicitudes:', err);
-          this.solicitudes.set([]);
-          this.solicitudesError.set('No se pudieron cargar tus solicitudes de carta.');
-          this.documentosCartas = [];
-          this.refrescarDocumentos();
-          this.solicitudesLoading.set(false);
+          console.error('Error al aprobar solicitud:', err);
+          this.toast.set('Error al aprobar solicitud.');
         },
       });
   }
 
-  estadoEtiqueta(estado: EstadoSolicitud): Documento['estado'] {
-    return this.estadoDocumento(estado);
+rechazar() {
+  const c = this.current();
+  if (!c) return;
+
+  const motivoCtrl = this.rechazarForm.get('motivo');
+  if (!motivoCtrl) return;
+
+  // Limpiar espacios en blanco
+  const raw = motivoCtrl.value ?? '';
+  const trimmed = raw.trim();
+
+  // Si está vacío o son solo espacios, marcamos como tocado y dejamos que el HTML muestre el mensaje
+  if (!trimmed) {
+    motivoCtrl.setValue(''); // limpia espacios
+    motivoCtrl.markAsTouched();
+    return;
   }
 
-  estadoChipClase(estado: EstadoSolicitud): string {
-    const etiqueta = this.estadoDocumento(estado);
-    switch (etiqueta) {
-      case 'Aprobado':
-        return 'chip-ok';
-      case 'Rechazado':
-        return 'chip-bad';
-      default:
-        return 'chip-warn';
-    }
+  // Por si hay otros validadores en el futuro
+  if (this.rechazarForm.invalid) {
+    this.rechazarForm.markAllAsTouched();
+    return;
   }
 
-  formatFecha(fechaIso: string | null | undefined): string {
-    if (!fechaIso) return '—';
-    const date = new Date(fechaIso);
-    if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
+  const body = { motivo: trimmed };
 
-  formatFechaCorta(fechaIso: string | null | undefined): string {
-    if (!fechaIso) return '—';
-    const date = new Date(fechaIso);
-    if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  }
-
-  private estadoDocumento(estado: EstadoSolicitud): Documento['estado'] {
-    switch (estado) {
-      case 'aprobado':
-        return 'Aprobado';
-      case 'rechazado':
-        return 'Rechazado';
-      default:
-        return 'En revisión';
-    }
-  }
-
-  sectorResuelto = computed(() => {
-    const v = this.fv();
-    const otro = (this.cartaForm.get('sectorEmpresaOtro')?.enabled ? (v.sectorEmpresaOtro || '').trim() : '');
-    return (v.sectorEmpresa === 'Otro' && otro) ? otro : v.sectorEmpresa;
+  this.http.post(`/api/coordinacion/solicitudes-carta/${c.id}/rechazar`, body).subscribe({
+    next: () => {
+      this.toast.set('Solicitud rechazada.');
+      this.actualizarEstadoLocal(c.id, 'rechazado', null, body.motivo);
+      this.cerrarDetalle();
+    },
+    error: () => this.toast.set('Error al rechazar solicitud.'),
   });
+}
 
-  prev = computed(() => {
-    const v = this.fv();
-    const esc = this.escuelaSel();
-    return {
-      alumnoNombres: v.alumnoNombres || '—',
-      alumnoApellidos: v.alumnoApellidos || '',
-      alumnoRut: formatearRut(v.alumnoRut || ''),
-      carrera: v.carrera || '—',
-      duracionHoras: v.duracionHoras || 320,
-      escuelaNombre: esc?.nombre || 'Escuela',
-      escuelaDireccion: esc?.direccion || '—',
-      escuelaTelefono: esc?.telefono || '—',
-      destNombres: v.destNombres || '—',
-      destApellidos: v.destApellidos || '',
-      destCargo: v.destCargo || 'Cargo',
-      destEmpresa: v.destEmpresa || 'Empresa'
-    };
-  });
-
-  onRutBlur(controlName: 'alumnoRut' | 'empresaRut') {
-    const ctrl = this.cartaForm.get(controlName);
-    if (!ctrl) return;
-    const f = formatearRut(ctrl.value || '');
-    ctrl.setValue(f, { emitEvent: true });
-    ctrl.updateValueAndValidity();
-  }
-
-  enviarAprobacion() {
-    this.submitOk.set(null);
-    this.submitError.set(null);
-
-    // Validación: verifica que escuela y carrera tengan valores
-    const carreraVal = this.cartaForm.get('carrera')?.value;
-    const escuelaVal = this.cartaForm.get('escuelaId')?.value;
-
-    if (!carreraVal || !escuelaVal) {
-      this.submitError.set('No se pudo determinar tu carrera o escuela. Por favor, contacta con soporte.');
-      return;
-    }
-
-    if (this.cartaForm.invalid || !this.escuelaSel()) {
-      this.cartaForm.markAllAsTouched();
-      this.submitError.set('Revisa los campos obligatorios.');
-      return;
-    }
-
-    const v = this.fv();
-    const payload = {
-      alumno: {
-        rut: formatearRut(v.alumnoRut!),
-        nombres: v.alumnoNombres!,
-        apellidos: v.alumnoApellidos!,
-        carrera: v.carrera!,
-      },
-      practica: {
-        jefeDirecto: v.jefeDirecto!,
-        correoEncargado: v.correoEncargado!,
-        cargoAlumno: v.cargoAlumno!,
-        fechaInicio: v.fechaInicio!,
-        empresaRut: formatearRut(v.empresaRut!),
-        sectorEmpresa: this.sectorResuelto(),
-        duracionHoras: v.duracionHoras!,
-      },
-      destinatario: {
-        nombres: v.destNombres!,
-        apellidos: v.destApellidos!,
-        cargo: v.destCargo!,
-        empresa: v.destEmpresa!,
-      },
-      escuela: this.escuelaSel()!,
-      meta: { tipo: 'carta-practica', creadoEn: new Date().toISOString() },
-    };
-
-    this.alumnoRut = payload.alumno.rut;
-    localStorage.setItem('alumnoRut', payload.alumno.rut);
-    localStorage.setItem('alumnoCarrera', payload.alumno.carrera);
-    this.cartaForm.get('alumnoRut')?.setValue(payload.alumno.rut, { emitEvent: true });
-    this.cartaForm.get('carrera')?.setValue(payload.alumno.carrera, { emitEvent: true });
-
-    this.isSubmitting.set(true);
-
-    this.http.post('/api/practicas/solicitudes-carta', payload).subscribe({
-      next: () => {
-        this.submitOk.set('Solicitud enviada a Coordinación.');
-        this.cargarSolicitudes();
-        this.isSubmitting.set(false);
-        this.closeCarta();
-      },
-      error: (err) => {
-        console.error('Error enviando solicitud:', err);
-        this.submitError.set('No se pudo enviar. Inténtalo nuevamente.');
-        this.isSubmitting.set(false);
+  actualizarEstadoLocal(id: string, estado: Estado, url?: string | null, motivo?: string | null) {
+    const arr = this.solicitudes();
+    const i = arr.findIndex((x) => x.id === id);
+    if (i >= 0) {
+      const actualizado = { ...arr[i] };
+      actualizado.estado = estado;
+      if (url !== undefined) {
+        actualizado.url = url;
       }
+      if (motivo !== undefined) {
+        actualizado.motivoRechazo = motivo;
+      }
+      arr[i] = actualizado;
+      this.solicitudes.set([...arr]);
+    }
+  }
+
+  formatFecha(fecha: string | null | undefined): string {
+    if (!fecha) return '';
+
+    const parsed = new Date(fecha);
+    if (Number.isNaN(parsed.getTime())) {
+      return fecha;
+    }
+
+    return parsed.toLocaleDateString('es-CL', {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit',
     });
   }
 
-  f(name: string): AbstractControl {
-    return this.cartaForm.get(name)!;
+  private obtenerObjetivosParaSolicitud(carta: SolicitudCarta | null): string[] {
+    if (!carta) {
+      return [];
+    }
+
+    const carrera = carta.alumno?.carrera || '';
+    const escuelaId = carta.escuela?.id || '';
+
+    const porCarrera = this.objetivosPorCarrera[carrera];
+    if (porCarrera && porCarrera.length) {
+      return porCarrera;
+    }
+
+    const porEscuela = this.objetivosPorEscuela[escuelaId];
+    if (porEscuela && porEscuela.length) {
+      return porEscuela;
+    }
+
+    return this.objetivosGenericos;
+  }
+
+  private construirCartaPreviewData(carta: SolicitudCarta | null): CartaPreviewData {
+    const escuela = carta?.escuela;
+
+    return {
+      alumnoNombres: carta?.alumno?.nombres || '—',
+      alumnoApellidos: carta?.alumno?.apellidos || '',
+      alumnoRut: carta?.alumno?.rut ? formatearRut(carta.alumno.rut) : '—',
+      carrera: carta?.alumno?.carrera || '—',
+      duracionHoras: carta?.practica?.duracionHoras || 320,
+      fechaInicio: this.formatFecha(carta?.practica?.fechaInicio) || '—',
+      escuelaNombre: escuela?.nombre || 'Escuela',
+      escuelaDireccion: escuela?.direccion || '—',
+      escuelaTelefono: escuela?.telefono || '—',
+      destNombres: carta?.destinatario?.nombres || '—',
+      destApellidos: carta?.destinatario?.apellidos || '',
+      destCargo: carta?.destinatario?.cargo || 'Cargo',
+      destEmpresa: carta?.destinatario?.empresa || 'Empresa',
+    };
+  }
+
+
+
+  private obtenerFirmaPorCarrera(carrera: string | null | undefined): Firma {
+    const clave = carrera || '';
+    return this.firmasPorCarrera[clave] || this.firmaFallback;
+  }
+
+  private escribirTextoJustificado(
+    doc: jsPDF,
+    texto: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+  ): number {
+    if (!texto || !texto.trim()) {
+      return y;
+    }
+
+    const lineas = doc.splitTextToSize(texto, maxWidth);
+    const espacioBase = doc.getTextWidth(' ');
+
+    lineas.forEach((linea: string, index: number) => {
+      const lineaLimpia = linea.trim();
+      const palabras = lineaLimpia.split(/\s+/).filter(Boolean);
+      const esUltimaLinea = index === lineas.length - 1;
+
+      if (!palabras.length) {
+        y += lineHeight;
+        return;
+      }
+
+      if (esUltimaLinea || palabras.length === 1) {
+        doc.text(lineaLimpia, x, y);
+      } else {
+        const espacios = palabras.length - 1;
+        const anchoPalabras = palabras.reduce(
+          (acc: number, palabra: string) => acc + doc.getTextWidth(palabra),
+          0
+        );
+        const anchoActual = anchoPalabras + espacioBase * espacios;
+        const extraPorEspacio = espacios
+          ? Math.max(0, (maxWidth - anchoActual) / espacios)
+          : 0;
+
+        let cursorX = x;
+        palabras.forEach((palabra: string, palabraIndex: number) => {
+          doc.text(palabra, cursorX, y);
+          if (palabraIndex < espacios) {
+            cursorX += doc.getTextWidth(palabra) + espacioBase + extraPorEspacio;
+          }
+        });
+      }
+
+      y += lineHeight;
+    });
+
+    return y;
+  }
+
+
+private escribirBullet(
+  doc: jsPDF,
+  texto: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  indent = 6
+): number {
+  // ancho efectivo para el texto, dejando un margen para la sangría
+  const anchoTexto = maxWidth - indent;
+  const lineas = doc.splitTextToSize(texto, anchoTexto);
+
+  if (!lineas.length) return y;
+
+  // 1) Primera línea: dibuja el bullet y la primera línea sin justificar (mejor legibilidad)
+  doc.text('•', x, y);
+  doc.text(lineas[0], x + indent, y);
+  y += lineHeight;
+
+  // 2) Líneas de continuación: justificar con el helper que ya tienes
+  for (let i = 1; i < lineas.length; i++) {
+    y = this.escribirTextoJustificado(doc, lineas[i], x + indent, y, anchoTexto, lineHeight);
+  }
+
+  return y;
+}
+
+
+  private async cargarLogoHeader(): Promise<string | null> {
+    if (this.logoHeaderDataUrl) {
+      return this.logoHeaderDataUrl;
+    }
+
+    if (this.logoHeaderPromise) {
+      return this.logoHeaderPromise;
+    }
+
+    this.logoHeaderPromise = fetch('/assets/Logo_Header.png')
+      .then(async (resp) => {
+        if (!resp.ok) {
+          throw new Error('No se pudo cargar el logo del encabezado');
+        }
+
+        const blob = await resp.blob();
+
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('No se pudo leer el logo del encabezado'));
+          reader.readAsDataURL(blob);
+        });
+      })
+      .then((dataUrl) => {
+        this.logoHeaderDataUrl = dataUrl;
+        return dataUrl;
+      })
+      .catch((err) => {
+        console.error('No se pudo preparar el logo de la carta de práctica.', err);
+        return null;
+      })
+      .finally(() => {
+        this.logoHeaderPromise = null;
+      });
+
+    return this.logoHeaderPromise;
+  }
+
+ private async cargarImagenFirma(
+    url: string
+  ): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' } | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error('No se pudo cargar la imagen de la firma');
+      }
+
+      const blob = await resp.blob();
+      const mime = (blob.type || '').toLowerCase();
+      const format: 'PNG' | 'JPEG' =
+        mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : 'PNG';
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen de la firma'));
+        reader.readAsDataURL(blob);
+      });
+
+      return { dataUrl, format };
+    } catch (err) {
+      console.error('Error preparando la firma del coordinador:', err);
+      return null;
+    }
+  }
+
+
+
+  private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const preview = this.construirCartaPreviewData(solicitud);
+    const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
+    const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
+    const fechaTexto = this.fechaHoy();
+
+    // Firma gráfica del coordinador (si existe)
+    const firmaCoord = this.firmaCoordinador();
+    const firmaImagen = firmaCoord?.url
+      ? await this.cargarImagenFirma(firmaCoord.url)
+      : null;
+
+    const margenX = 20;
+    let cursorY = 5;
+    const anchoTexto = 170;
+    const saltoLinea = 6;
+
+    const logoDataUrl = await this.cargarLogoHeader();
+    if (logoDataUrl) {
+      const logoWidth = 48;
+      const logoHeight = 56;
+      const logoX = (210 - logoWidth) / 2;
+      doc.addImage(logoDataUrl, 'PNG', logoX, cursorY, logoWidth, logoHeight);
+      cursorY += logoHeight + 6;
+    } else {
+      cursorY += 6;
+    }
+
+    doc.setFontSize(11);
+
+
+
+    //FECHA A LA DERECHA
+    doc.setFont('Helvetica', 'normal');
+    // Ancho de la página (A4 en mm)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    // Usamos el mismo margen que a la izquierda
+    const rightMargin = margenX;
+    // Calculamos el ancho del texto de la fecha
+    const fechaAncho = doc.getTextWidth(fechaTexto);
+    // Posición X para que la fecha quede pegada al margen derecho
+    const fechaX = pageWidth - rightMargin - fechaAncho;
+    // Dibujamos la fecha alineada a la derecha
+    doc.text(fechaTexto, fechaX, cursorY);
+    cursorY += saltoLinea + 2;
+
+    doc.setFont('Helvetica', 'bold');
+    const destinatarioLineas = [
+      'Señor',
+      `${preview.destNombres} ${preview.destApellidos}`.trim(),
+      preview.destCargo,
+      preview.destEmpresa,
+      'Presente',
+    ].filter((linea) => !!linea);
+    destinatarioLineas.forEach((linea) => {
+      doc.text(linea, margenX, cursorY);
+      cursorY += saltoLinea;
+    });
+    doc.setFont('Helvetica', 'normal');
+    cursorY += 1;
+
+    cursorY += 2;
+
+    const alumnoNombre = `${preview.alumnoNombres} ${preview.alumnoApellidos}`.trim() || 'Alumno/a';
+    const rutTexto = preview.alumnoRut === '—' ? '' : `, RUT ${preview.alumnoRut}`;
+    const carreraTexto = preview.carrera === '—' ? '' : ` de la carrera de ${preview.carrera}`;
+    const parrafo1 = `Me permito dirigirme a Ud. para presentar al Sr. ${alumnoNombre}${rutTexto}${carreraTexto} de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.`;
+    cursorY = this.escribirTextoJustificado(doc, parrafo1, margenX, cursorY, anchoTexto, saltoLinea);
+    cursorY += 3;
+
+    const duracionTexto = new Intl.NumberFormat('es-CL').format(preview.duracionHoras || 0);
+    const parrafo2 = `Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3o de ley No 16.744 y el Art. 1o del D.L. No 313/73. Esta práctica tiene una duración de ${duracionTexto} horas cronológicas, con fecha de inicio el día ${preview.fechaInicio} y sus objetivos son:`;
+    cursorY = this.escribirTextoJustificado(doc, parrafo2, margenX, cursorY, anchoTexto, saltoLinea);
+
+// espacio pequeño antes de la lista (opcional)
+cursorY += 6;
+
+    objetivos.forEach((objetivo) => {
+      cursorY = this.escribirBullet(
+        doc,
+        objetivo,        // sin el símbolo •, la función lo agrega
+        margenX,         // x inicial
+        cursorY,         // y actual
+        anchoTexto,      // mismo ancho que usas en párrafos
+        saltoLinea,      // mismo interlineado
+        6                // sangría del bullet
+      );
+    });
+
+    cursorY += saltoLinea*3; // espacio antes de la despedida
+
+    // ===== Firma del coordinador como imagen (si existe) =====
+    if (firmaImagen) {
+      // dimensiones más grandes de la firma en mm
+      const firmaWidth = 66;
+      const firmaHeight = 33;
+
+      // alineada al margen derecho (orientación derecha → izquierda)
+      const firmaRightX = margenX + anchoTexto;   // borde derecho del bloque
+      const firmaX = firmaRightX - firmaWidth;    // empezamos desde la derecha hacia la izquierda
+
+      doc.addImage(
+        firmaImagen.dataUrl,
+        firmaImagen.format,
+        firmaX,
+        cursorY,
+        firmaWidth,
+        firmaHeight
+      );
+
+      cursorY += firmaHeight + 4; // un poco más de espacio después de la firma
+    }
+
+    // ===== Texto "Le saluda atentamente," debajo de la firma =====
+    cursorY += saltoLinea;
+    doc.setFont('Helvetica', 'normal');
+    const xRight = margenX + anchoTexto; // extremo derecho del bloque de texto
+    doc.text('Le saluda atentamente,', xRight, cursorY, { align: 'right' });
+    cursorY += saltoLinea;
+
+    doc.setFont('Helvetica', 'bold');
+    doc.text(firma.nombre, xRight, cursorY, { align: 'right' });
+    cursorY += saltoLinea;
+
+    doc.setFont('Helvetica', 'normal');
+    if (firma.cargo) {
+      const cargoLineas = doc.splitTextToSize(firma.cargo, anchoTexto);
+      doc.text(cargoLineas, xRight, cursorY, { align: 'right' });
+      cursorY += cargoLineas.length * saltoLinea;
+    }
+
+
+
+    // ===== Pie de página =====
+    doc.setFont('Helvetica', 'bold');
+
+    const institucion = firma.institucion || 'Universidad Tecnológica Metropolitana';
+    const institucionLineas = doc.splitTextToSize(institucion, anchoTexto);
+    doc.setFont('Helvetica', 'normal');
+
+    const encabezado = `${preview.escuelaNombre} — ${preview.escuelaDireccion} — Tel. ${preview.escuelaTelefono} —  http://www.utem.cl`;
+    const encabezadoLineas = doc.splitTextToSize(encabezado, anchoTexto);
+
+    // Medidas de la página
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const centerX = margenX + anchoTexto / 2;
+    const footerMarginBottom = 15;        // distancia al borde inferior
+    const footerLineHeight = saltoLinea - 1; // un poco más compacto
+
+    // Calculamos desde abajo hacia arriba para que el pie quede "pegado" al fondo
+    const totalFooterLines = institucionLineas.length + encabezadoLineas.length;
+    let footerY =
+      pageHeight - footerMarginBottom - footerLineHeight * (totalFooterLines - 1);
+
+    // Primera línea: "Universidad Tecnológica Metropolitana"
+    doc.text(institucionLineas, centerX, footerY, { align: 'center' });
+    footerY += institucionLineas.length * footerLineHeight;
+
+    // Segunda línea: "Escuela de Informática — ... — Tel. ..."
+    doc.text(encabezadoLineas, centerX, footerY, { align: 'center' });
+
+
+
+
+    const nombreArchivo = this.construirNombreArchivoCarta(preview);
+    const arrayBuffer = doc.output('arraybuffer') as ArrayBuffer;
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+
+    if (typeof File === 'undefined') {
+      throw new Error('API File no disponible en este navegador.');
+    }
+
+    return new File([blob], nombreArchivo, { type: 'application/pdf' });
+  }
+
+  private construirNombreArchivoCarta(preview: CartaPreviewData): string {
+    const base = `${preview.alumnoNombres} ${preview.alumnoApellidos}`.trim() || 'estudiante';
+    const normalizado = base
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toLowerCase();
+    const sufijo = normalizado || 'estudiante';
+    return `carta_practica_${sufijo}.pdf`;
+  }
+
+  fechaHoy = computed(() => {
+    const d = new Date();
+    const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    return `Santiago, ${meses[d.getMonth()]} ${d.getDate()} del ${d.getFullYear()}.`;
+  });
+
+  firmaActual = computed<Firma>(() => {
+    const carrera = this.current()?.alumno?.carrera;
+    return this.obtenerFirmaPorCarrera(carrera);
+  });
+
+  objetivosActuales = computed<string[]>(() => {
+    const carta = this.current();
+    const objetivos = this.obtenerObjetivosParaSolicitud(carta);
+    return [...objetivos];
+  });
+
+  cartaPreview = computed<CartaPreviewData>(() => {
+    const carta = this.current();
+    return this.construirCartaPreviewData(carta);
+  });
+
+  // ====== Pestañas ======
+  // arriba, junto al resto de signals:
+  mainTab = signal<'solicitudes' | 'documentos' | 'evaluacion' | 'firma'>('solicitudes');
+
+  // función para cambiar de pestaña
+  setMainTab(tab: 'solicitudes' | 'documentos' | 'evaluacion' | 'firma') {
+    if (tab === 'firma' && !this.isCoordinador) {
+      return;
+    }
+
+    this.mainTab.set(tab);
+    if (tab === 'documentos' && this.coordinadorId !== null && !this.documentosCompartidos().length) {
+      // si entras a Documentos y aún no cargan, los traemos
+      this.cargarDocumentosCompartidos();
+    }
+    if (tab === 'evaluacion' && this.coordinadorId !== null) {
+      if (!this.evaluacion()) {
+        this.cargarEvaluacion();
+      }
+      if (!this.entregasEvaluacion().length) {
+        this.cargarEntregasEvaluacion();
+      }
+    }
+    if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
+      this.cargarFirmaCoordinador();
+    }
   }
 }
