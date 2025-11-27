@@ -12,7 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Value, Prefetch, Count, Avg
+from django.db.models import Q, Value, Prefetch, Count, Avg, OuterRef, Subquery
 from django.db.models.functions import Replace
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -62,6 +62,7 @@ from .serializers import (
     PracticaFirmaCoordinadorSerializer,
     PracticaEvaluacionSerializer,
     PracticaEvaluacionEntregaSerializer,
+    PracticaEvaluacionEntregaCoordinacionSerializer,
     PropuestaTemaAlumnoAjusteSerializer,
     PropuestaTemaCreateSerializer,
     PropuestaTemaDocenteDecisionSerializer,
@@ -3416,3 +3417,84 @@ def gestionar_entrega_evaluacion_practica(request):
     )
     headers = {"Location": f"/api/practicas/evaluacion/entregas/{entrega.pk}/"}
     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def listar_entregas_evaluacion_practica(request):
+    coordinador_param = request.query_params.get("coordinador")
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ultima_empresa = (
+        SolicitudCartaPractica.objects.filter(alumno_id=OuterRef("alumno_id"))
+        .order_by("-creado_en")
+        .values("dest_empresa")[:1]
+    )
+
+    entregas = (
+        PracticaEvaluacionEntrega.objects.select_related("alumno", "evaluacion")
+        .filter(evaluacion__carrera__iexact=carrera)
+        .annotate(empresa=Subquery(ultima_empresa))
+        .order_by("-created_at")
+    )
+
+    serializer = PracticaEvaluacionEntregaCoordinacionSerializer(
+        entregas, many=True, context={"request": request}
+    )
+    return Response({"items": serializer.data})
+
+
+@api_view(["PATCH"])
+@permission_classes([AllowAny])
+def actualizar_nota_entrega_practica(request, entrega_id: int):
+    coordinador_param = request.query_params.get("coordinador") or request.data.get(
+        "coordinador"
+    )
+    coordinador = _obtener_usuario_por_id(coordinador_param)
+    if not coordinador or coordinador.rol != "coordinador":
+        return Response(
+            {"detail": "Coordinador no válido."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    carrera = (coordinador.carrera or "").strip()
+    if not carrera:
+        return Response(
+            {"detail": "El coordinador no tiene una carrera asignada."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entrega = (
+        PracticaEvaluacionEntrega.objects.select_related("evaluacion")
+        .filter(pk=entrega_id, evaluacion__carrera__iexact=carrera)
+        .first()
+    )
+    if not entrega:
+        return Response({"detail": "Entrega no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+    nota = (request.data.get("nota") or "").strip()
+    if len(nota) > 10:
+        return Response(
+            {"nota": ["La nota no debe exceder 10 caracteres."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    entrega.nota = nota
+    entrega.save(update_fields=["nota"])
+
+    serializer = PracticaEvaluacionEntregaCoordinacionSerializer(
+        entrega, context={"request": request}
+    )
+    return Response(serializer.data)

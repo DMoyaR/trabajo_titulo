@@ -728,6 +728,7 @@ class PracticaEvaluacionEntrega(models.Model):
     archivo = models.FileField(
         upload_to="practicas/evaluaciones/entregas/%Y/%m/%d", max_length=255
     )
+    nota = models.CharField(max_length=10, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -176,8 +176,8 @@ class PracticaEvaluacionAdmin(admin.ModelAdmin):
 
 @admin.register(PracticaEvaluacionEntrega)
 class PracticaEvaluacionEntregaAdmin(admin.ModelAdmin):
-    list_display = ("evaluacion", "alumno", "created_at")
-    list_filter = ("evaluacion__carrera",)
+    list_display = ("evaluacion", "alumno", "nota", "created_at")
+    list_filter = ("evaluacion__carrera", "nota")
     search_fields = ("alumno__nombre_completo", "evaluacion__nombre")
     autocomplete_fields = ("evaluacion", "alumno")
 

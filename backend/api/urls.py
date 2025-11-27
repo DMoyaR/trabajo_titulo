@@ -26,6 +26,8 @@ from .views import (
     gestionar_evaluacion_practica,
     obtener_evaluacion_practica,
     gestionar_entrega_evaluacion_practica,
+    listar_entregas_evaluacion_practica,
+    actualizar_nota_entrega_practica,
     DocenteEvaluacionListCreateView,
     DocenteEvaluacionEntregaUpdateView,
     DocenteGruposActivosListView,
@@ -103,6 +105,16 @@ urlpatterns = [
         "coordinacion/practicas/evaluacion/",
         gestionar_evaluacion_practica,
         name="gestionar-evaluacion-practica",
+    ),
+    path(
+        "coordinacion/practicas/evaluacion/entregas/",
+        listar_entregas_evaluacion_practica,
+        name="listar-entregas-evaluacion-practica",
+    ),
+    path(
+        "coordinacion/practicas/evaluacion/entregas/<int:entrega_id>/",
+        actualizar_nota_entrega_practica,
+        name="actualizar-entrega-evaluacion-practica",
     ),
     path(
         "coordinacion/practicas/firma/",

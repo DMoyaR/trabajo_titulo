@@ -90,6 +90,17 @@ interface EvaluacionPractica {
   createdAt: string;
   url: string | null;
 }
+
+interface PracticaEvaluacionEntrega {
+  id: number;
+  createdAt: string;
+  nota: string;
+  archivoUrl: string | null;
+  archivoNombre: string;
+  empresa: string;
+  alumno: { id: number; nombre: string; correo: string; carrera: string } | null;
+  evaluacion?: EvaluacionPractica | null;
+}
 interface FirmaCoordinadorApi {
   id: number;
   carrera: string;
@@ -178,6 +189,11 @@ export class PracticasComponent {
   evaluacionGestionLoading = signal(false);
   evaluacionArchivoNombre = signal<string | null>(null);
   private evaluacionArchivoSeleccionado: File | null = null;
+  entregasEvaluacion = signal<PracticaEvaluacionEntrega[]>([]);
+  entregasEvaluacionLoading = signal(false);
+  entregasEvaluacionError = signal<string | null>(null);
+  notasEdicion = signal<Record<number, string>>({});
+  guardandoNotas = signal<Record<number, boolean>>({});
 
   
   firmaCoordinador = signal<FirmaCoordinador | null>(null);
@@ -581,6 +597,55 @@ export class PracticasComponent {
       });
   }
 
+  cargarEntregasEvaluacion() {
+    if (this.coordinadorId === null) {
+      this.entregasEvaluacion.set([]);
+      return;
+    }
+
+    this.entregasEvaluacionLoading.set(true);
+    this.entregasEvaluacionError.set(null);
+
+    this.http
+      .get<{ items: PracticaEvaluacionEntrega[] }>(
+        '/api/coordinacion/practicas/evaluacion/entregas/',
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          const items = Array.isArray(res.items) ? res.items : [];
+          const mapped = items.map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt || (item as any).created_at || '',
+            nota: item.nota ?? '',
+            archivoUrl: item.archivoUrl || (item as any).archivo_url || null,
+            archivoNombre: item.archivoNombre || (item as any).archivo_nombre || '',
+            empresa: item.empresa || '',
+            alumno: item.alumno || null,
+            evaluacion: item.evaluacion,
+          }));
+
+          const notas: Record<number, string> = {};
+          mapped.forEach((m) => {
+            notas[m.id] = m.nota || '';
+          });
+
+          this.entregasEvaluacion.set(mapped);
+          this.notasEdicion.set(notas);
+          this.entregasEvaluacionLoading.set(false);
+        },
+        error: () => {
+          this.entregasEvaluacionError.set(
+            'No se pudieron cargar las entregas de los alumnos.'
+          );
+          this.entregasEvaluacion.set([]);
+          this.entregasEvaluacionLoading.set(false);
+        },
+      });
+  }
+
   onEvaluacionSeleccionada(event: Event) {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] ?? null;
@@ -650,6 +715,92 @@ export class PracticasComponent {
     if (this.evaluacionInput?.nativeElement) {
       this.evaluacionInput.nativeElement.value = '';
     }
+  }
+
+  onNotaChange(entregaId: number, valor: string) {
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: valor }));
+  }
+
+  notaGuardando(entregaId: number): boolean {
+    return !!this.guardandoNotas()[entregaId];
+  }
+
+  guardarNota(entregaId: number) {
+    if (this.coordinadorId === null) {
+      this.toast.set('No se encontró información del coordinador.');
+      return;
+    }
+
+    const nota = (this.notasEdicion()[entregaId] ?? '').trim();
+    this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: true }));
+
+    this.http
+      .patch<PracticaEvaluacionEntrega>(
+        `/api/coordinacion/practicas/evaluacion/entregas/${entregaId}/`,
+        { nota },
+        {
+          params: { coordinador: String(this.coordinadorId) },
+        }
+      )
+      .subscribe({
+        next: (res) => {
+          this.actualizarEntregaLocal(entregaId, res.nota ?? '');
+          this.toast.set('Nota guardada.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+        error: () => {
+          this.toast.set('No se pudo guardar la nota.');
+          this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
+        },
+      });
+  }
+
+  private actualizarEntregaLocal(entregaId: number, nota: string) {
+    this.entregasEvaluacion.update((items) => {
+      const copia = [...items];
+      const idx = copia.findIndex((e) => e.id === entregaId);
+      if (idx >= 0) {
+        copia[idx] = { ...copia[idx], nota };
+      }
+      return copia;
+    });
+    this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: nota }));
+  }
+
+  descargarCsvEntregas() {
+    const filas = this.entregasEvaluacion();
+    if (!filas.length) {
+      this.toast.set('No hay entregas para exportar.');
+      return;
+    }
+
+    const encabezados = ['Alumno', 'Empresa', 'Informe', 'Nota', 'Fecha de envío'];
+    const contenido = filas
+      .map((f) => {
+        const cols = [
+          f.alumno?.nombre || '',
+          f.empresa || '',
+          f.archivoNombre || '',
+          f.nota || '',
+          this.formatFecha(f.createdAt) || f.createdAt || '',
+        ];
+        return cols
+          .map((c) => {
+            const safe = c.replace(/"/g, '""');
+            return `"${safe}"`;
+          })
+          .join(',');
+      })
+      .join('\n');
+
+    const csv = `${encabezados.join(',')}\n${contenido}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'entregas_evaluacion_practica.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
 // ====== Firma del coordinador ======
@@ -1353,8 +1504,13 @@ cursorY += 6;
       // si entras a Documentos y aún no cargan, los traemos
       this.cargarDocumentosCompartidos();
     }
-    if (tab === 'evaluacion' && this.coordinadorId !== null && !this.evaluacion()) {
-      this.cargarEvaluacion();
+    if (tab === 'evaluacion' && this.coordinadorId !== null) {
+      if (!this.evaluacion()) {
+        this.cargarEvaluacion();
+      }
+      if (!this.entregasEvaluacion().length) {
+        this.cargarEntregasEvaluacion();
+      }
     }
     if (tab === 'firma' && this.coordinadorId !== null && !this.firmaCoordinador()) {
       this.cargarFirmaCoordinador();
