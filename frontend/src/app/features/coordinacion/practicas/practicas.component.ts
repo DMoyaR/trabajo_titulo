@@ -1031,43 +1031,90 @@ export class PracticasComponent {
     document.body.classList.remove('no-scroll');
   }
 
-  // ====== Acciones ======
-    async aprobar() {
-    const c = this.current();
-    if (!c) return;
+  
+// ====== Acciones ======
+async aprobar() {
+  // AHORA: este método es "Firmar con imagen"
+  const c = this.current();
+  if (!c) return;
 
-    let archivo: File;
-    try {
-      archivo = await this.generarArchivoCartaPdf(c);
-    } catch (err) {
-      console.error('No se pudo generar el PDF de la carta.', err);
-      this.toast.set('No se pudo generar el archivo PDF de la carta.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('documento', archivo, archivo.name);
-
-    const urlFirmado = this.aprobarForm.value.urlFirmado;
-    if (urlFirmado) {
-      formData.append('url', urlFirmado);
-    }
-
-    this.http
-      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, formData)
-      .subscribe({
-        next: (res) => {
-          this.toast.set('Solicitud aprobada correctamente.');
-          const nuevaUrl = res?.url ?? null;
-          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
-          this.cerrarDetalle();
-        },
-        error: (err) => {
-          console.error('Error al aprobar solicitud:', err);
-          this.toast.set('Error al aprobar solicitud.');
-        },
-      });
+  let archivo: File;
+  try {
+    // true => usar firma como imagen dentro del PDF
+    archivo = await this.generarArchivoCartaPdf(c, true);
+  } catch (err) {
+    console.error('No se pudo generar el PDF de la carta.', err);
+    this.toast.set('No se pudo generar el archivo PDF de la carta.');
+    return;
   }
+
+  const formData = new FormData();
+  formData.append('documento', archivo, archivo.name);
+
+  // En esta opción NO usamos la URL, solo firma con imagen
+  this.http
+    .post<AprobarSolicitudResponse>(
+      `/api/coordinacion/solicitudes-carta/${c.id}/aprobar`,
+      formData
+    )
+    .subscribe({
+      next: (res) => {
+        this.toast.set('Solicitud aprobada correctamente.');
+        const nuevaUrl = res?.url ?? null;
+        this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
+        this.cerrarDetalle();
+      },
+      error: (err) => {
+        console.error('Error al aprobar solicitud:', err);
+        this.toast.set('Error al aprobar solicitud.');
+      },
+    });
+}
+
+async firmarConUrl() {
+  const c = this.current();
+  if (!c) return;
+
+  const rawUrl = this.aprobarForm.value.urlFirmado || '';
+  const urlFirmado = rawUrl.trim();
+
+  if (!urlFirmado) {
+    this.toast.set('Debes ingresar la URL del PDF firmado.');
+    return;
+  }
+
+  let archivo: File;
+  try {
+    // false => NO se dibuja la firma como imagen en el PDF
+    archivo = await this.generarArchivoCartaPdf(c, false);
+  } catch (err) {
+    console.error('No se pudo generar el PDF de la carta (modo URL).', err);
+    this.toast.set('No se pudo generar el archivo PDF de la carta.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('documento', archivo, archivo.name);
+  formData.append('url', urlFirmado);
+
+  this.http
+    .post<AprobarSolicitudResponse>(
+      `/api/coordinacion/solicitudes-carta/${c.id}/aprobar`,
+      formData
+    )
+    .subscribe({
+      next: (res) => {
+        this.toast.set('Solicitud aprobada correctamente (URL firmada).');
+        const nuevaUrl = res?.url ?? null;
+        this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
+        this.cerrarDetalle();
+      },
+      error: (err) => {
+        console.error('Error al aprobar solicitud (URL).', err);
+        this.toast.set('Error al aprobar solicitud.');
+      },
+    });
+}
 
 rechazar() {
   const c = this.current();
@@ -1337,16 +1384,20 @@ private escribirBullet(
 
 
 
-  private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const preview = this.construirCartaPreviewData(solicitud);
-    const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
-    const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
-    const fechaTexto = this.fechaHoy();
+private async generarArchivoCartaPdf(
+  solicitud: SolicitudCarta,
+  usarFirmaImagen: boolean
+): Promise<File> {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const preview = this.construirCartaPreviewData(solicitud);
+  const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
+  const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
+  const fechaTexto = this.fechaHoy();
 
-    // Firma gráfica del coordinador (si existe)
-    const firmaCoord = this.firmaCoordinador();
-    const firmaImagen = firmaCoord?.url
+  // Firma gráfica del coordinador (si existe y corresponde usar imagen)
+  const firmaCoord = this.firmaCoordinador();
+  const firmaImagen =
+    usarFirmaImagen && firmaCoord?.url
       ? await this.cargarImagenFirma(firmaCoord.url)
       : null;
 

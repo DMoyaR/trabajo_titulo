@@ -355,11 +355,32 @@
           <p><b>Teléfono:</b> {{ c.escuela.telefono }}</p>
         </div>
 
-        <div class="actions">
-          <form class="approve-form" [formGroup]="aprobarForm" (ngSubmit)="aprobar()">
-            <input type="url" placeholder="URL PDF firmado (opcional)" formControlName="urlFirmado">
-            <button class="btn primary" type="submit">Aprobar y Firmar</button>
-          </form>
+      <div class="actions">
+        <form class="approve-form" [formGroup]="aprobarForm">
+          <input
+            type="url"
+            placeholder="URL PDF firmado (opcional)"
+            formControlName="urlFirmado"
+          >
+
+          <!-- Botón original: ahora "Firmar con imagen" -->
+          <button
+            class="btn primary"
+            type="button"
+            (click)="aprobar()"
+          >
+            Firmar con imagen
+          </button>
+
+          <!-- Nuevo botón: "Firmar con URL" -->
+          <button
+            class="btn primary"
+            type="button"
+            (click)="firmarConUrl()"
+          >
+            Firmar con URL
+          </button>
+        </form>
 
         <form class="rechazar-form" [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
 
