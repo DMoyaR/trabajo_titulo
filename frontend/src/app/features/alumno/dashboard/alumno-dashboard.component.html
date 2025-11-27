@@ -4,6 +4,25 @@
   <div class="card">
     <h3>Práctica Profesional en Curso</h3>
     <p>Etapas: Inicio → Entrega → Evaluación</p>
+
+    <div class="practica-status" aria-live="polite">
+      <p class="muted" *ngIf="practicaEstadoCargando()">Obteniendo estado de tu informe…</p>
+      <div class="alert error" *ngIf="practicaEstadoError()">{{ practicaEstadoError() }}</div>
+
+      <ng-container *ngIf="!practicaEstadoCargando() && !practicaEstadoError()">
+        <span class="chip" [ngClass]="practicaEstado().clase">{{ practicaEstado().label }}</span>
+        <p class="muted practica-detalle">{{ practicaEstado().detalle }}</p>
+        <a
+          *ngIf="practicaEntrega()?.url"
+          class="btn link sm"
+          [href]="practicaEntrega()!.url"
+          target="_blank"
+          rel="noopener"
+        >
+          Ver informe enviado
+        </a>
+      </ng-container>
+    </div>
   </div>
 
   <!-- Trabajo de Título en Curso -->

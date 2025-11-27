@@ -274,10 +274,32 @@
   color: #c2410c;
 }
 
+.chip.info {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+}
+
+.chip.success {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
 .chip.state {
   background: #eef2ff;
   border-color: #c7d2fe;
   color: #3730a3;
+}
+
+.practica-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.practica-detalle {
+  margin: 0;
 }
 
 .reuniones-card {
