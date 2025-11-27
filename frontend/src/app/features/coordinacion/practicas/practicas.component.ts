@@ -416,6 +416,7 @@ export class PracticasComponent {
       // Documentos compartidos
       this.cargarDocumentosCompartidos();
       this.cargarEvaluacion();
+      this.cargarEntregasEvaluacion();
       //cargar firma apenas se monta el componente
       this.cargarFirmaCoordinador();
     } else {
