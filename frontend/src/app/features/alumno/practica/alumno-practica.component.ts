@@ -677,12 +677,14 @@ export class AlumnoPracticaComponent implements OnInit {
       return;
     }
 
+    const carreraApi = this.carreraParaApi(carreraLimpia);
+
     this.evaluacionLoading.set(true);
     this.evaluacionError.set(null);
 
     this.http
       .get<{ item: EvaluacionPracticaApi | null }>('/api/practicas/evaluacion/', {
-        params: { carrera: carreraLimpia },
+        params: { carrera: carreraApi },
       })
       .subscribe({
         next: (res) => {
