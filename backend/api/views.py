@@ -3527,7 +3527,8 @@ def actualizar_nota_entrega_practica(request, entrega_id: int):
         PracticaEvaluacionEntrega.objects.select_related("evaluacion")
         .filter(
             Q(evaluacion__carrera__iexact=carrera)
-            | Q(evaluacion_id__in=evaluaciones_ids),
+            | Q(evaluacion_id__in=evaluaciones_ids)
+            | Q(evaluacion__isnull=True),
             pk=entrega_id,
         )
         .first()
