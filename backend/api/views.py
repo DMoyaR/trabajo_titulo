@@ -3384,7 +3384,8 @@ def gestionar_entrega_evaluacion_practica(request):
             PracticaEvaluacionEntrega.objects.select_related("evaluacion")
             .filter(
                 Q(evaluacion__carrera__iexact=carrera)
-                | Q(evaluacion_id__in=evaluaciones_ids),
+                | Q(evaluacion_id__in=evaluaciones_ids)
+                | Q(evaluacion__isnull=True),
                 alumno=alumno,
             )
             .order_by("-created_at")
@@ -3415,10 +3416,8 @@ def gestionar_entrega_evaluacion_practica(request):
         evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
 
     if not evaluacion:
-        return Response(
-            {"detail": "No hay una evaluación disponible para tu carrera."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        evaluacion = None
+
 
     existe_entrega = (
         PracticaEvaluacionEntrega.objects.filter(
@@ -3490,6 +3489,7 @@ def listar_entregas_evaluacion_practica(request):
         .filter(
             Q(evaluacion__carrera__iexact=carrera)
             | Q(evaluacion_id__in=evaluaciones_ids)
+            | Q(evaluacion__isnull=True)
         )
         .annotate(empresa=Subquery(ultima_empresa))
         .order_by("-created_at")

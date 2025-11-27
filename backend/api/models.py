@@ -720,7 +720,11 @@ class PracticaEvaluacion(models.Model):
 
 class PracticaEvaluacionEntrega(models.Model):
     evaluacion = models.ForeignKey(
-        PracticaEvaluacion, related_name="entregas", on_delete=models.CASCADE
+        PracticaEvaluacion,
+        related_name="entregas",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     alumno = models.ForeignKey(
         Usuario, related_name="entregas_practica", on_delete=models.CASCADE
