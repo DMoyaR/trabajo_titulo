@@ -22,6 +22,7 @@ from .views import (
     marcar_notificacion_leida,
     gestionar_documentos_practica,
     eliminar_documento_practica,
+    proxy_firma_coordinador,
     gestionar_firma_coordinador_practica,
     gestionar_evaluacion_practica,
     obtener_evaluacion_practica,
@@ -120,6 +121,11 @@ urlpatterns = [
         "coordinacion/practicas/firma/",
         gestionar_firma_coordinador_practica,
         name="gestionar-firma-coordinador-practica",
+    ),
+        path(
+        "coordinacion/practicas/firma/proxy/",
+        proxy_firma_coordinador,
+        name="proxy-firma-coordinador",
     ),
     path(
         "coordinacion/practicas/documentos/<int:pk>/",

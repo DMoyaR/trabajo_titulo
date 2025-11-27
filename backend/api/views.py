@@ -1,3 +1,5 @@
+import imghdr
+import importlib
 import io
 import json
 import logging
@@ -5,8 +7,9 @@ import re
 import textwrap
 import unicodedata
 import zlib
-import importlib
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -14,6 +17,7 @@ from django.core.files.storage import default_storage
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Value, Prefetch, Count, Avg, OuterRef, Subquery
 from django.db.models.functions import Replace
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -3206,6 +3210,43 @@ def eliminar_documento_practica(request, pk: int):
         documento.archivo.delete(save=False)
     documento.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def proxy_firma_coordinador(request):
+    url = (request.query_params.get("url") or "").strip()
+    if not url:
+        return Response(
+            {"detail": "Debes proporcionar una URL de firma."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        with urllib_request.urlopen(url, timeout=10) as resp:
+            content_type = (resp.headers.get("Content-Type") or "").split(";")[0].lower()
+            data = resp.read()
+    except (urllib_error.URLError, ValueError):  # pragma: no cover - fallo de red externo
+        logger.exception("No se pudo descargar la firma remota")
+        return Response(
+            {"detail": "No se pudo descargar la imagen de la firma."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    detected_type = content_type or ""
+    if not detected_type.startswith("image/"):
+        kind = imghdr.what(None, h=data)
+        if kind:
+            detected_type = f"image/{kind.lower()}"
+        else:
+            return Response(
+                {"detail": "La URL no contiene una imagen válida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    response = HttpResponse(data, content_type=detected_type)
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @api_view(["GET", "POST"])

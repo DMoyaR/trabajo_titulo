@@ -245,6 +245,15 @@ export class PracticasComponent {
 
   firmaUrlForm = this.fb.group({ urlFirmaDigital: [''] });
 
+  firmaImagenUrl = computed<string | null>(() => {
+    const firma = this.firmaCoordinador();
+    const urlDigital = firma?.urlFirmaDigital?.trim();
+    const urlImagen = firma?.url?.trim();
+    return urlDigital || urlImagen || null;
+  });
+
+
+
   firmasPorCarrera: Record<string, Firma> = {
     'Ingeniería Civil en Computación mención Informática': {
       nombre: 'Víctor Escobar Jeria',
@@ -1413,11 +1422,21 @@ private escribirBullet(
     return this.logoHeaderPromise;
   }
 
- private async cargarImagenFirma(
+  private async cargarImagenFirma(
     url: string
   ): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' } | null> {
+    
+    // Si ya viene como data URL la usamos directamente
+    if (url.startsWith('data:image/')) {
+      const lower = url.toLowerCase();
+      const format: 'PNG' | 'JPEG' =
+        lower.includes('jpeg') || lower.includes('jpg') ? 'JPEG' : 'PNG';
+      return { dataUrl: url, format };
+    }
+
     try {
-      const resp = await fetch(url);
+      const proxied = `/api/coordinacion/practicas/firma/proxy?url=${encodeURIComponent(url)}`;
+      const resp = await fetch(proxied);
       if (!resp.ok) {
         throw new Error('No se pudo cargar la imagen de la firma');
       }
@@ -1455,7 +1474,10 @@ private async generarArchivoCartaPdf(
 
   // Firma gráfica del coordinador (si existe y corresponde usar imagen)
   const firmaCoord = this.firmaCoordinador();
-  const firmaFuente = firmaUrl?.trim() || firmaCoord?.url || null;
+
+  const firmaFuente =
+    firmaUrl?.trim() || firmaCoord?.urlFirmaDigital?.trim() || firmaCoord?.url || null;
+
   const firmaImagen = firmaFuente
     ? await this.cargarImagenFirma(firmaFuente)
     : null;

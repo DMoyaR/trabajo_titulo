@@ -250,8 +250,8 @@
         <div class="preview-box" *ngIf="!firmaLoading() && !firmaError()">
           <p class="muted" *ngIf="!firmaCoordinador()">Aún no registras una firma para tu carrera.</p>
           <img
-            *ngIf="firmaCoordinador()?.url"
-            [src]="firmaCoordinador()!.url!"
+            *ngIf="firmaImagenUrl()"
+            [src]="firmaImagenUrl()!"
             alt="Firma del coordinador"
           />
           <small class="muted" *ngIf="firmaCoordinador()">
@@ -491,8 +491,8 @@
       <footer class="c-sign">
         <div class="c-sign-inner">
           <img
-            *ngIf="firmaCoordinador()?.url"
-            [src]="firmaCoordinador()!.url!"
+            *ngIf="firmaImagenUrl()"
+            [src]="firmaImagenUrl()!"
             alt="Firma del coordinador"
             class="c-firma-img"
           />
