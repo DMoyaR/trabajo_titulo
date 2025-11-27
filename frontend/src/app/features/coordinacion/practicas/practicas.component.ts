@@ -192,7 +192,7 @@ export class PracticasComponent {
   entregasEvaluacion = signal<PracticaEvaluacionEntrega[]>([]);
   entregasEvaluacionLoading = signal(false);
   entregasEvaluacionError = signal<string | null>(null);
-  notasEdicion = signal<Record<number, string>>({});
+  notasEdicion = signal<Record<number, string | undefined>>({});
   guardandoNotas = signal<Record<number, boolean>>({});
 
   
