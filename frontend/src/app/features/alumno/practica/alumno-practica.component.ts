@@ -38,6 +38,7 @@ interface EntregaEvaluacion {
   archivoNombre: string;
   url: string | null;
   evaluacionNombre?: string | null;
+  nota?: string | null;
 }
 
 interface DocumentoOficialApi {
@@ -64,6 +65,7 @@ interface EvaluacionEntregaApi {
   archivo_url: string | null;
   archivo_nombre?: string | null;
   evaluacion?: EvaluacionPracticaApi | null;
+  nota?: string | null;
 }
 
 type EstadoSolicitud = 'pendiente' | 'aprobado' | 'rechazado';
@@ -728,6 +730,7 @@ export class AlumnoPracticaComponent implements OnInit {
                   archivoNombre: item.archivo_nombre || 'Archivo enviado',
                   url: item.archivo_url,
                   evaluacionNombre: item.evaluacion?.nombre ?? null,
+                  nota: item.nota ?? null,
                 }
               : null
           );
@@ -749,6 +752,11 @@ export class AlumnoPracticaComponent implements OnInit {
   subirEvaluacionPractica(): void {
     if (this.alumnoId === null) {
       this.evaluacionUploadError.set('No se pudo identificar al alumno actual.');
+      return;
+    }
+
+    if (this.evaluacionEntrega()) {
+      this.evaluacionUploadError.set('Ya subiste tu evaluación. No es posible reemplazarla.');
       return;
     }
 
@@ -776,6 +784,7 @@ export class AlumnoPracticaComponent implements OnInit {
             archivoNombre: res.archivo_nombre || this.evaluacionArchivoNombre() || 'Archivo enviado',
             url: res.archivo_url,
             evaluacionNombre: res.evaluacion?.nombre ?? null,
+            nota: res.nota ?? null,
           });
           this.evaluacionUploadError.set(null);
           this.evaluacionArchivoNombre.set(null);
@@ -783,8 +792,24 @@ export class AlumnoPracticaComponent implements OnInit {
           this.evaluacionSending.set(false);
           this.limpiarEvaluacionArchivo();
         },
-        error: () => {
-          this.evaluacionUploadError.set('No se pudo subir tu evaluación. Intenta nuevamente.');
+        error: (error) => {
+          const detalle = error?.error?.detail || error?.message || null;
+          const entregaExistente = error?.error?.item as EvaluacionEntregaApi | undefined;
+
+          if (entregaExistente) {
+            this.evaluacionEntrega.set({
+              id: entregaExistente.id,
+              createdAt: entregaExistente.created_at,
+              archivoNombre: entregaExistente.archivo_nombre || 'Archivo enviado',
+              url: entregaExistente.archivo_url,
+              evaluacionNombre: entregaExistente.evaluacion?.nombre ?? null,
+              nota: entregaExistente.nota ?? null,
+            });
+          }
+
+          this.evaluacionUploadError.set(
+            detalle || 'No se pudo subir tu evaluación. Intenta nuevamente.'
+          );
           this.evaluacionSending.set(false);
         },
       });

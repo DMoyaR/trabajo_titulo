@@ -3420,6 +3420,25 @@ def gestionar_entrega_evaluacion_practica(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    existe_entrega = (
+        PracticaEvaluacionEntrega.objects.filter(
+            evaluacion=evaluacion, alumno=alumno
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+    if existe_entrega:
+        return Response(
+            {
+                "detail": "Ya registraste un documento para esta evaluación y no es posible reemplazarlo.",
+                "item": PracticaEvaluacionEntregaSerializer(
+                    existe_entrega, context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     archivo = request.FILES.get("archivo")
     if not archivo:
         return Response(
