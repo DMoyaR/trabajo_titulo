@@ -3144,9 +3144,13 @@ def gestionar_documentos_practica(request):
         )
 
     archivo = request.FILES.get("archivo")
-    if not archivo:
+    url_firma_raw = request.data.get("url_firma_digital")
+    url_firma_digital = (url_firma_raw or "").strip()
+    url_provided = "url_firma_digital" in request.data
+
+    if not archivo and not url_firma_digital and not url_provided:
         return Response(
-            {"archivo": ["Este campo es obligatorio."]},
+            {"detail": "Debes adjuntar una imagen o una URL de firma."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -3241,30 +3245,50 @@ def gestionar_firma_coordinador_practica(request):
         return Response({"item": serializer.data})
 
     archivo = request.FILES.get("archivo")
-    if not archivo:
+    url_firma_raw = request.data.get("url_firma_digital")
+    url_firma_digital = (url_firma_raw or "").strip()
+    url_provided = "url_firma_digital" in request.data
+
+    if not archivo and not url_firma_digital and not url_provided:
         return Response(
-            {"archivo": ["Este campo es obligatorio."]},
+            {"detail": "Debes adjuntar una imagen o una URL de firma."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    content_type = (archivo.content_type or "").lower()
-    if content_type and not content_type.startswith("image/"):
-        return Response(
-            {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    if archivo:
+        content_type = (archivo.content_type or "").lower()
+        if content_type and not content_type.startswith("image/"):
+            return Response(
+                {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     firma, created = PracticaFirmaCoordinador.objects.get_or_create(
         carrera=carrera,
-        defaults={"archivo": archivo, "uploaded_by": coordinador},
+        defaults={
+            "archivo": archivo,
+            "uploaded_by": coordinador,
+            "url_firma_digital": url_firma_digital or None,
+        },
     )
 
+    update_fields = []
+
     if not created:
-        if firma.archivo:
-            firma.archivo.delete(save=False)
-        firma.archivo = archivo
+        if archivo:
+            if firma.archivo:
+                firma.archivo.delete(save=False)
+            firma.archivo = archivo
+            update_fields.extend(["archivo"])
+
+        if url_provided:
+            firma.url_firma_digital = url_firma_digital or None
+            update_fields.append("url_firma_digital")
+
         firma.uploaded_by = coordinador
-        firma.save(update_fields=["archivo", "uploaded_by", "updated_at"])
+        update_fields.append("uploaded_by")
+        update_fields.append("updated_at")
+        firma.save(update_fields=update_fields)
 
     serializer = PracticaFirmaCoordinadorSerializer(
         firma, context={"request": request}

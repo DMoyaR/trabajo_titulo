@@ -107,6 +107,7 @@ interface FirmaCoordinadorApi {
   created_at: string;
   updated_at: string;
   url: string | null;
+  url_firma_digital?: string | null;
   uploadedBy?: { id: number; nombre: string; correo: string } | null;
 }
 
@@ -116,6 +117,7 @@ interface FirmaCoordinador {
   createdAt: string;
   updatedAt: string;
   url: string | null;
+  urlFirmaDigital: string | null;
 }
 
 interface CartaPreviewData {
@@ -204,6 +206,11 @@ export class PracticasComponent {
   firmaGestionLoading = signal(false);
   firmaArchivoNombre = signal<string | null>(null);
   private firmaArchivoSeleccionado: File | null = null;
+  firmaUrlError = signal<string | null>(null);
+  firmaUrlLoading = signal(false);
+
+  aprobarUrlError = signal<string | null>(null);
+
   private logoHeaderDataUrl: string | null = null;
   private logoHeaderPromise: Promise<string | null> | null = null;
 
@@ -235,6 +242,8 @@ export class PracticasComponent {
 
   aprobarForm = this.fb.group({ urlFirmado: [''] });
   rechazarForm = this.fb.group({ motivo: ['', Validators.required] });
+
+  firmaUrlForm = this.fb.group({ urlFirmaDigital: [''] });
 
   firmasPorCarrera: Record<string, Firma> = {
     'Ingeniería Civil en Computación mención Informática': {
@@ -865,6 +874,7 @@ export class PracticasComponent {
   cargarFirmaCoordinador() {
     if (this.coordinadorId === null) {
       this.firmaCoordinador.set(null);
+      this.firmaUrlForm.patchValue({ urlFirmaDigital: '' });
       return;
     }
 
@@ -881,7 +891,9 @@ export class PracticasComponent {
       .subscribe({
         next: (res) => {
           const item = res?.item ?? null;
-          this.firmaCoordinador.set(item ? this.mapFirmaApi(item) : null);
+          const mapped = item ? this.mapFirmaApi(item) : null;
+          this.firmaCoordinador.set(mapped);
+          this.firmaUrlForm.patchValue({ urlFirmaDigital: mapped?.urlFirmaDigital || '' });
           this.firmaLoading.set(false);
         },
         error: () => {
@@ -953,6 +965,41 @@ export class PracticasComponent {
     }
   }
 
+  guardarFirmaUrl() {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    this.firmaUrlError.set(null);
+
+    const urlControl = this.firmaUrlForm.get('urlFirmaDigital');
+    const raw = (urlControl?.value as string | null) ?? '';
+    const trimmed = raw.trim();
+
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('url_firma_digital', trimmed);
+
+    this.firmaUrlLoading.set(true);
+
+    this.http
+      .post<FirmaCoordinadorApi>('/api/coordinacion/practicas/firma/', formData)
+      .subscribe({
+        next: (res) => {
+          const mapped = this.mapFirmaApi(res);
+          this.firmaCoordinador.set(mapped);
+          this.firmaUrlForm.patchValue({ urlFirmaDigital: mapped.urlFirmaDigital || '' });
+          this.toast.set('URL guardada correctamente.');
+          this.firmaUrlLoading.set(false);
+        },
+        error: () => {
+          this.firmaUrlError.set('No se pudo guardar la URL de la firma.');
+          this.firmaUrlLoading.set(false);
+        },
+      });
+  }
+
+
   private mapFirmaApi(api: FirmaCoordinadorApi): FirmaCoordinador {
     return {
       id: api.id,
@@ -960,6 +1007,7 @@ export class PracticasComponent {
       createdAt: api.created_at,
       updatedAt: api.updated_at,
       url: api.url,
+      urlFirmaDigital: api.url_firma_digital ?? null,
     };
   }
 
@@ -1075,11 +1123,22 @@ async firmarConUrl() {
   const c = this.current();
   if (!c) return;
 
+  // limpiar mensaje de error previo
+  this.aprobarUrlError.set(null);
+
   const rawUrl = this.aprobarForm.value.urlFirmado || '';
-  const urlFirmado = rawUrl.trim();
+  let urlFirmado = rawUrl.trim();
 
   if (!urlFirmado) {
-    this.toast.set('Debes ingresar la URL del PDF firmado.');
+    const urlGuardada = this.firmaCoordinador()?.urlFirmaDigital?.trim();
+    if (urlGuardada) {
+      urlFirmado = urlGuardada;
+    }
+  }
+
+  // ⬇️ ahora marcamos el error en vez de usar toast
+  if (!urlFirmado) {
+    this.aprobarUrlError.set('Debes ingresar una URL o guardar una URL de firma.');
     return;
   }
 
@@ -1115,6 +1174,7 @@ async firmarConUrl() {
       },
     });
 }
+
 
 rechazar() {
   const c = this.current();

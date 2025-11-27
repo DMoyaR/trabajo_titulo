@@ -685,7 +685,10 @@ class PracticaFirmaCoordinador(models.Model):
         choices=Usuario.CARRERA_CHOICES,
         unique=True,
     )
-    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d", max_length=255)
+    archivo = models.FileField(
+        upload_to="practicas/firmas/%Y/%m/%d", max_length=255, blank=True, null=True
+    )
+    url_firma_digital = models.URLField(blank=True, null=True)
     uploaded_by = models.ForeignKey(
         Usuario,
         on_delete=models.SET_NULL,

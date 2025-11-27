@@ -244,7 +244,6 @@
         <div class="help error" *ngIf="firmaUploadError()">{{ firmaUploadError() }}</div>
         <p class="muted">Formatos aceptados: PNG o JPG. Se utilizará solo en coordinación.</p>
       </form>
-
       <div class="firma-preview">
         <p class="muted" *ngIf="firmaLoading()">Cargando firma…</p>
         <div class="alert error" *ngIf="!firmaLoading() && firmaError()">{{ firmaError() }}</div>
@@ -261,9 +260,28 @@
         </div>
       </div>
     </div>
+
+
   </div>
 </section>
 
+        <div class="firma-url-card">
+        <h3>URL del coordinador</h3>
+        <p class="muted">Ingrese su URL para firmar los documentos</p>
+        <form [formGroup]="firmaUrlForm" (ngSubmit)="guardarFirmaUrl()">
+          <input
+            type="url"
+            placeholder="https://..."
+            formControlName="urlFirmaDigital"
+          />
+          <div class="firma-url-actions">
+            <button class="btn primary" type="submit" [disabled]="firmaUrlLoading()">
+              {{ firmaUrlLoading() ? 'Guardando…' : 'Guardar URL' }}
+            </button>
+          </div>
+          <div class="help error" *ngIf="firmaUrlError()">{{ firmaUrlError() }}</div>
+        </form>
+      </div>
 
 
 
@@ -355,32 +373,38 @@
           <p><b>Teléfono:</b> {{ c.escuela.telefono }}</p>
         </div>
 
-      <div class="actions">
-        <form class="approve-form" [formGroup]="aprobarForm">
-          <input
-            type="url"
-            placeholder="URL PDF firmado (opcional)"
-            formControlName="urlFirmado"
-          >
+<div class="actions">
+  <form class="approve-form" [formGroup]="aprobarForm">
+    <input
+      type="url"
+      placeholder="URL PDF firmado (opcional)"
+      formControlName="urlFirmado"
+      (input)="aprobarUrlError.set(null)"   
+    >
 
-          <!-- Botón original: ahora "Firmar con imagen" -->
-          <button
-            class="btn primary"
-            type="button"
-            (click)="aprobar()"
-          >
-            Firmar con imagen
-          </button>
+    <!-- Botón original: ahora "Firmar con imagen" -->
+    <button
+      class="btn primary"
+      type="button"
+      (click)="aprobar()"
+    >
+      Firmar con imagen
+    </button>
 
-          <!-- Nuevo botón: "Firmar con URL" -->
-          <button
-            class="btn primary"
-            type="button"
-            (click)="firmarConUrl()"
-          >
-            Firmar con URL
-          </button>
-        </form>
+    <!-- Nuevo botón: "Firmar con URL" -->
+    <button
+      class="btn primary"
+      type="button"
+      (click)="firmarConUrl()"
+    >
+      Firmar con URL
+    </button>
+
+    <!--  Mensaje de error bajo los botones -->
+    <div class="help error" *ngIf="aprobarUrlError()">
+      {{ aprobarUrlError() }}
+    </div>
+  </form>
 
         <form class="rechazar-form" [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
 

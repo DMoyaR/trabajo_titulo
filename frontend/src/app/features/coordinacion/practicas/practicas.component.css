@@ -33,6 +33,11 @@
 .firma-preview { border: 1px solid #e9eef6; border-radius: 10px; padding: 12px; background: #fdfdff; min-height: 160px; display: flex; flex-direction: column; gap: 8px; }
 .firma-preview img { max-width: 100%; height: auto; border: 1px solid #dbe3ee; border-radius: 8px; padding: 6px; background: #fff; }
 .preview-box { display: flex; flex-direction: column; gap: 10px; }
+.firma-url-card { border: 1px solid #e9eef6; border-radius: 10px; padding: 12px; background: #fdfdff; display: flex; flex-direction: column; gap: 10px; }
+.firma-url-card form { display: flex; flex-direction: column; gap: 8px; }
+.firma-url-card input { height: 40px; padding: 0 10px; border: 1px solid #dbe3ee; border-radius: 8px; }
+.firma-url-actions { display: flex; gap: 8px; align-items: center; }
+
 
 @media (max-width: 900px) {
   .doc-grid { grid-template-columns: 1fr; }
