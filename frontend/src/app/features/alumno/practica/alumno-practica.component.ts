@@ -671,52 +671,48 @@ export class AlumnoPracticaComponent implements OnInit {
       });
   }
 
-private cargarEvaluacionPractica(carrera: string | null): void {
-  const carreraLimpia = (carrera || '').trim();
-  if (!carreraLimpia) {
-    this.evaluacion.set(null);
+  private cargarEvaluacionPractica(carrera: string | null): void {
+    const carreraLimpia = (carrera || '').trim();
+    if (!carreraLimpia) {
+      this.evaluacion.set(null);
+      this.evaluacionError.set(null);
+      return;
+    }
+
+    this.evaluacionLoading.set(true);
     this.evaluacionError.set(null);
-    return;
+
+    this.http
+      .get<{ item: EvaluacionPracticaApi | null }>('/api/practicas/evaluacion/', {
+        params: { carrera: carreraLimpia },
+      })
+      .subscribe({
+        next: (res) => {
+          const item = res?.item ?? null;
+          this.evaluacion.set(
+            item
+              ? {
+                  id: item.id,
+                  nombre: item.nombre,
+                  descripcion: item.descripcion ?? null,
+                  createdAt: item.created_at,
+                  url: item.url,
+                }
+              : null
+          );
+          this.evaluacionLoading.set(false);
+
+          if (this.alumnoId !== null) {
+            this.cargarEntregaEvaluacion(this.alumnoId);
+          }
+        },
+        error: () => {
+          this.evaluacion.set(null);
+          this.evaluacionError.set('No se pudo cargar la evaluación de práctica.');
+          this.evaluacionLoading.set(false);
+        },
+      });
   }
-
-  // 👇 Igual que en documentos oficiales: transformar a alias para la API
-  const carreraApi = this.carreraParaApi(carreraLimpia);
-
-  this.evaluacionLoading.set(true);
-  this.evaluacionError.set(null);
-
-  this.http
-    .get<{ item: EvaluacionPracticaApi | null }>('/api/practicas/evaluacion/', {
-      params: { carrera: carreraApi },
-    })
-    .subscribe({
-      next: (res) => {
-        const item = res?.item ?? null;
-        this.evaluacion.set(
-          item
-            ? {
-                id: item.id,
-                nombre: item.nombre,
-                descripcion: item.descripcion ?? null,
-                createdAt: item.created_at,
-                url: item.url,
-              }
-            : null
-        );
-        this.evaluacionLoading.set(false);
-
-        if (this.alumnoId !== null) {
-          this.cargarEntregaEvaluacion(this.alumnoId);
-        }
-      },
-      error: () => {
-        this.evaluacion.set(null);
-        this.evaluacionError.set('No se pudo cargar la evaluación de práctica.');
-        this.evaluacionLoading.set(false);
-      },
-    });
-}
-
 
   private cargarEntregaEvaluacion(alumnoId: number): void {
     this.http
