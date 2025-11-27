@@ -3477,6 +3477,9 @@ def listar_entregas_evaluacion_practica(request):
         )
 
     evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+    alumnos_ids = _filtrar_queryset_por_carrera(
+        Usuario.objects.filter(rol="alumno"), carrera
+    ).values_list("pk", flat=True)
 
     ultima_empresa = (
         SolicitudCartaPractica.objects.filter(alumno_id=OuterRef("alumno_id"))
@@ -3489,7 +3492,8 @@ def listar_entregas_evaluacion_practica(request):
         .filter(
             Q(evaluacion__carrera__iexact=carrera)
             | Q(evaluacion_id__in=evaluaciones_ids)
-            | Q(evaluacion__isnull=True)
+            | Q(evaluacion__isnull=True),
+            alumno_id__in=alumnos_ids,
         )
         .annotate(empresa=Subquery(ultima_empresa))
         .order_by("-created_at")
