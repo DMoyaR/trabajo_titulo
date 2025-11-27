@@ -245,12 +245,17 @@ export class PracticasComponent {
 
   firmaUrlForm = this.fb.group({ urlFirmaDigital: [''] });
 
-  firmaImagenUrl = computed<string | null>(() => {
+  firmaArchivoUrl = computed<string | null>(() => {
     const firma = this.firmaCoordinador();
-    const urlDigital = firma?.urlFirmaDigital?.trim();
-    const urlImagen = firma?.url?.trim();
-    return urlDigital || urlImagen || null;
+    return firma?.url?.trim() || null;
   });
+
+    firmaDigitalUrl = computed<string | null>(() => {
+    const firma = this.firmaCoordinador();
+    return firma?.urlFirmaDigital?.trim() || null;
+  });
+
+  firmaCartaUrl = computed<string | null>(() => this.firmaArchivoUrl() || this.firmaDigitalUrl());
 
 
 

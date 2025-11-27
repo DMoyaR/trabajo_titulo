@@ -250,8 +250,8 @@
         <div class="preview-box" *ngIf="!firmaLoading() && !firmaError()">
           <p class="muted" *ngIf="!firmaCoordinador()">Aún no registras una firma para tu carrera.</p>
           <img
-            *ngIf="firmaImagenUrl()"
-            [src]="firmaImagenUrl()!"
+            *ngIf="firmaArchivoUrl()"
+            [src]="firmaArchivoUrl()!"
             alt="Firma del coordinador"
           />
           <small class="muted" *ngIf="firmaCoordinador()">
@@ -263,23 +263,49 @@
 
 
   </div>
-        <div class="firma-url-card">
-        <h3>URL del coordinador</h3>
-        <p class="muted">Ingrese su URL para firmar los documentos</p>
-        <form [formGroup]="firmaUrlForm" (ngSubmit)="guardarFirmaUrl()">
-          <input
-            type="url"
-            placeholder="https://..."
-            formControlName="urlFirmaDigital"
-          />
-          <div class="firma-url-actions">
-            <button class="btn primary" type="submit" [disabled]="firmaUrlLoading()">
-              {{ firmaUrlLoading() ? 'Guardando…' : 'Guardar URL' }}
-            </button>
-          </div>
-          <div class="help error" *ngIf="firmaUrlError()">{{ firmaUrlError() }}</div>
-        </form>
+<div class="firma-url-card">
+  <h3>URL del coordinador</h3>
+  <p class="muted">Ingrese su URL para firmar los documentos</p>
+
+  <div class="firma-grid">
+    <!-- Columna izquierda: formulario URL -->
+    <form [formGroup]="firmaUrlForm" (ngSubmit)="guardarFirmaUrl()">
+      <input
+        type="url"
+        placeholder="https://..."
+        formControlName="urlFirmaDigital"
+      />
+
+      <div class="firma-url-actions">
+        <button class="btn primary" type="submit" [disabled]="firmaUrlLoading()">
+          {{ firmaUrlLoading() ? 'Guardando…' : 'Guardar URL' }}
+        </button>
       </div>
+
+      <div class="help error" *ngIf="firmaUrlError()">{{ firmaUrlError() }}</div>
+    </form>
+
+    <!-- Columna derecha: vista previa -->
+    <div class="firma-preview">
+      <div class="preview-box">
+        <p class="muted" *ngIf="!firmaDigitalUrl()">Sin vista previa para la URL.</p>
+        <img
+          *ngIf="firmaDigitalUrl()"
+          [src]="firmaDigitalUrl()!"
+          alt="Firma digital desde URL"
+        />
+        <!-- NUEVO: fecha de actualización -->
+        <small
+          class="muted"
+          *ngIf="firmaCoordinador() && firmaDigitalUrl()"
+        >
+          Última actualización: {{ formatFecha(firmaCoordinador()!.updatedAt) }}
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
 </section>
 
 
@@ -491,8 +517,8 @@
       <footer class="c-sign">
         <div class="c-sign-inner">
           <img
-            *ngIf="firmaImagenUrl()"
-            [src]="firmaImagenUrl()!"
+            *ngIf="firmaCartaUrl()"
+            [src]="firmaCartaUrl()!"
             alt="Firma del coordinador"
             class="c-firma-img"
           />
