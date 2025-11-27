@@ -1308,6 +1308,12 @@ class TemaDisponibleListCreateView(generics.ListCreateAPIView):
                     )
 
                 return queryset.none()
+            if usuario.rol == "docente" and usuario.carrera:
+                return _filtrar_queryset_por_carrera(
+                    queryset,
+                    usuario.carrera,
+                    permitir_equivalencias=False,
+                )
 
         carrera = self.request.query_params.get("carrera")
         if carrera:
@@ -3377,9 +3383,9 @@ def gestionar_entrega_evaluacion_practica(request):
         entrega = (
             PracticaEvaluacionEntrega.objects.select_related("evaluacion")
             .filter(
-                alumno=alumno,
                 Q(evaluacion__carrera__iexact=carrera)
                 | Q(evaluacion_id__in=evaluaciones_ids),
+                alumno=alumno,
             )
             .order_by("-created_at")
             .first()
@@ -3501,9 +3507,9 @@ def actualizar_nota_entrega_practica(request, entrega_id: int):
     entrega = (
         PracticaEvaluacionEntrega.objects.select_related("evaluacion")
         .filter(
-            pk=entrega_id,
             Q(evaluacion__carrera__iexact=carrera)
             | Q(evaluacion_id__in=evaluaciones_ids),
+            pk=entrega_id,
         )
         .first()
     )
