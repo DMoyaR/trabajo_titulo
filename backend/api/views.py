@@ -30,7 +30,6 @@ try:  # pragma: no cover - dependencia opcional en tiempo de ejecución
     Image = importlib.import_module("PIL.Image")
 except Exception:  # pragma: no cover
     Image = None  # type: ignore
-    Image = None  # type: ignore
 
 from .models import (
     InscripcionTema,
@@ -2964,18 +2963,6 @@ def _crear_tema_desde_propuesta(propuesta: PropuestaTema) -> TemaDisponible | No
     return tema
 
 
-def _normalizar_carrera(nombre: str) -> str:
-    if not nombre:
-        return ""
-    texto = unicodedata.normalize("NFKD", nombre)
-    texto = texto.encode("ascii", "ignore").decode("ascii")
-    texto = texto.lower()
-    texto = texto.replace("ingenieria", "ing")
-    texto = texto.replace("ing.", "ing")
-    texto = re.sub(r"[^a-z0-9]+", " ", texto)
-    return " ".join(texto.split())
-
-
 def _buscar_coordinador_por_carrera(carrera: str):
     if not carrera:
         return None
@@ -2986,26 +2973,18 @@ def _buscar_coordinador_por_carrera(carrera: str):
     if exacto:
         return exacto
 
-    normalizada = _normalizar_carrera(carrera)
-    if not normalizada:
-        return None
-
     for usuario in qs:
-        if _normalizar_carrera(usuario.carrera or "") == normalizada:
+        if _carreras_compatibles(usuario.carrera, carrera):
             return usuario
     return None
 
 
 def _evaluaciones_ids_por_carrera(carrera: str) -> list[int]:
-    normalizada = _normalizar_carrera(carrera)
-    if not normalizada:
-        return []
-
     evaluaciones = PracticaEvaluacion.objects.only("id", "carrera")
     return [
         ev.pk
         for ev in evaluaciones
-        if _normalizar_carrera(ev.carrera) == normalizada
+        if _carreras_compatibles(ev.carrera, carrera)
     ]
 
 
