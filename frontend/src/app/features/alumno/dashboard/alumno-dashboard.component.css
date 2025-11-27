@@ -51,6 +51,10 @@
   font-size: 14px;
 }
 
+.practica-card {
+  grid-column: 1 / -1;
+}
+
 /* Estilos para tema asignado */
 .tema-asignado {
   grid-column: 1 / -1;

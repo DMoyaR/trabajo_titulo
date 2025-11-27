@@ -230,6 +230,13 @@ export class AlumnoPracticaComponent implements OnInit {
     return sols.some(s => s.estado === 'pendiente' || s.estado === 'aprobado');
   });
 
+  // Computed para verificar si existe al menos una carta aprobada
+  tieneCartaAprobada = computed(() => {
+    return this.solicitudes().some((s) => s.estado === 'aprobado');
+  });
+
+
+
   private alumnoId: number | null = null;
   private alumnoRut: string | null = null;
   private carreraAlumno: string | null = null;
@@ -754,6 +761,13 @@ export class AlumnoPracticaComponent implements OnInit {
       this.evaluacionUploadError.set('No se pudo identificar al alumno actual.');
       return;
     }
+
+
+    if (!this.tieneCartaAprobada()) {
+      this.evaluacionUploadError.set('Necesitas una carta de práctica aprobada para subir tu evaluación.');
+      return;
+    }
+
 
     if (this.evaluacionEntrega()) {
       this.evaluacionUploadError.set('Ya subiste tu evaluación. No es posible reemplazarla.');

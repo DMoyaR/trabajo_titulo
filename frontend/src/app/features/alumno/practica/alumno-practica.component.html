@@ -70,24 +70,30 @@
     </div>
 
     <div class="eval-upload">
-      <label class="file-input" [class.disabled]="!!evaluacionEntrega()">
+      <label class="file-input" [class.disabled]="!!evaluacionEntrega() || !tieneCartaAprobada()">
         <input
           type="file"
           (change)="onEvaluacionArchivoSeleccionado($event)"
           accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg"
-          [disabled]="!!evaluacionEntrega()"
+          [disabled]="!!evaluacionEntrega() || !tieneCartaAprobada()"
         />
         <span>{{ evaluacionArchivoNombre() || 'Seleccionar archivo de evaluación' }}</span>
       </label>
 
       <div class="eval-actions">
-        <button class="btn primary" type="button" (click)="subirEvaluacionPractica()" [disabled]="evaluacionSending() || !!evaluacionEntrega()">
+        <button
+          class="btn primary"
+          type="button"
+          (click)="subirEvaluacionPractica()"
+          [disabled]="evaluacionSending() || !!evaluacionEntrega() || !tieneCartaAprobada()"
+        >
           {{ evaluacionSending() ? 'Enviando…' : 'Subir evaluación' }}
         </button>
         <button class="btn sm" type="button" (click)="limpiarEvaluacionArchivo()" [disabled]="evaluacionSending() || !!evaluacionEntrega()">Limpiar</button>
       </div>
 
       <div class="help" *ngIf="!evaluacionEntrega()">Solo puedes enviar tu evaluación una vez.</div>
+      <div class="help error" *ngIf="!tieneCartaAprobada()">Debes tener una carta de práctica aprobada para subir tu evaluación.</div>
       <div class="help error" *ngIf="evaluacionUploadError()">{{ evaluacionUploadError() }}</div>
 
       <div class="eval-status" *ngIf="evaluacionEntrega() as entrega">
