@@ -1,5 +1,6 @@
 from math import ceil
 from datetime import timedelta
+from pathlib import Path
 from rest_framework import serializers
 import mimetypes
 from django.utils import timezone
@@ -10,6 +11,8 @@ from .models import (
     SolicitudCartaPractica,
     PracticaDocumento,
     PracticaFirmaCoordinador,
+    PracticaEvaluacion,
+    PracticaEvaluacionEntrega,
     PropuestaTema,
     InscripcionTema,
     Notificacion,
@@ -419,6 +422,72 @@ class PracticaFirmaCoordinadorSerializer(serializers.ModelSerializer):
             "nombre": usuario.nombre_completo,
             "correo": usuario.correo,
         }
+
+
+class PracticaEvaluacionSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    uploadedBy = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PracticaEvaluacion
+        fields = [
+            "id",
+            "nombre",
+            "descripcion",
+            "carrera",
+            "created_at",
+            "url",
+            "uploadedBy",
+        ]
+        read_only_fields = ["id", "carrera", "created_at", "url", "uploadedBy"]
+
+    def get_url(self, obj: PracticaEvaluacion) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_uploadedBy(self, obj: PracticaEvaluacion) -> dict | None:
+        usuario = obj.uploaded_by
+        if not usuario:
+            return None
+        return {
+            "id": usuario.pk,
+            "nombre": usuario.nombre_completo,
+            "correo": usuario.correo,
+        }
+
+
+class PracticaEvaluacionEntregaSerializer(serializers.ModelSerializer):
+    archivo_url = serializers.SerializerMethodField()
+    archivo_nombre = serializers.SerializerMethodField()
+    evaluacion = PracticaEvaluacionSerializer(read_only=True)
+
+    class Meta:
+        model = PracticaEvaluacionEntrega
+        fields = [
+            "id",
+            "created_at",
+            "archivo_url",
+            "archivo_nombre",
+            "evaluacion",
+        ]
+        read_only_fields = fields
+
+    def get_archivo_url(self, obj: PracticaEvaluacionEntrega) -> str | None:
+        request = self.context.get("request") if isinstance(self.context, dict) else None
+        if obj.archivo and hasattr(obj.archivo, "url"):
+            if request:
+                return request.build_absolute_uri(obj.archivo.url)
+            return obj.archivo.url
+        return None
+
+    def get_archivo_nombre(self, obj: PracticaEvaluacionEntrega) -> str:
+        if not obj.archivo:
+            return ""
+        return Path(obj.archivo.name).name
 
 
 

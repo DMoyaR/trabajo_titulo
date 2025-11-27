@@ -9,6 +9,8 @@ from .models import (
     PropuestaTemaDocente,
     Notificacion,
     PracticaDocumento,
+    PracticaEvaluacion,
+    PracticaEvaluacionEntrega,
     SolicitudReunion,
     Reunion,
     TrazabilidadReunion,
@@ -163,6 +165,21 @@ class PracticaDocumentoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "carrera", "uploaded_by", "created_at")
     list_filter = ("carrera",)
     search_fields = ("nombre", "descripcion", "uploaded_by__nombre_completo")
+
+
+@admin.register(PracticaEvaluacion)
+class PracticaEvaluacionAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "carrera", "uploaded_by", "created_at")
+    list_filter = ("carrera", "uploaded_by")
+    search_fields = ("nombre", "descripcion", "uploaded_by__nombre_completo")
+
+
+@admin.register(PracticaEvaluacionEntrega)
+class PracticaEvaluacionEntregaAdmin(admin.ModelAdmin):
+    list_display = ("evaluacion", "alumno", "created_at")
+    list_filter = ("evaluacion__carrera",)
+    search_fields = ("alumno__nombre_completo", "evaluacion__nombre")
+    autocomplete_fields = ("evaluacion", "alumno")
 
 
 @admin.register(SolicitudReunion)
