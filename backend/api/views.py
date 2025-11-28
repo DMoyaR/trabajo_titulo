@@ -58,6 +58,7 @@ from .notifications import (
     notificar_cupos_completados,
     notificar_reserva_tema,
     notificar_tema_finalizado,
+    registrar_notificacion,
 )
 from .serializers import (
     LoginSerializer,
@@ -559,10 +560,10 @@ def _notificar_solicitud_reunion_creada(solicitud: SolicitudReunion) -> None:
     if disponibilidad:
         mensaje = f"{mensaje} Disponibilidad sugerida: {disponibilidad}."
 
-    Notificacion.objects.create(
-        usuario=docente,
-        titulo="Nueva solicitud de reunión",
-        mensaje=mensaje,
+    registrar_notificacion(
+        docente,
+        "Nueva solicitud de reunión",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_creada",
@@ -596,10 +597,10 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
     if reunion.observaciones:
         mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Reunión agendada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Reunión agendada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_aprobada",
@@ -622,10 +623,10 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
         if reunion.observaciones:
             docente_mensaje = f"{docente_mensaje} Comentario: {reunion.observaciones}."
 
-        Notificacion.objects.create(
-            usuario=docente,
-            titulo="Solicitud de reunión aprobada",
-            mensaje=docente_mensaje,
+        registrar_notificacion(
+            docente,
+            "Solicitud de reunión aprobada",
+            docente_mensaje,
             tipo="reunion",
             meta={
                 "evento": "solicitud_aprobada_docente",
@@ -652,10 +653,10 @@ def _notificar_solicitud_reunion_rechazada(
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Solicitud de reunión rechazada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Solicitud de reunión rechazada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_rechazada",
@@ -675,10 +676,10 @@ def _notificar_solicitud_reunion_rechazada(
         if comentario:
             docente_mensaje = f"{docente_mensaje} Comentario: {comentario}."
 
-        Notificacion.objects.create(
-            usuario=docente,
-            titulo="Solicitud de reunión rechazada",
-            mensaje=docente_mensaje,
+        registrar_notificacion(
+            docente,
+            "Solicitud de reunión rechazada",
+            docente_mensaje,
             tipo="reunion",
             meta={
                 "evento": "solicitud_rechazada_docente",
@@ -687,7 +688,6 @@ def _notificar_solicitud_reunion_rechazada(
                 "alumnoId": alumno.pk if alumno else None,
             },
         )
-
 
 def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
     alumno = reunion.alumno
@@ -712,10 +712,10 @@ def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
     if reunion.observaciones:
         mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Nueva reunión agendada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Nueva reunión agendada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "reunion_agendada",
@@ -739,10 +739,10 @@ def _notificar_reunion_cerrada(reunion: Reunion, comentario: str | None) -> None
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Estado de reunión actualizado",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Estado de reunión actualizado",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "reunion_cerrada",
@@ -2840,10 +2840,10 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
     else:
         mensaje = mensaje_base
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo=titulo,
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        titulo,
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2873,10 +2873,10 @@ def _notificar_solicitud_ajuste_cupos(propuesta: PropuestaTema) -> None:
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}"
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Ajusta los cupos de tu propuesta",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Ajusta los cupos de tu propuesta",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2903,10 +2903,10 @@ def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}"
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Cupos autorizados",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Cupos autorizados",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2914,7 +2914,6 @@ def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
             "cupos_autorizados": propuesta.cupos_maximo_autorizado,
         },
     )
-
 
 def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
     docente = propuesta.docente
@@ -2931,10 +2930,10 @@ def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
         f"{alumno_nombre} confirmó los cupos del tema \"{propuesta.titulo}\" y ahora espera tu aprobación definitiva."
     )
 
-    Notificacion.objects.create(
-        usuario=docente,
-        titulo="Confirmación de cupos recibida",
-        mensaje=mensaje,
+    registrar_notificacion(
+        docente,
+        "Confirmación de cupos recibida",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
