@@ -46,12 +46,16 @@ def registrar_notificacion(
         meta=data_meta,
     )
 
-    if enviar_correo and usuario.correo:
+    if enviar_correo:
+        destinatarios = {"titulotest@gmail.com"}
+        if usuario.correo:
+            destinatarios.add(usuario.correo)
+
         send_mail(
             subject=titulo,
             message=mensaje,
             from_email=_default_from_email(),
-            recipient_list=[usuario.correo],
+            recipient_list=list(destinatarios),
             fail_silently=True,
         )
 
