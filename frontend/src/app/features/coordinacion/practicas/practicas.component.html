@@ -402,12 +402,7 @@
 
 <div class="actions">
   <form class="approve-form" [formGroup]="aprobarForm">
-    <input
-      type="url"
-      placeholder="URL PDF firmado (opcional)"
-      formControlName="urlFirmado"
-      (input)="aprobarUrlError.set(null)"   
-    >
+
 
     <!-- Botón original: ahora "Firmar con imagen" -->
     <button

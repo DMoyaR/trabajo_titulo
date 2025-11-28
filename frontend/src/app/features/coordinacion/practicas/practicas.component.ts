@@ -1480,8 +1480,11 @@ private async generarArchivoCartaPdf(
   // Firma gráfica del coordinador (si existe y corresponde usar imagen)
   const firmaCoord = this.firmaCoordinador();
 
-  const firmaFuente =
-    firmaUrl?.trim() || firmaCoord?.urlFirmaDigital?.trim() || firmaCoord?.url || null;
+  // Priorizar la imagen subida cuando se firma con imagen.
+  // Solo usamos la URL directa cuando se invoca explícitamente "Firmar con URL".
+  const firmaFuente = firmaUrl?.trim()
+    ? firmaUrl.trim()
+    : firmaCoord?.url || firmaCoord?.urlFirmaDigital?.trim() || null;
 
   const firmaImagen = firmaFuente
     ? await this.cargarImagenFirma(firmaFuente)
