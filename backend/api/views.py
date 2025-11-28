@@ -13,6 +13,7 @@ from urllib import request as urllib_request
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.mail import EmailMessage
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Value, Prefetch, Count, Avg, OuterRef, Subquery
@@ -1214,6 +1215,35 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     archivo = ContentFile(pdf_bytes)
     path = default_storage.save(ruta, archivo)
     return default_storage.url(path)
+
+
+def _enviar_correo_carta_generada(solicitud: SolicitudCartaPractica) -> None:
+    alumno = " ".join(
+        parte for parte in [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""] if parte
+    ).strip()
+    empresa = (solicitud.dest_empresa or "").strip()
+
+    lineas = ["Se ha generado una nueva carta de práctica."]
+    if alumno:
+        lineas.append(f"Alumno: {alumno}")
+    if empresa:
+        lineas.append(f"Empresa: {empresa}")
+
+    mensaje = EmailMessage(
+        "Nueva carta de práctica generada",
+        "\n".join(lineas),
+        to=["titulotest@gmail.com"],
+    )
+
+    if solicitud.documento:
+        solicitud.documento.open("rb")
+        try:
+            nombre_archivo = solicitud.documento.name.rsplit("/", 1)[-1]
+            mensaje.attach(nombre_archivo, solicitud.documento.read(), "application/pdf")
+        finally:
+            solicitud.documento.close()
+
+    mensaje.send(fail_silently=False)
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -3062,6 +3092,12 @@ def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud.motivo_rechazo = None
     solicitud.estado = "aprobado"
     solicitud.save()
+
+    if archivo:
+        try:
+            _enviar_correo_carta_generada(solicitud)
+        except Exception:
+            logger.exception("No se pudo enviar el correo de carta de práctica generada")
 
     serializer = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
     return Response({"status": "ok", "url": serializer.data.get("url")})
