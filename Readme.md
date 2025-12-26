@@ -26,7 +26,7 @@ Las instrucciones están **enfocadas en Windows**, con equivalentes **opcionales
    - Necesario para el frontend Angular 20.
    - Incluye **npm**, que instala dependencias del frontend.
    - Descarga: https://nodejs.org/
-5. **PostgreSQL 14+ (opcional)**
+5. **PostgreSQL 14+**
    - Solo si deseas usar PostgreSQL en lugar de SQLite.
    - Descarga: https://www.postgresql.org/download/
 
@@ -122,6 +122,10 @@ EMAIL_HOST_PASSWORD=mywkpwynpyxqirig
 ```
 
 > Si no deseas usar PostgreSQL, puedes eliminar `DB_NAME` (y el resto de variables `DB_*`) o dejarla vacía para que use SQLite.
+> Por otro lado las credenciales para la cuenta gmail de pruebas es la siguiente:
+
+titulotest@gmail.com
+Pass1234.
 
 ---
 
@@ -136,9 +140,9 @@ cd backend
 **¿Para qué sirve?** Entra a la carpeta del backend, donde está el proyecto Django.
 
 1) **Crear y activar entorno virtual**  
-El entorno virtual aísla las librerías de Python del resto del sistema.
+El entorno virtual aísla las librerías de Python del resto del sistema, haciendo más simple su escalabilidad.
 
-**Windows (PowerShell):**
+**Windows (PowerShell) para crear el entorno virtual:**
 ```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -146,6 +150,10 @@ python -m venv .venv
 
 > Si PowerShell bloquea la activación, ejecuta una vez:  
 > `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+> Si el comandono funciona, deberas actualizar manualmente la ejecución de scripts de windows con
+> `Set-ExecutionPolicy unrestricted`
+
+
 
 **Windows (CMD):**
 ```bash
@@ -160,7 +168,7 @@ source .venv/bin/activate
 ```
 
 2) **Instalar dependencias**  
-Instala todas las librerías del backend listadas en `requirements.txt`.
+Instala todas las librerías del backend listadas en `requirements.txt`, primero actualizamos pip y luego instalamos los requerimientos.
 
 ```bash
 python -m pip install --upgrade pip
@@ -173,6 +181,7 @@ python -m pip install -r ../requirements.txt
 Crea las tablas necesarias en la base de datos (SQLite o PostgreSQL).
 
 ```bash
+python manage.py makemigrations
 python manage.py migrate
 ```
 
