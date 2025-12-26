@@ -1,0 +1,347 @@
+:host {
+  display: block;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.docentes-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.title {
+  margin: 0;
+  color: #1a3e6a;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6c757d;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: #ffffff;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+}
+
+.filters-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-select {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: #ffffff;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #1a3e6a;
+  box-shadow: 0 0 0 3px rgba(26, 62, 106, 0.12);
+}
+
+.results-counter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.stat-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+  font-size: 1.8rem;
+}
+
+.stat-info h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  color: #1a3e6a;
+}
+
+.stat-info p {
+  margin: 0;
+  color: #6c757d;
+}
+
+.table-container {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.data-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.sort-icon {
+  margin-left: 0.5rem;
+  color: #adb5bd;
+}
+
+.table-row.high-completion {
+  background: rgba(0, 140, 74, 0.05);
+}
+
+.table-row.low-completion {
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.docente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.docente-name {
+  font-weight: 600;
+  color: #1a3e6a;
+}
+
+.docente-details {
+  color: #6c757d;
+}
+
+.students-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.count-number {
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-bar {
+  height: 10px;
+  background: #e9ecef;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #1a3e6a, #00a35c);
+}
+
+.progress-fill.progreso-alto {
+  background: linear-gradient(90deg, #00a35c, #1a3e6a);
+}
+
+.progress-fill.progreso-medio {
+  background: linear-gradient(90deg, #ffc107, #ff9800);
+}
+
+.progress-fill.progreso-bajo {
+  background: linear-gradient(90deg, #ff7043, #e53935);
+}
+
+.progress-fill.sin-progreso {
+  background: #e9ecef;
+}
+
+.progress-text {
+  display: flex;
+  gap: 0.5rem;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.date-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-text {
+  color: #1f2933;
+}
+
+.date-warning .date-text {
+  color: #d48b00;
+}
+
+.date-overdue .date-text {
+  color: #dc3545;
+}
+
+.date-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.date-badge.warning {
+  background: rgba(255, 193, 7, 0.15);
+  color: #d48b00;
+}
+
+.date-badge.overdue {
+  background: rgba(220, 53, 69, 0.15);
+  color: #dc3545;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.no-data-message {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.no-data-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e9ecef;
+  gap: 1rem;
+}
+
+.pagination-info {
+  color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .table-stats {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

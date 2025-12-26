@@ -1,0 +1,358 @@
+<h2 class="ttl">Panel de docente</h2>
+
+<h3 class="section-subtitle">Estudiantes Asignados</h3>
+
+<div class="dashboard-container">
+  <div class="filters">
+    <div class="filter-group">
+      <label class="filter-label">Carrera</label>
+      <select [(ngModel)]="filtros.carrera" (change)="aplicarFiltros()">
+        <option value="">Todas las carreras</option>
+        <option *ngFor="let carrera of carrerasDisponibles" [value]="carrera">{{ carrera }}</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Proceso</label>
+    <select [(ngModel)]="filtros.proceso" (change)="aplicarFiltros()">
+      <option value="">Todos los procesos</option>
+      <option *ngFor="let proceso of procesosDisponibles" [value]="proceso">{{ proceso }}</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Proyecto</label>
+    <select [(ngModel)]="filtros.proyecto" (change)="aplicarFiltros()">
+      <option value="">Nombre del proyecto</option>
+      <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto">{{ proyecto }}</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Avance</label>
+    <select [(ngModel)]="filtros.avance" (change)="aplicarFiltros()">
+      <option value="">Cualquier avance</option>
+      <option value="0-25">0-25%</option>
+      <option value="26-50">26-50%</option>
+      <option value="51-75">51-75%</option>
+      <option value="76-100">76-100%</option>
+    </select>
+  </div>
+  <button class="btn sm" type="button" (click)="limpiarFiltros()">Limpiar</button>
+</div>
+
+<div class="grid">
+  <div class="card main-table" aria-live="polite">
+    <div class="card-head">
+      <h3>Estudiantes asignados</h3>
+      <span class="muted" *ngIf="!cargandoEstudiantes && !errorEstudiantes">{{ estudiantesFiltrados.length }} en total</span>
+    </div>
+
+    <div class="alert error" *ngIf="errorEstudiantes">{{ errorEstudiantes }}</div>
+    <p class="muted" *ngIf="cargandoEstudiantes">Cargando estudiantes…</p>
+
+    <table class="tbl" *ngIf="!cargandoEstudiantes && !errorEstudiantes && estudiantesFiltrados.length">
+      <thead>
+        <tr>
+          <th>Estudiante</th>
+          <th>Carrera</th>
+          <th>Proceso</th>
+          <th>Proyecto</th>
+          <th>Avance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let estudiante of estudiantesFiltrados">
+          <td class="student-name">{{ estudiante.nombre }}</td>
+          <td>{{ estudiante.carrera }}</td>
+          <td><span class="process-type">{{ estudiante.proceso }}</span></td>
+          <td class="proyecto">{{ estudiante.proyecto }}</td>
+          <td>
+            <ng-container *ngIf="estudiante.avance !== null; else sinAvance">
+              <div class="progress-container">
+                <div class="prog">
+                  <div class="bar" [style.width.%]="estudiante.avance"></div>
+                </div>
+                <span class="progress-text">{{ estudiante.avance }}%</span>
+              </div>
+            </ng-container>
+            <ng-template #sinAvance><span class="muted">Sin entregas</span></ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="empty-box" *ngIf="!cargandoEstudiantes && !errorEstudiantes && !estudiantesFiltrados.length">
+      No hay estudiantes asignados que coincidan con los filtros seleccionados.
+    </div>
+  </div>
+</div>
+
+  <div class="card solicitudes-card">
+    <div class="card-header">
+      <div class="card-title">
+        <h3>Solicitudes de reunión</h3>
+        <p class="muted">Revisa las solicitudes de tus alumnos y agenda directamente</p>
+      </div>
+    <div class="acciones-header">
+      <span class="chip alerta" *ngIf="hayPendientes">
+        {{ solicitudesPendientes.length }} pendiente{{ solicitudesPendientes.length === 1 ? '' : 's' }}
+      </span>
+      <button type="button" class="btn sm toggle" (click)="togglePendientes()">
+        {{ mostrarPendientes ? 'Ocultar solicitudes' : 'Revisar solicitudes' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="alert success" *ngIf="solicitudesMensaje">{{ solicitudesMensaje }}</div>
+  <div class="alert error" *ngIf="solicitudesError">{{ solicitudesError }}</div>
+
+  <p class="muted" *ngIf="solicitudesCargando">Cargando solicitudes…</p>
+  <p class="muted" *ngIf="!solicitudesCargando && !solicitudes.length">No hay solicitudes registradas.</p>
+
+  <div class="alert info" *ngIf="mostrarPendientes && !solicitudesPendientes.length && !solicitudesCargando">
+    No hay solicitudes pendientes por revisar.
+  </div>
+
+  <ng-container *ngIf="mostrarPendientes">
+    <div class="solicitud" *ngFor="let solicitud of solicitudesPendientes">
+      <header>
+        <div>
+          <h4>{{ solicitud.proyectoNombre || 'Proyecto sin nombre' }}</h4>
+          <div class="muted" *ngIf="solicitud.alumno?.nombre">Alumno: {{ solicitud.alumno?.nombre }}</div>
+          <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
+        </div>
+        <span
+          class="estado"
+          [class.pendiente]="solicitud.estado === 'pendiente'"
+          [class.aprobada]="solicitud.estado === 'aprobada'"
+          [class.rechazada]="solicitud.estado === 'rechazada'"
+        >
+          {{ estadoSolicitudLabel(solicitud.estado) }}
+        </span>
+      </header>
+
+      <p class="motivo">{{ solicitud.motivo }}</p>
+      <p class="muted" *ngIf="solicitud.disponibilidadSugerida">
+        Disponibilidad sugerida: <strong>{{ solicitud.disponibilidadSugerida }}</strong>
+      </p>
+
+      <div class="acciones" *ngIf="solicitud.estado === 'pendiente'">
+        <button class="btn-edit" type="button" (click)="abrirAprobacion(solicitud)" [disabled]="procesandoSolicitud">
+          Aprobar y agendar
+        </button>
+        <button class="btn-cancel" type="button" (click)="abrirRechazo(solicitud)" [disabled]="procesandoSolicitud">
+          Rechazar
+        </button>
+      </div>
+
+      <form
+        class="panel-form"
+        *ngIf="seleccionada?.id === solicitud.id && modo === 'aprobar'"
+        [formGroup]="aprobarForm"
+        (ngSubmit)="confirmarAprobacion()"
+      >
+        <h4>Agendar reunión</h4>
+        <p class="muted" *ngIf="fechaHoraFija">
+          Fecha y hora solicitadas por el alumno. Solo selecciona la duración y agrega comentarios.
+        </p>
+        <div class="horario-fijo" *ngIf="fechaHoraFija">
+          <div>
+            <span class="etiqueta">Fecha</span>
+            <strong>{{ aprobarForm.controls.fecha.value | date: 'dd/MM/yyyy' }}</strong>
+          </div>
+          <div>
+            <span class="etiqueta">Horario</span>
+            <strong>{{ aprobarForm.controls.horaInicio.value }} - {{ aprobarForm.controls.horaTermino.value }}</strong>
+          </div>
+        </div>
+        <div class="grid form-grid">
+          <label>
+            Fecha
+            <input
+              type="date"
+              formControlName="fecha"
+              [attr.readonly]="fechaHoraFija ? '' : null"
+              [disabled]="fechaHoraFija"
+              [class.readonly]="fechaHoraFija"
+            />
+          </label>
+          <label>
+            Hora inicio
+            <input
+              type="time"
+              formControlName="horaInicio"
+              [attr.readonly]="fechaHoraFija ? '' : null"
+              [disabled]="fechaHoraFija"
+              [class.readonly]="fechaHoraFija"
+            />
+          </label>
+          <label>
+            Duración
+            <select formControlName="duracion">
+              <option *ngFor="let dur of duracionesDisponibles" [ngValue]="dur">
+                {{ dur }} minutos
+              </option>
+            </select>
+          </label>
+          <label>
+            Hora término
+            <input type="time" formControlName="horaTermino" readonly />
+          </label>
+          <label>
+            Modalidad
+            <select formControlName="modalidad">
+              <option value="presencial">Presencial</option>
+              <option value="online">Online</option>
+            </select>
+          </label>
+        </div>
+        <label class="block">
+          Comentario (opcional)
+          <textarea rows="3" formControlName="comentario" placeholder="Instrucciones para el estudiante"></textarea>
+        </label>
+        <div class="acciones">
+          <button class="btn-edit" type="submit" [disabled]="procesandoSolicitud">
+            {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar reunión' }}
+          </button>
+          <button class="btn-session" type="button" (click)="cancelarAccion()">Cancelar</button>
+        </div>
+      </form>
+
+      <form
+        class="panel-form"
+        *ngIf="seleccionada?.id === solicitud.id && modo === 'rechazar'"
+        [formGroup]="rechazoForm"
+        (ngSubmit)="confirmarRechazo()"
+      >
+        <h4>Rechazar solicitud</h4>
+        <label class="block">
+          Comentario (opcional)
+          <textarea rows="3" formControlName="comentario" placeholder="Explica al estudiante el motivo"></textarea>
+        </label>
+        <div class="acciones">
+          <button class="btn-cancel" type="submit" [disabled]="procesandoSolicitud">
+            {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar rechazo' }}
+          </button>
+          <button class="btn-session" type="button" (click)="cancelarAccion()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </ng-container>
+
+  <div class="historial" *ngIf="solicitudesResueltas.length">
+    <div class="historial-header">
+      <h4>Historial de solicitudes</h4>
+      <button type="button" class="link-button" (click)="toggleHistorial()">
+        {{ mostrarHistorial ? 'Ocultar historial' : 'Ver historial' }}
+      </button>
+    </div>
+    <ul class="historial-lista" *ngIf="mostrarHistorial">
+      <li *ngFor="let solicitud of historialPaginado">
+        <div>
+          <strong>{{ solicitud.proyectoNombre || 'Proyecto sin nombre' }}</strong>
+          <div class="muted" *ngIf="solicitud.alumno?.nombre">Alumno: {{ solicitud.alumno?.nombre }}</div>
+          <p class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</p>
+        </div>
+        <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
+          {{ estadoSolicitudLabel(solicitud.estado) }}
+        </span>
+      </li>
+    </ul>
+    <div class="historial-paginacion" *ngIf="mostrarHistorial && historialTotalPaginas > 1">
+      <button class="link-button" type="button" (click)="paginaHistorialAnterior()" [disabled]="historialPagina === 1">
+        Anterior
+      </button>
+      <span class="muted">Página {{ historialPagina }} de {{ historialTotalPaginas }}</span>
+      <button
+        class="link-button"
+        type="button"
+        (click)="paginaHistorialSiguiente()"
+        [disabled]="historialPagina === historialTotalPaginas"
+      >
+        Siguiente
+      </button>
+    </div>
+  </div>
+</div>
+
+  <div class="card solicitudes-card entregas-card">
+    <div class="card-header">
+      <div class="card-title">
+        <h3>Evaluaciones pendientes</h3>
+        <p class="muted">Revisa las entregas recibidas de tus grupos y descarga los archivos.</p>
+      </div>
+    <div class="acciones-header">
+      <span class="chip alerta" *ngIf="totalEntregasPendientes">
+        {{ totalEntregasPendientes }} pendiente{{ totalEntregasPendientes === 1 ? '' : 's' }}
+      </span>
+      <button type="button" class="btn sm toggle" (click)="togglePendientesEntregas()">
+        {{ mostrarEntregasPendientes ? 'Ocultar pendientes' : 'Ver pendientes' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="alert error" *ngIf="entregasError">{{ entregasError }}</div>
+  <p class="muted" *ngIf="entregasCargando">Cargando evaluaciones…</p>
+
+  <div class="entregas-actions" *ngIf="!entregasCargando && !entregasError">
+    <button class="btn sm toggle" type="button" (click)="cargarEntregas()" [disabled]="entregasCargando">
+      Actualizar lista
+    </button>
+    <button class="btn sm" type="button" (click)="exportarNotasCsv()" [disabled]="!entregasRevisadas.length">
+      Exportar CSV
+    </button>
+  </div>
+
+  <p class="muted" *ngIf="!entregasCargando && !entregasError && !totalEntregasPendientes">
+    No tienes entregas pendientes por revisar.
+  </p>
+
+  <div
+    class="entregas-panel"
+    *ngIf="
+      mostrarEntregasPendientes && !entregasCargando && !entregasError && totalEntregasPendientes
+    "
+  >
+    <div class="entregas-grupos">
+      <div class="grupo-entrega-card" *ngFor="let grupo of gruposPendientes">
+        <button class="grupo-toggle" type="button" (click)="seleccionarGrupoEntregas(grupo.nombre)">
+          <div class="grupo-titulo">
+            <h4>{{ grupo.nombre }}</h4>
+            <small>{{ grupo.pendientes.length }} entrega{{ grupo.pendientes.length === 1 ? '' : 's' }}</small>
+          </div>
+          <div class="grupo-resumen">
+            <span class="chip warn">{{ grupo.pendientes.length }} pendientes</span>
+          </div>
+          <span class="caret" [class.open]="grupo.abierto">⌃</span>
+        </button>
+
+        <div class="grupo-detalle" *ngIf="grupo.abierto">
+          <div class="entregas-grid detalle-grid">
+            <div class="entrega-card" *ngFor="let entrega of grupo.pendientes">
+              <header>
+                <div>
+                  <h5>{{ tituloEntrega(entrega) }}</h5>
+                  <small>{{ entrega.alumnoNombre }}</small>
+                  <div class="muted">{{ fechaHora(entrega.fecha) }}</div>
+                </div>
+                <div class="grupo-resumen">
+                  <span class="tag warn">Pendiente</span>
+                  <span class="tag info" *ngIf="entrega.esBitacora">Bitácora</span>
+                </div>
+              </header>
+
+              <ul class="info">
+                <li *ngIf="entrega.comentario"><strong>Comentario:</strong> {{ entrega.comentario }}</li>
+                <li><strong>Grupo:</strong> {{ entrega.grupo }}</li>
+              </ul>
+
+              <div class="acciones">
+                <button class="btn-edit" type="button" (click)="descargarEntrega(entrega)" [disabled]="!entrega.archivoUrl">
+                  Revisar archivo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,36 @@
+<section class="bandeja-page">
+  <h2 class="ttl">Bandeja de Entrada</h2>
+
+  <div class="wrap">
+    <aside class="list">
+      <input class="search" placeholder="Buscar" />
+      <ul>
+        <li
+          *ngFor="let c of chats(); let i = index"
+          [class.active]="i === selected()"
+          (click)="selected.set(i)"
+        >
+          <b>{{ c.nombre }}</b>
+          <small>{{ c.asunto }}</small>
+        </li>
+      </ul>
+      <button class="btn sm" type="button">Nuevo mensaje</button>
+    </aside>
+
+    <section class="chat" *ngIf="chat() as selectedChat">
+      <header>
+        <h3>{{ selectedChat.nombre }}</h3>
+        <small>{{ selectedChat.asunto }}</small>
+      </header>
+      <div class="msgs">
+        <div *ngFor="let m of selectedChat.mensajes" [class.me]="m.yo" class="bubble">
+          {{ m.t }}
+        </div>
+      </div>
+      <footer>
+        <input class="inp" placeholder="Escribe un mensaje…" />
+        <button class="send" type="button"></button>
+      </footer>
+    </section>
+  </div>
+</section>

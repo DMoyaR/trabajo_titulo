@@ -1,0 +1,165 @@
+:host {
+  display: block;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.perfil-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-title {
+  color: #666666;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid var(--utem-border, #dfe5ee);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 28px var(--utem-shadow, rgba(0, 0, 0, 0.05));
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1a3e6a;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #eef3fb;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row b {
+  color: #1a3e6a;
+}
+
+.row span {
+  color: #333333;
+}
+
+.inp {
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  padding: 8px 10px;
+  flex: 1;
+}
+
+.link {
+  color: #1976d2;
+  font-weight: 700;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.btn-edit,
+.btn-save,
+.btn-cancel {
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-edit {
+  background: #00598c;
+  color: #ffffff;
+}
+
+.btn-edit:hover {
+  background: hsl(202, 100%, 20%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 89, 140, 0.3);
+}
+
+.btn-save {
+  background: #00598c;
+  color: #ffffff;
+}
+
+.btn-save:hover {
+  background: #004d8c;
+  transform: translateY(-2px);
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: #ffffff;
+}
+
+.btn-cancel:hover {
+  background: #545b62;
+  transform: translateY(-2px);
+}
+
+.list {
+  margin: 0;
+  padding-left: 16px;
+  color: #333333;
+}
+
+.session-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.btn-session {
+  background: #f8f9fa;
+  color: #333333;
+  border: 2px solid #e9ecef;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-session:hover {
+  background: #e9ecef;
+  border-color: #008c4a;
+  color: #008c4a;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 600px) {
+  .action-row {
+    flex-direction: column;
+  }
+
+  .session-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

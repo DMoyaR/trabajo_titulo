@@ -1,0 +1,120 @@
+.view {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--utem-bg);
+}
+
+.card {
+  background: var(--utem-card);
+  border: 1px solid var(--utem-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 35px var(--utem-shadow);
+  padding: var(--spacing);
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+/* Logo arriba del título */
+.brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px; /* separa el logo del título */
+}
+
+.brand img {
+  height: 120px;       /* más grande */
+  max-width: 100%;
+  object-fit: contain; /* mantiene proporciones */
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--utem-text);
+}
+
+.label {
+  display: block;
+  font-weight: 700;
+  margin: 12px 0 8px;
+  color: #2b3340;
+}
+
+.input {
+  width: 100%;
+  height: var(--field-h);
+  padding: 0 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: var(--radius-lg);
+  outline: none;
+  background: #f9fbff;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--utem-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--utem-blue) 20%, transparent);
+  background: #fff;
+}
+
+.msg {
+  display: block;
+  margin-top: 6px;
+  font-size: .9rem;
+  color: #6b7280;
+}
+
+.hint {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.link {
+  color: var(--utem-blue);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.actions {
+  margin-top: 18px;
+}
+
+.btn {
+  width: 100%;
+  height: var(--field-h);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background-color: var(--utem-blue);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(.97);
+}
+
+.btn[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 14px;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+}
+
+.form {
+  padding: 0 0px;
+}
+

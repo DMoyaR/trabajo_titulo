@@ -1,0 +1,474 @@
+<h2 class="doc-ttl">Calendario</h2>
+
+<div class="doc-wrap">
+  <!-- Calendario grande -->
+  <section class="doc-panel">
+    <div class="doc-toolbar">
+      <div class="left">
+        <button class="doc-pill" (click)="goToday()">Hoy</button>
+        <button class="doc-pill" (click)="prevMonth()">◀</button>
+        <button class="doc-pill" (click)="nextMonth()">▶</button>
+      </div>
+
+      <div class="doc-title">
+        {{ monthNames[month()] }} {{ year() }}
+      </div>
+
+      <div class="right">
+        <button class="doc-pill muted" (click)="toggleSolicitudes()">
+          Solicitudes
+          <span class="chip-badge" *ngIf="solicitudesPendientes.length">{{ solicitudesPendientes.length }}</span>
+        </button>
+        <button class="doc-pill muted" (click)="openResumen()">Resumen de reuniones</button>
+        <button class="doc-pill muted" (click)="openContinuas()">Agendar reunión continua</button>
+        <button class="doc-pill primary" (click)="openAgendar()">Agendar reunión</button>
+      </div>
+    </div>
+
+    <div class="doc-divider"></div>
+
+    <div class="doc-cal-grid">
+      <div class="doc-dow" *ngFor="let d of weekDays">{{ d }}</div>
+
+      <ng-container *ngFor="let w of weeks()">
+        <div *ngFor="let d of w"
+             class="doc-cell"
+             [class.empty]="d===0"
+             [class.is-today]="isToday(d)"
+             [class.is-selected]="isSelected(d)"
+             (click)="onDayClick(d)">
+          <span class="num" *ngIf="d>0">{{ d }}</span>
+          <span class="badge" *ngIf="eventsCount(d) > 0">{{ eventsCount(d) }}</span>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="doc-footer-space"></div>
+  </section>
+
+  <!-- Lateral: Mini + Picker -->
+  <aside class="doc-mini">
+    <div class="doc-mini-header">
+      <button class="doc-mini-nav" (click)="miniPrev()">◀</button>
+      <b class="doc-mini-title" (click)="toggleMiniPicker()">
+        {{ monthNames[month()] }} {{ year() }}
+      </b>
+      <button class="doc-mini-nav" (click)="miniNext()">▶</button>
+    </div>
+
+    <!-- Picker avanzado -->
+    <div class="doc-mini-picker" *ngIf="showMiniPicker">
+      <div class="row">
+        <label>Mes:</label>
+        <select [(ngModel)]="tempMonth">
+          <option *ngFor="let m of monthNames; let i=index" [value]="i">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label style="align-self:flex-start;">Año:</label>
+        <div class="year-box">
+          <div class="year-head">
+            <button class="doc-mini-nav" (click)="prevYearsBlock()">◀</button>
+            <button class="doc-pill ranges" *ngIf="!showRangeView" (click)="showRanges()">Rangos ▾</button>
+            <button class="doc-pill ranges" *ngIf="showRangeView" (click)="backToYears()">▶ Años ◀</button>
+            <button class="doc-mini-nav" (click)="nextYearsBlock()">▶</button>
+          </div>
+
+          <div class="years" *ngIf="!showRangeView">
+            <span class="year"
+                  *ngFor="let y of yearsInRange"
+                  [class.sel]="y===tempYear"
+                  (click)="selectYear(y)">{{ y }}</span>
+          </div>
+
+          <div class="ranges-list" *ngIf="showRangeView">
+            <span class="range"
+                  *ngFor="let r of yearRanges"
+                  (click)="pickRange(r.start)">{{ r.start }}–{{ r.end }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-mini-actions">
+        <button class="doc-pill ok" (click)="applyMiniPicker()">Aceptar</button>
+        <button class="doc-pill" (click)="cancelMiniPicker()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Mini grid -->
+    <div class="doc-mini-grid">
+      <div class="doc-mini-dow" *ngFor="let d of ['L','M','M','J','V','S','D']">{{ d }}</div>
+
+      <ng-container *ngFor="let w of miniWeeks()">
+        <div *ngFor="let d of w"
+             class="doc-mini-day"
+             [class.empty]="d===0"
+             [class.is-today]="isToday(d)"
+             [class.is-selected]="isSelected(d)"
+             (click)="onDayClick(d)">
+          <span *ngIf="d>0">{{ d }}</span>
+        </div>
+      </ng-container>
+    </div>
+  </aside>
+</div>
+
+<!-- ===== Modal: Solicitudes de reunión ===== -->
+<div class="doc-overlay" *ngIf="showSolicitudesModal()" (click)="closeSolicitudes()">
+  <div class="doc-modal solicitudes-modal" (click)="$event.stopPropagation()">
+    <header>
+      <h3>Solicitudes de reunión</h3>
+      <button class="x" type="button" (click)="closeSolicitudes()">✕</button>
+    </header>
+
+    <div class="doc-modal-body solicitudes-body">
+      <div class="alert success" *ngIf="solicitudesMensaje">{{ solicitudesMensaje }}</div>
+      <div class="alert error" *ngIf="solicitudesError">{{ solicitudesError }}</div>
+
+      <p class="muted" *ngIf="solicitudesCargando">Cargando solicitudes…</p>
+      <p class="muted" *ngIf="!solicitudesCargando && !solicitudes.length">No hay solicitudes registradas.</p>
+
+      <section class="solicitudes-section">
+        <div class="section-head">
+          <h4>Pendientes</h4>
+          <span class="chip" *ngIf="solicitudesPendientes.length">{{ solicitudesPendientes.length }} en espera</span>
+        </div>
+        <div class="muted" *ngIf="!solicitudesPendientes.length && !solicitudesCargando">No hay solicitudes pendientes.</div>
+
+        <div class="solicitud-card" *ngFor="let solicitud of solicitudesPendientes">
+          <header>
+            <div>
+              <h4>{{ solicitud.proyectoNombre || 'Proyecto sin nombre' }}</h4>
+              <div class="muted" *ngIf="solicitud.alumno?.nombre">Alumno: {{ solicitud.alumno?.nombre }}</div>
+              <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
+            </div>
+            <span class="estado pend">{{ estadoSolicitudLabel(solicitud.estado) }}</span>
+          </header>
+
+          <p class="motivo">{{ solicitud.motivo }}</p>
+          <p class="muted" *ngIf="solicitud.disponibilidadSugerida">
+            Disponibilidad sugerida: <strong>{{ solicitud.disponibilidadSugerida }}</strong>
+          </p>
+
+          <div class="acciones">
+            <button class="doc-pill primary" type="button" (click)="abrirAprobacion(solicitud)" [disabled]="procesandoSolicitud">
+              Aprobar y agendar
+            </button>
+            <button class="doc-pill danger" type="button" (click)="abrirRechazo(solicitud)" [disabled]="procesandoSolicitud">
+              Rechazar
+            </button>
+          </div>
+
+          <form
+            class="panel-form"
+            *ngIf="seleccionada?.id === solicitud.id && modo === 'aprobar'"
+            [formGroup]="aprobarForm"
+            (ngSubmit)="confirmarAprobacion()"
+          >
+            <h4>Agendar reunión</h4>
+            <div class="grid form-grid">
+              <label>
+                Fecha
+                <input type="date" formControlName="fecha" />
+              </label>
+              <label>
+                Hora inicio
+                <input type="time" formControlName="horaInicio" />
+              </label>
+              <label>
+                Hora término
+                <input type="time" formControlName="horaTermino" />
+              </label>
+              <label>
+                Modalidad
+                <select formControlName="modalidad">
+                  <option value="presencial">Presencial</option>
+                  <option value="online">Online</option>
+                </select>
+              </label>
+            </div>
+            <label class="block">
+              Comentario (opcional)
+              <textarea rows="3" formControlName="comentario" placeholder="Instrucciones para el estudiante"></textarea>
+            </label>
+            <div class="acciones">
+              <button class="doc-pill primary" type="submit" [disabled]="procesandoSolicitud">
+                {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar reunión' }}
+              </button>
+              <button class="doc-pill" type="button" (click)="cancelarAccion()">Cancelar</button>
+            </div>
+          </form>
+
+          <form
+            class="panel-form"
+            *ngIf="seleccionada?.id === solicitud.id && modo === 'rechazar'"
+            [formGroup]="rechazoForm"
+            (ngSubmit)="confirmarRechazo()"
+          >
+            <h4>Rechazar solicitud</h4>
+            <label class="block">
+              Comentario (opcional)
+              <textarea rows="3" formControlName="comentario" placeholder="Explica al estudiante el motivo"></textarea>
+            </label>
+            <div class="acciones">
+              <button class="doc-pill danger" type="submit" [disabled]="procesandoSolicitud">
+                {{ procesandoSolicitud ? 'Guardando…' : 'Confirmar rechazo' }}
+              </button>
+              <button class="doc-pill" type="button" (click)="cancelarAccion()">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="solicitudes-section" *ngIf="solicitudesResueltas.length">
+        <div class="section-head">
+          <h4>Historial</h4>
+          <span class="chip muted">{{ solicitudesResueltas.length }} resuelta{{ solicitudesResueltas.length === 1 ? '' : 's' }}</span>
+        </div>
+
+        <div class="solicitud-card" *ngFor="let solicitud of solicitudesResueltas">
+          <header>
+            <div>
+              <h4>{{ solicitud.proyectoNombre || 'Proyecto sin nombre' }}</h4>
+              <div class="muted" *ngIf="solicitud.alumno?.nombre">Alumno: {{ solicitud.alumno?.nombre }}</div>
+              <small class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</small>
+            </div>
+            <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
+              {{ estadoSolicitudLabel(solicitud.estado) }}
+            </span>
+          </header>
+          <p class="motivo">{{ solicitud.motivo }}</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Eventos del día ===== -->
+<div class="doc-overlay" *ngIf="showDayModal()">
+  <div class="doc-modal">
+    <header>
+      <h3>Eventos — {{ selectedDay() }} {{ monthNames[month()] }} {{ year() }}</h3>
+      <button class="x" (click)="closeDayModal()">✕</button>
+    </header>
+
+    <div class="doc-modal-body">
+      <!-- Lista -->
+      <div *ngIf="dayEvents().length === 0" class="event empty">No hay eventos para este día.</div>
+      <div *ngFor="let ev of dayEvents()" class="event">
+        <div class="ev-head">
+          <b>{{ ev.hora }} — {{ ev.proyecto || ev.titulo }}</b>
+          <div class="ev-actions">
+            <button class="chip" (click)="editEvent(ev)">Editar</button>
+            <button class="chip danger" (click)="deleteEvent(ev.id)">Eliminar</button>
+          </div>
+        </div>
+        <div class="ev-meta">
+          <span class="chip subtle" *ngIf="ev.proyecto">Proyecto: {{ ev.proyecto }}</span>
+          <span class="chip subtle" *ngIf="ev.alumno">Alumno: {{ ev.alumno }}</span>
+          <span class="chip subtle" *ngIf="ev.grupo">Grupo: {{ ev.grupo }}</span>
+          <span class="chip status" *ngIf="ev.estado">{{ estadoReunionLabel(ev.estado) }}</span>
+        </div>
+        <div class="ev-sub">{{ ev.lugar }}</div>
+        <div class="ev-desc">{{ ev.descripcion }}</div>
+      </div>
+
+      <hr class="sep" />
+
+      <!-- Form -->
+      <form (ngSubmit)="addOrUpdateEvent()" class="ev-form">
+        <div class="row">
+          <label>Hora
+            <input type="time" [(ngModel)]="form.hora" name="hora" required />
+          </label>
+          <label>Título
+            <input type="text" [(ngModel)]="form.titulo" name="titulo" required />
+          </label>
+        </div>
+        <div class="row">
+          <label>Lugar
+            <input type="text" [(ngModel)]="form.lugar" name="lugar" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Descripción
+            <textarea rows="3" [(ngModel)]="form.descripcion" name="descripcion"></textarea>
+          </label>
+        </div>
+
+        <div class="doc-modal-actions">
+          <button type="button" class="doc-pill" (click)="closeDayModal()">Cerrar</button>
+          <button type="submit" class="doc-pill primary">
+            {{ editId ? 'Guardar cambios' : 'Agregar evento' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Agendar reunión (única) ===== -->
+<div class="doc-overlay" *ngIf="showAgendarModal()">
+  <div class="doc-modal">
+    <header>
+      <h3>Agendar reunión</h3>
+      <button class="x" (click)="closeAgendar()">✕</button>
+    </header>
+
+    <div class="doc-modal-body">
+      <form (ngSubmit)="submitAgendar()" class="ev-form">
+        <div class="row">
+          <label>Fecha
+            <input type="date" [(ngModel)]="singleForm.fecha" name="fecha" required />
+          </label>
+          <label>Hora
+            <input type="time" [(ngModel)]="singleForm.hora" name="hora" required />
+          </label>
+        </div>
+        <div class="row">
+            <label>Proyecto
+              <select [(ngModel)]="singleForm.proyecto" name="proyecto">
+                <option value="">Selecciona el proyecto</option>
+                <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto">{{ proyecto }}</option>
+              </select>
+            </label>
+          <label>Título
+            <input type="text" [(ngModel)]="singleForm.titulo" name="titulo" required />
+          </label>
+          <label>Lugar
+            <input type="text" [(ngModel)]="singleForm.lugar" name="lugar" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Descripción
+            <textarea rows="3" [(ngModel)]="singleForm.descripcion" name="descripcion"></textarea>
+          </label>
+        </div>
+
+        <div class="doc-modal-actions">
+          <button type="button" class="doc-pill" (click)="closeAgendar()">Cancelar</button>
+          <button type="submit" class="doc-pill primary">Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Reunión continua (recurrente) ===== -->
+<div class="doc-overlay" *ngIf="showContinuasModal()">
+  <div class="doc-modal">
+    <header>
+      <h3>Agendar reunión continua</h3>
+      <button class="x" (click)="closeContinuas()">✕</button>
+    </header>
+
+    <div class="doc-modal-body">
+      <form (ngSubmit)="submitContinuas()" class="ev-form">
+        <div class="row">
+          <label>Inicio
+            <input type="date" [(ngModel)]="recurForm.inicio" name="inicio" required />
+          </label>
+          <label>Término
+            <input type="date" [(ngModel)]="recurForm.fin" name="fin" required />
+          </label>
+        </div>
+
+        <div class="row">
+          <label>Intervalo (semanas)
+            <input type="number" min="1" [(ngModel)]="recurForm.intervaloSemanas" name="intervalo" />
+          </label>
+          <label>Hora
+            <input type="time" [(ngModel)]="recurForm.hora" name="horaRecur" required />
+          </label>
+        </div>
+
+        <div class="row">
+          <label style="grid-column:1 / -1;">Días de la semana</label>
+          <div class="dow-grid">
+            <label *ngFor="let d of weekDays; let i = index" class="dow-item">
+              <input type="checkbox"
+                     [checked]="recurForm.dias.has(i)"
+                     (change)="toggleDia(i, $event.target.checked)"/>
+              <span>{{ d }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row">
+            <label>Proyecto
+              <select [(ngModel)]="recurForm.proyecto" name="proyectoRecur">
+                <option value="">Selecciona el proyecto</option>
+                <option *ngFor="let proyecto of proyectosDisponibles" [value]="proyecto">{{ proyecto }}</option>
+              </select>
+            </label>
+          <label>Título
+            <input type="text" [(ngModel)]="recurForm.titulo" name="tituloRecur" required />
+          </label>
+          <label>Lugar
+            <input type="text" [(ngModel)]="recurForm.lugar" name="lugarRecur" />
+          </label>
+        </div>
+        <div class="row">
+          <label>Descripción
+            <textarea rows="3" [(ngModel)]="recurForm.descripcion" name="descripcionRecur"></textarea>
+          </label>
+        </div>
+
+        <div class="doc-modal-actions">
+          <button type="button" class="doc-pill" (click)="closeContinuas()">Cancelar</button>
+          <button type="submit" class="doc-pill primary">Crear series</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal: Resumen de reuniones ===== -->
+<div class="doc-overlay" *ngIf="showResumenModal()">
+  <div class="doc-modal">
+    <header>
+      <h3>Resumen (próximas 6 semanas)</h3>
+      <button class="x" (click)="closeResumen()">✕</button>
+    </header>
+
+    <div class="doc-modal-body">
+      <div *ngIf="resumen().length === 0" class="event empty">No hay reuniones en el período.</div>
+
+      <div *ngFor="let s of resumen()" class="summary-day">
+        <div class="summary-head">
+          <b>{{ s.date | date:'EEEE d' }} de {{ monthNames[s.date.getMonth()] }} {{ s.date.getFullYear() }}</b>
+          <span class="summary-count">{{ s.items.length }} evento(s)</span>
+        </div>
+
+        <div class="summary-items">
+          <div class="summary-item" *ngFor="let ev of s.items">
+            <div class="left">
+              <b>{{ ev.hora }}</b>
+            </div>
+            <div class="mid">
+              <div class="ttl">{{ ev.proyecto || ev.titulo }}</div>
+              <div class="sub">
+                <span *ngIf="ev.alumno">Alumno: {{ ev.alumno }} — </span>{{ ev.lugar }}
+                <ng-container *ngIf="ev.grupo"> — Grupo: {{ ev.grupo }}</ng-container>
+              </div>
+            </div>
+            <div class="right">
+              <small>{{ ev.key }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-modal-actions" style="margin-top:8px;">
+        <button type="button"
+                class="doc-pill primary"
+                (click)="exportResumenCsv()"
+                [disabled]="resumen().length === 0">
+          Exportar CSV
+        </button>
+        <button type="button" class="doc-pill" (click)="closeResumen()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

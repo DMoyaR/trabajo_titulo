@@ -1,0 +1,221 @@
+<h2 class="ttl">Evaluaciones por grupo</h2>
+<p class="description">
+  Registra de forma manual las evaluaciones que realizará cada grupo. Completa la información del
+  formulario y presiona <strong>Agregar evaluación</strong> para construir tu listado.
+</p>
+
+<form class="form" (submit)="agregarEvaluacion($event)">
+  <div class="form-grid">
+    <label class="field">
+      <span>Grupo activo</span>
+      <select
+        [value]="grupoSeleccionadoId() ?? ''"
+        (change)="onSeleccionGrupo($event)"
+        [disabled]="cargandoGruposActivos() || !gruposActivos().length || enviando()"
+      >
+        <option value="" disabled hidden>
+          {{ cargandoGruposActivos() ? 'Cargando grupos…' : 'Selecciona un grupo activo' }}
+        </option>
+        <option *ngFor="let grupo of gruposActivos()" [value]="grupo.id">
+          {{ grupo.nombre }}{{ grupo.integrantes.length ? ' — ' + grupo.integrantes.join(' / ') : '' }}
+        </option>
+      </select>
+      <small class="field-hint" *ngIf="cargandoGruposActivos()">Cargando grupos activos…</small>
+      <small class="field-hint warning" *ngIf="!cargandoGruposActivos() && !gruposActivos().length && !errorGruposActivos()">
+        No tienes grupos activos disponibles en este momento.
+      </small>
+      <small class="field-hint error" *ngIf="errorGruposActivos()">{{ errorGruposActivos() }}</small>
+    </label>
+    <label class="field">
+      <span>Evaluación</span>
+      <input
+        type="text"
+        placeholder="Ej: Revisión de avance"
+        [value]="evaluacionTitulo()"
+        (input)="evaluacionTitulo.set(($any($event.target)).value)"
+      />
+    </label>
+    <label class="field textarea-field">
+      <span>Comentario de la evaluación</span>
+      <textarea
+        rows="3"
+        placeholder="Describe brevemente los criterios o indicaciones de la evaluación"
+        [value]="evaluacionComentario()"
+        (input)="evaluacionComentario.set(($any($event.target)).value)"
+      ></textarea>
+      <small class="field-hint">Este comentario se enviará junto con la evaluación.</small>
+    </label>
+    <label class="field">
+      <span>Rúbrica (opcional)</span>
+      <input
+        #rubricaInput
+        type="file"
+        accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+        (change)="onRubricaSeleccionada($event)"
+        [disabled]="enviando()"
+      />
+      <small class="field-hint">Adjunta la rúbrica o pauta que usarás en la evaluación.</small>
+      <small class="field-hint" *ngIf="evaluacionRubrica()">Archivo seleccionado: {{ evaluacionRubrica()?.name }}</small>
+    </label>
+    <label class="field">
+      <span>Fecha (opcional)</span>
+      <input
+        type="date"
+        [value]="evaluacionFecha()"
+        (input)="onFechaChange($event)"
+      />
+    </label>
+  </div>
+  <div class="bitacora-panel">
+    <div class="bitacora-header">
+      <div>
+        <p class="bitacora-title">Bitácoras solicitadas</p>
+        <small class="field-hint">Activa esta opción si necesitas bitácoras semanales.</small>
+      </div>
+      <label class="toggle">
+        <input
+          type="checkbox"
+          [checked]="bitacorasHabilitadas()"
+          (change)="onBitacorasToggle($event)"
+        />
+        <span>{{ bitacorasHabilitadas() ? 'Activadas' : 'Desactivadas' }}</span>
+      </label>
+    </div>
+
+    <div class="bitacora-config" *ngIf="bitacorasHabilitadas()">
+      <label class="field">
+        <span>Bitácoras solicitadas</span>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Ej: 3"
+          [value]="bitacorasRequeridas()"
+          (input)="onBitacorasChange($event)"
+        />
+        <small class="field-hint">
+          Se calculan automáticamente al elegir la fecha de entrega, pero puedes ajustarlas.
+        </small>
+      </label>
+
+      <div class="bitacora-fechas" *ngIf="bitacorasRequeridas() > 0">
+        <p class="bitacora-fechas-title">Fechas estimadas para cada bitácora</p>
+        <div class="bitacora-fechas-grid">
+          <label class="field" *ngFor="let fecha of bitacoraFechas(); let i = index">
+            <span>Bitácora {{ i + 1 }}</span>
+            <input type="date" [value]="fecha" (input)="onBitacoraFechaChange($event, i)" />
+          </label>
+        </div>
+      </div>
+
+      <label class="field textarea-field">
+        <span>Instrucciones para las bitácoras</span>
+        <textarea
+          rows="2"
+          placeholder="Describe qué debe registrar el alumno en cada bitácora"
+          [value]="bitacoraComentario()"
+          (input)="bitacoraComentario.set(($any($event.target)).value)"
+        ></textarea>
+        <small class="field-hint">Se mostrará a los alumnos cuando exista una solicitud de bitácoras.</small>
+      </label>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button
+      class="btn"
+      type="submit"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !grupoSeleccionadoId() ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim() ||
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
+      "
+    >
+      {{ enviando() ? 'Guardando…' : 'Agregar evaluación' }}
+    </button>
+    <button
+      type="button"
+      class="btn secondary"
+      (click)="enviarEvaluacionMasiva()"
+      [disabled]="
+        enviando() ||
+        cargandoGruposActivos() ||
+        !gruposActivos().length ||
+        !evaluacionTitulo().trim() ||
+        !evaluacionComentario().trim() ||
+        (bitacorasHabilitadas() && bitacorasRequeridas() > 0 && !bitacoraComentario().trim())
+      "
+    >
+      {{ enviando() ? 'Enviando…' : 'Enviar a todos los grupos' }}
+    </button>
+  </div>
+</form>
+
+<p class="error" *ngIf="error()">{{ error() }}</p>
+
+<ng-container *ngIf="!cargando(); else loadingState">
+  <ng-container *ngIf="grupos().length; else emptyState">
+    <div class="groups">
+      <section class="group-card" *ngFor="let grupo of grupos()">
+        <header>
+          <h3>{{ grupo.nombre }}</h3>
+          <span>{{ grupo.evaluaciones.length }} evaluaciones</span>
+        </header>
+        <ul>
+          <li *ngFor="let evaluacion of grupo.evaluaciones">
+            <h4>{{ evaluacion.titulo }}</h4>
+            <p class="meta">
+              <span *ngIf="evaluacion.fecha"
+                >Fecha: {{ evaluacion.fecha | date: 'dd/MM/yyyy' }}</span
+              >
+              <span>Estado: {{ evaluacion.estado }}</span>
+            </p>
+            <p class="comentario" *ngIf="evaluacion.comentario">
+              Comentario: {{ evaluacion.comentario }}
+            </p>
+            <div class="bitacora-resumen" *ngIf="evaluacion.bitacorasRequeridas > 0">
+              <span class="chip info">
+                {{ evaluacion.bitacorasRequeridas }} bitácora{{ evaluacion.bitacorasRequeridas === 1 ? '' : 's' }} solicitada{{ evaluacion.bitacorasRequeridas === 1 ? '' : 's' }}
+              </span>
+              <p class="bitacora-texto" *ngIf="evaluacion.bitacoraComentario">
+                Instrucciones: {{ evaluacion.bitacoraComentario }}
+              </p>
+            </div>
+            <button
+              class="btn link"
+              type="button"
+              *ngIf="evaluacion.rubricaUrl"
+              (click)="descargarRubrica(evaluacion.rubricaUrl)"
+            >
+              Ver rúbrica ({{ evaluacion.rubricaNombre }})
+            </button>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+  </ng-container>
+</ng-container>
+
+<ng-template #emptyState>
+  <ng-container *ngIf="!error(); else errorState">
+    <div class="empty">
+      <h3>Aún no has registrado evaluaciones</h3>
+      <p>Comienza agregando el primer grupo desde el formulario de arriba.</p>
+    </div>
+  </ng-container>
+</ng-template>
+
+<ng-template #errorState>
+  <div class="empty error-state">
+    <h3>No pudimos cargar tus evaluaciones</h3>
+    <p>Intenta recargar la página o agrega una nueva evaluación para comenzar.</p>
+  </div>
+</ng-template>
+
+<ng-template #loadingState>
+  <div class="loading">Cargando evaluaciones…</div>
+</ng-template>

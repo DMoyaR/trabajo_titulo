@@ -1,0 +1,70 @@
+<h2 class="ttl">Perfil de usuario</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Información Personal</h3>
+    <div class="row"><b>Nombre:</b><span>{{ userProfile?.nombre || 'Sin nombre' }}</span></div>
+    <div class="row"><b>Correo:</b><span>{{ userProfile?.correo || 'Sin correo' }}</span></div>
+    <div class="row"><b>RUT:</b><span>{{ userProfile?.rut || 'Sin registro' }}</span></div>
+    <div class="row"><b>Carrera:</b><span>{{ userProfile?.carrera || 'Sin carrera asignada' }}</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Editar Información</h3>
+    <div class="row">
+      <b>Teléfono:</b>
+      <span *ngIf="!isEditing">{{ tel || 'Agregar número de teléfono' }}</span>
+      <input
+        *ngIf="isEditing"
+        class="inp"
+        type="tel"
+        [(ngModel)]="editableTel"
+        placeholder="Agregar número de teléfono"
+      />
+    </div>
+
+    <div class="row">
+      <b>Contraseña:</b>
+      <div *ngIf="!isEditing">
+        <span>****</span>
+        <a class="link" (click)="changePassword()">Cambiar</a>
+      </div>
+      <input
+        *ngIf="isEditing"
+        type="password"
+        class="inp"
+        [(ngModel)]="editablePassword"
+        placeholder="Nueva contraseña"
+      />
+    </div>
+
+    <div class="action-row" *ngIf="!isEditing">
+      <button class="btn-edit" (click)="startEditing()">Editar Información</button>
+    </div>
+    <div class="action-row" *ngIf="isEditing">
+      <button class="btn-save" (click)="saveProfile()">Guardar</button>
+      <button class="btn-cancel" (click)="cancelEditing()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Historial de Sesiones</h3>
+  <ul class="list">
+    <li>Último acceso: {{ ultimoAcceso || 'N/A' }}</li>
+  </ul>
+  <div class="session-actions">
+    <button class="btn-session" (click)="closeSession()">Cerrar sesión</button>
+    <button class="btn-session" (click)="changePassword()">Cambiar contraseña</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Restricciones y compromisos</h3>
+  <ul class="restricciones-list">
+    <li *ngFor="let restriccion of restricciones()">
+      <h4>{{ restriccion.titulo }}</h4>
+      <p>{{ restriccion.descripcion }}</p>
+    </li>
+  </ul>
+</div>

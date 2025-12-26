@@ -1,0 +1,344 @@
+.ttl { color:#0a244d; font-weight:800; margin-bottom:12px; }
+.card { background:#fff; border:1px solid #e9eef6; border-radius:12px; padding:12px; box-shadow:0 8px 28px rgba(10,36,77,.06); }
+.tabs { display:flex; gap:8px; }
+.tab { border:1px solid #dbe3ee; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:700; }
+.tab.active { background:#1976d2; color:#fff; border-color:#1976d2; }
+
+.docs-card { margin-top:16px; }
+.docs-card .doc-form { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.doc-grid { display:grid; grid-template-columns:minmax(220px,1.2fr) 1fr 1fr; gap:12px; align-items:center; }
+.file-input { display:flex; align-items:center; gap:8px; border:1px dashed #c6d4eb; border-radius:10px; padding:10px 12px; cursor:pointer; background:#f8fbff; font-weight:600; color:#0a244d; }
+.file-input span { flex:1; }
+.file-input input { display:none; }
+.doc-actions { display:flex; gap:8px; }
+.doc-list { margin-top:12px; }
+.doc-items { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.doc-items li { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px; border:1px solid #e9eef6; border-radius:10px; background:#fdfdff; }
+.doc-info { display:flex; flex-direction:column; gap:4px; }
+.doc-buttons { display:flex; gap:8px; align-items:center; }
+.help.error { color:#b91c1c; font-size:.85rem; }
+.evaluacion-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.acciones-head { display:flex; gap:8px; align-items:center; }
+.tabla-entregas { border:1px solid #e9eef6; border-radius:12px; overflow:hidden; }
+.tabla-head, .tabla-row { display:grid; grid-template-columns:1.2fr 1fr 1.2fr .6fr .5fr; gap:10px; align-items:center; padding:10px 12px; }
+.tabla-head { background:#f1f5fb; font-weight:700; color:#0a244d; }
+.tabla-row:nth-child(even) { background:#fbfdff; }
+.tabla-row:nth-child(odd) { background:#fff; }
+.nota-input { width:100%; padding:8px 10px; border:1px solid #cfd8e3; border-radius:8px; }
+.acciones-nota { text-align:right; }
+.firma-card { margin-top: 16px; }
+.firma-grid { display: grid; grid-template-columns: 1fr minmax(240px, 360px); gap: 16px; align-items: flex-start; }
+.firma-form { display: flex; flex-direction: column; gap: 12px; }
+.firma-actions { display: flex; gap: 8px; align-items: center; }
+.firma-preview { border: 1px solid #e9eef6; border-radius: 10px; padding: 12px; background: #fdfdff; min-height: 160px; display: flex; flex-direction: column; gap: 8px; }
+.firma-preview img { max-width: 100%; height: auto; border: 1px solid #dbe3ee; border-radius: 8px; padding: 6px; background: #fff; }
+.preview-box { display: flex; flex-direction: column; gap: 10px; }
+.firma-url-card { border: 1px solid #e9eef6; border-radius: 10px; padding: 12px; background: #fdfdff; display: flex; flex-direction: column; gap: 10px; }
+.firma-url-card form { display: flex; flex-direction: column; gap: 8px; }
+.firma-url-card input { height: 40px; padding: 0 10px; border: 1px solid #dbe3ee; border-radius: 8px; }
+.firma-url-actions { display: flex; gap: 8px; align-items: center; }
+
+
+@media (max-width: 900px) {
+  .doc-grid { grid-template-columns: 1fr; }
+  .doc-items li { flex-direction: column; }
+  .doc-buttons { justify-content:flex-start; }
+  .tabla-head, .tabla-row { grid-template-columns: 1fr; }
+  .evaluacion-head { flex-direction: column; align-items: flex-start; }
+  .firma-grid { grid-template-columns: 1fr; }
+}
+
+.filters { display:flex; gap:8px; align-items:center; }
+.filters input { height:40px; border:1px solid #dbe3ee; border-radius:10px; padding:0 12px; }
+
+.list-head, .row { display:grid; grid-template-columns:1.4fr 1.4fr 1.2fr .6fr .6fr .6fr; gap:8px; align-items:center; }
+.list-head { font-weight:800; color:#0a244d; }
+.row { border-top:1px solid #eef2f7; padding:8px 0; }
+
+
+.actions { text-align:right; }
+.actions .rechazar-form {
+  flex-direction: column;    /* input, botón y mensaje en columna */
+  align-items: flex-end;     /* alinea botón y texto a la derecha */
+  gap: 6px;
+}
+
+.actions .rechazar-form input {
+  width: 100%;
+}
+
+.actions .rechazar-form .help.error {
+  text-align: right;
+}
+
+/* Formulario de rechazo: input grande como el de URL */
+.actions .rechazar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.actions .rechazar-form .rechazar-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions .rechazar-form .rechazar-row .btn.danger {
+  flex: 0 0 auto;
+}
+
+/* El input ocupa todo el espacio restante, como el de "URL PDF firmado" */
+.actions .rechazar-form .rechazar-row input {
+  flex: 1 1 auto;
+}
+
+/* Que el input tenga el mismo ancho que el de "URL PDF firmado" */
+.actions .rechazar-form input {
+  flex: 0 0 auto;  /* que no intente crecer verticalmente */
+  width: 80%;     /* ocupa todo el ancho */
+}
+
+/* Botón alineado a la derecha, como antes */
+.actions .rechazar-form .btn.danger {
+  align-self: flex-end;
+}
+
+
+.btn { border:0; border-radius:8px; padding:6px 12px; font-weight:700; cursor:pointer; }
+.btn.primary { background:#1976d2; color:#fff; }
+.btn.danger { background:#dc2626; color:#fff; }
+.btn.sm { font-size:.9rem; margin-left: 10px; margin-right: 10px; }
+
+.chip { border-radius:999px; padding:4px 10px; font-weight:700; font-size:.8rem; }
+.chip-warn { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+.chip-ok { background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; }
+.chip-bad { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(100vw, 1300px); /* ancho */
+  background: #fff;
+  border-left: 1px solid #e9eef6;
+  box-shadow: -8px 0 24px rgba(0,0,0,.15);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+.drawer header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #ffffff; background:#ffffff; }
+.drawer .detail {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr; /* más espacio para la vista previa */
+  height: 100%;
+}
+.col { padding:20px; overflow:auto; }
+.carta-col { border-left:1px solid #e9eef6; background:#fafbff; }
+
+.info-group { margin-bottom:18px; }
+.info-group h4 { margin:0 0 8px; color:#0a244d; }
+.info-group p { margin:4px 0; }
+
+.actions form { display:flex; gap:8px; margin-bottom:10px; }
+.actions input { flex:1; height:40px; padding:0 10px; border:1px solid #dbe3ee; border-radius:8px; }
+
+.preview-col {
+  flex: 1;                      /* ocupa todo el alto disponible de la columna derecha */
+  padding: 2px 24px 62px;      /* un poco menos arriba, algo más abajo */
+  overflow: auto;               /* aquí vive el scroll real de la carta */
+  background: #fff;
+  display: flex;
+  justify-content: center;      /* centrado horizontal */
+  align-items: center;          /* centrado vertical si la carta cabe completa */
+}
+
+
+.carta-preview {
+  background: #fff;
+  border: 1px solid #e9eef6;
+  border-radius: 12px;
+  padding: 32px 40px;          /* un poco más de “margen interno” */
+  line-height: 1.55;
+  color: #1f2a37;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  width: 100%;
+  max-width: 820px;            /*  más ancha, pero con límite razonable */
+  margin: 0 auto;              /* centrada dentro de la columna */
+}
+
+
+/* Encabezado con logo centrado */
+.c-enc {
+  text-align:center;
+  margin-bottom:6px;
+}
+
+.c-logo {
+  display:block;
+  margin:0 auto;
+  max-width:80px;
+  height:auto;
+}
+
+/* Fecha alineada a la derecha */
+.c-fecha {
+  text-align:right;
+  margin:12px 0 18px;
+}
+
+/* Destinatario */
+.c-dest {
+  margin-bottom:18px;
+}
+
+.c-dest-name {
+  font-weight:700;
+}
+
+/* Cuerpo de la carta */
+.c-body p {
+  margin:12px 0;
+  text-align:justify;
+}
+
+.c-obj {
+  margin:8px 0 12px 18px;
+}
+
+/* Despedida y firma alineadas a la derecha, como el PDF */
+.c-despedida {
+  margin-top:18px;
+  text-align:right;
+}
+
+/* Bloque de firma */
+.c-sign {
+  margin-top:18px;
+  text-align:right;
+}
+
+.c-sign-inner {
+  display:inline-flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:4px;
+}
+
+.c-firma-img {
+  max-width:120px;
+  height:auto;
+  margin-bottom:4px;
+}
+
+.c-firma-nombre {
+  font-weight:800;
+}
+
+/* Pie de página tipo PDF */
+.c-footer {
+  margin-top:20px;
+  font-size:12px;
+  text-align:center;
+  color:#6b7280;
+  line-height:1.4;
+}
+
+.c-footer-inst {
+  font-weight:600;
+}
+
+.hint { margin-top:12px; color:#6b7280; text-align:center; font-size:12px; }
+
+.backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9998; }
+
+.toast { 
+    position:fixed; 
+    bottom:20px; 
+    right:20px; 
+    background:#0a244d; 
+    color:#fff; 
+    padding:10px 14px; 
+    border-radius:8px; }
+
+
+.loading { 
+    padding:10px; 
+    color:#0a244d; }
+
+.alert.error { 
+    background:#fef2f2; 
+    color:#991b1b; 
+    border:1px solid #fecaca; 
+    padding:8px; 
+    border-radius:8px; }
+
+/* barra superior: tabs + buscador en una fila */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* tabs a la izquierda, buscador a la derecha */
+  gap: 12px;
+  flex-wrap: wrap; /* si la pantalla es chica, permite que baje a 2da línea */
+}
+
+/* (ya tienes .filters, lo dejamos igual; opcionalmente fija un ancho cómodo al input) */
+.toolbar .filters input {
+  width: 280px;       /* ajusta a gusto */
+  max-width: 40vw;    /* que no se pase en pantallas pequeñas */
+}
+
+/* Tabs principales y subtabs */
+.main-tabs .tab { font-size: 0.95rem; }
+.subtabs .tab { font-size: 0.9rem; padding: 6px 10px; }
+.subtabs-bar { margin-top: 10px; }
+
+.tab.sm { font-size: .9rem; padding: 6px 10px; }
+
+/* Ajustes de toolbar en pantallas pequeñas */
+@media (max-width: 900px) {
+  .toolbar { gap: 8px; }
+  .toolbar .filters input { width: 100%; max-width: 100%; }
+}
+
+@media (max-width: 1024px) {
+  .drawer .detail {
+    grid-template-columns: 1fr;           /* una columna */
+  }
+
+  .carta-col {
+    border-left: none;
+    border-top: 1px solid #e9eef6;
+  }
+}
+
+
+/* Formulario de "Aprobar y Firmar" más protagonista */
+.actions .approve-form {
+  flex-direction: column;       /* input arriba, botón abajo */
+  align-items: center;          /* centrar el botón horizontalmente */
+  gap: 10px;
+}
+
+/* Evitar que el input quede aplastado por el flex anterior */
+.actions .approve-form input {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+/* Botón grande, centrado y más llamativo */
+.actions .approve-form .btn.primary {
+  font-size: 1rem;
+  padding: 10px 24px;
+  min-width: 260px;             /* ancho mínimo más grande */
+}
+
+/* Misma altura para los botones de aprobar y rechazar */
+
+.actions .rechazar-form .btn.danger {
+  height: 40px;           /* mismo alto que el input de URL */
+  display: inline-flex;
+  align-items: center;    /* centra el texto verticalmente */
+}

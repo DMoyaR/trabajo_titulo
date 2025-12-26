@@ -1,0 +1,8 @@
+<div class="backdrop"></div>
+<div class="dialog">
+  <docente-subirarchivo
+    [variant]="'dialog'"
+    (cancelar)="close.emit()"
+    (publicar)="confirm.emit($event)"
+  ></docente-subirarchivo>
+</div>

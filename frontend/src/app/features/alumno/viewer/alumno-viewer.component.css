@@ -1,0 +1,3 @@
+.ttl { color: #1a3e6a; margin-bottom: 8px; }
+.frame { background: #fff; border: 1px solid var(--utem-border); border-radius: 12px; box-shadow: 0 8px 28px var(--utem-shadow); height: 70vh; display: grid; place-items: center; }
+.placeholder { width: 90%; height: 80%; border: 2px dashed #cfe3ff; border-radius: 12px; display: grid; place-items: center; color: #6b7280; font-weight: 800; }

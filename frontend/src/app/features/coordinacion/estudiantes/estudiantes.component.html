@@ -1,0 +1,306 @@
+<section class="students-page">
+  <div class="page-header">
+    <h1 class="title">Gestión de Estudiantes</h1>
+    <div class="header-actions">
+      <button class="btn btn-primary" type="button" (click)="openAddModal()">
+        <span class="btn-icon">➕</span>
+        Agregar Estudiante
+      </button>
+      <button class="btn btn-secondary" type="button" (click)="exportData()" [disabled]="isLoading">
+        <span class="btn-icon">📊</span>
+        Exportar Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-section">
+    <div class="search-container">
+      <input
+        type="text"
+        placeholder="Buscar por nombre, RUT o carrera..."
+        class="search-input"
+        [(ngModel)]="searchTerm"
+        (input)="onSearch()"
+      />
+      <span class="search-icon">🔍</span>
+    </div>
+
+    <div class="filter-controls">
+      <select class="filter-select" [(ngModel)]="selectedCarrera" (change)="onFilterChange()">
+        <option value="">Todas las carreras</option>
+        <option *ngFor="let carrera of carreras" [value]="carrera.id">{{ carrera.nombre }}</option>
+      </select>
+
+      <select class="filter-select" [(ngModel)]="selectedEstado" (change)="onFilterChange()">
+        <option value="">Todos los estados</option>
+        <option value="activo">Activo</option>
+        <option value="en-proceso">En proceso</option>
+        <option value="graduado">Graduado</option>
+        <option value="retirado">Retirado</option>
+      </select>
+
+      <button class="btn btn-ghost" type="button" (click)="clearFilters()">
+        <span class="btn-icon">🗑️</span>
+        Limpiar
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Cargando estudiantes...</p>
+  </div>
+
+  <div class="table-container" *ngIf="!isLoading">
+    <div class="table-header">
+      <h3>Lista de Estudiantes ({{ filteredEstudiantes.length }})</h3>
+      <div class="table-actions">
+        <button class="btn btn-ghost btn-sm" type="button" (click)="refreshData()">
+          <span class="btn-icon">🔄</span>
+          Actualizar
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="data-table" *ngIf="filteredEstudiantes.length > 0; else noDataTemplate">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('nombre')">
+              Nombre Completo
+              <span class="sort-icon" [class.active]="sortField === 'nombre'">↕️</span>
+            </th>
+            <th class="sortable" (click)="sortBy('rut')">
+              RUT
+              <span class="sort-icon" [class.active]="sortField === 'rut'">↕️</span>
+            </th>
+            <th class="sortable" (click)="sortBy('carrera')">
+              Carrera
+              <span class="sort-icon" [class.active]="sortField === 'carrera'">↕️</span>
+            </th>
+            <th>Email</th>
+            <th class="sortable" (click)="sortBy('estado')">
+              Estado
+              <span class="sort-icon" [class.active]="sortField === 'estado'">↕️</span>
+            </th>
+            <th>Fecha Ingreso</th>
+            <th class="actions-column">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let estudiante of paginatedEstudiantes; trackBy: trackByEstudianteId"
+            class="table-row"
+            [class.selected]="estudiante.id && selectedEstudiantes.includes(estudiante.id)"
+          >
+            <td class="student-name">
+              <div class="name-container">
+                <div class="avatar">{{ getInitials(estudiante.nombre) }}</div>
+                <div class="name-info">
+                  <span class="full-name">{{ estudiante.nombre }} {{ estudiante.apellido }}</span>
+                  <span class="student-id">ID: {{ estudiante.id }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="rut-cell">{{ estudiante.rut }}</td>
+            <td class="career-cell">
+              <span class="career-name">{{ estudiante.carrera }}</span>
+            </td>
+            <td class="email-cell">
+              <a [href]="'mailto:' + estudiante.email" class="email-link">{{ estudiante.email }}</a>
+            </td>
+            <td class="status-cell">
+              <span class="status-badge" [class]="'status-' + estudiante.estado">
+                {{ getEstadoText(estudiante.estado) }}
+              </span>
+            </td>
+            <td class="date-cell">{{ estudiante.fechaIngreso | date: 'dd/MM/yyyy' }}</td>
+            <td class="actions-cell">
+              <div class="action-buttons">
+                <button class="btn-action btn-view" type="button" (click)="viewEstudiante(estudiante)" title="Ver detalles">
+                  👁️
+                </button>
+                <button class="btn-action btn-edit" type="button" (click)="editEstudiante(estudiante)" title="Editar">
+                  ✏️
+                </button>
+                <button class="btn-action btn-delete" type="button" (click)="deleteEstudiante(estudiante)" title="Eliminar">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #noDataTemplate>
+        <div class="no-data-container">
+          <div class="no-data-icon">👥</div>
+          <h3>No se encontraron estudiantes</h3>
+          <p>No hay estudiantes que coincidan con los filtros seleccionados.</p>
+          <button class="btn btn-primary" type="button" (click)="openAddModal()">
+            Agregar primer estudiante
+          </button>
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="pagination-container" *ngIf="filteredEstudiantes.length > pageSize">
+      <div class="pagination-info">
+        Mostrando {{ getStartIndex() }} - {{ getEndIndex() }} de {{ filteredEstudiantes.length }} estudiantes
+      </div>
+      <div class="pagination-controls">
+        <button class="pagination-btn" type="button" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">
+          ← Anterior
+        </button>
+        <span class="page-numbers">
+          <button
+            *ngFor="let page of getPageNumbers()"
+            class="page-number"
+            [class.active]="page === currentPage"
+            type="button"
+            (click)="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </span>
+        <button
+          class="pagination-btn"
+          type="button"
+          [disabled]="currentPage === totalPages"
+          (click)="goToPage(currentPage + 1)"
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditing ? 'Editar' : 'Agregar' }} Estudiante</h2>
+        <button class="modal-close" type="button" (click)="closeModal()">✕</button>
+      </div>
+
+      <form class="modal-form" (ngSubmit)="saveEstudiante()" #estudianteForm="ngForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nombre">Nombre *</label>
+            <input
+              type="text"
+              id="nombre"
+              name="nombre"
+              [(ngModel)]="currentEstudiante.nombre"
+              required
+              class="form-input"
+              placeholder="Ingrese el nombre"
+            />
+          </div>
+          <div class="form-group">
+            <label for="apellido">Apellido *</label>
+            <input
+              type="text"
+              id="apellido"
+              name="apellido"
+              [(ngModel)]="currentEstudiante.apellido"
+              required
+              class="form-input"
+              placeholder="Ingrese el apellido"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rut">RUT *</label>
+            <input
+              type="text"
+              id="rut"
+              name="rut"
+              [(ngModel)]="currentEstudiante.rut"
+              required
+              class="form-input"
+              placeholder="12.345.678-9"
+            />
+          </div>
+          <div class="form-group">
+            <label for="email">Email *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              [(ngModel)]="currentEstudiante.email"
+              required
+              class="form-input"
+              placeholder="estudiante@ejemplo.com"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="carrera">Carrera *</label>
+            <select
+              id="carrera"
+              name="carrera"
+              [(ngModel)]="currentEstudiante.carreraId"
+              required
+              class="form-input"
+            >
+              <option value="">Seleccione una carrera</option>
+              <option *ngFor="let carrera of carreras" [value]="carrera.id">
+                {{ carrera.nombre }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="estado">Estado</label>
+            <select id="estado" name="estado" [(ngModel)]="currentEstudiante.estado" class="form-input">
+              <option value="activo">Activo</option>
+              <option value="en-proceso">En proceso</option>
+              <option value="graduado">Graduado</option>
+              <option value="retirado">Retirado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="telefono">Teléfono</label>
+            <input
+              type="tel"
+              id="telefono"
+              name="telefono"
+              [(ngModel)]="currentEstudiante.telefono"
+              class="form-input"
+              placeholder="+56 9 1234 5678"
+            />
+          </div>
+          <div class="form-group">
+            <label for="fechaIngreso">Fecha de Ingreso</label>
+            <input
+              type="date"
+              id="fechaIngreso"
+              name="fechaIngreso"
+              [(ngModel)]="currentEstudiante.fechaIngreso"
+              class="form-input"
+            />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="!estudianteForm.form.valid || isSaving"
+          >
+            {{ isSaving ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Agregar') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

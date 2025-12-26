@@ -1,0 +1,137 @@
+<h2 class="ttl">¡Hola, {{ nombreUsuario() || 'Alumno' }}!</h2>
+
+<div class="grid">
+  <div class="card practica-card">
+    <h3>Práctica Profesional en Curso</h3>
+    <p>Etapas: Inicio → Entrega → Evaluación</p>
+
+    <div class="practica-status" aria-live="polite">
+      <p class="muted" *ngIf="practicaEstadoCargando()">Obteniendo estado de tu informe…</p>
+      <div class="alert error" *ngIf="practicaEstadoError()">{{ practicaEstadoError() }}</div>
+
+      <ng-container *ngIf="!practicaEstadoCargando() && !practicaEstadoError()">
+        <span class="chip" [ngClass]="practicaEstado().clase">{{ practicaEstado().label }}</span>
+        <p class="muted practica-detalle">{{ practicaEstado().detalle }}</p>
+        <a
+          *ngIf="practicaEntrega()?.url"
+          class="btn link sm"
+          [href]="practicaEntrega()!.url"
+          target="_blank"
+          rel="noopener"
+        >
+          Ver informe enviado
+        </a>
+      </ng-container>
+    </div>
+  </div>
+
+  <!-- Trabajo de Título en Curso -->
+  <div class="tema-asignado" aria-live="polite">
+    <p class="muted" *ngIf="temaAsignadoCargando()">Cargando información de tu grupo…</p>
+    <div class="alert error" *ngIf="temaAsignadoError()">{{ temaAsignadoError() }}</div>
+
+    <ng-container *ngIf="!temaAsignadoCargando()">
+      <section class="tema-asignado-card" *ngIf="temaAsignado() as tema; else sinTemaAsignado">
+        <div class="tema-asignado-head">
+          <div>
+            <h3 class="section-title" style="margin-top: 0">Trabajo de Título en Curso</h3>
+            <p class="muted tema-asignado-carrera" *ngIf="tema.carrera">{{ tema.carrera }}</p>
+          </div>
+          <div class="chips meta">
+            <span class="chip ghost">Cupos ocupados: {{ tema.inscripcionesActivas.length }} / {{ tema.cupos }}</span>
+            <span class="chip">Disponibles: {{ tema.cuposDisponibles }}</span>
+          </div>
+        </div>
+
+        <h4 class="tema-asignado-titulo">{{ tema.titulo }}</h4>
+        <p class="tema-asignado-descripcion">{{ tema.descripcion }}</p>
+
+        <div class="tema-asignado-profesor">
+          <span class="tema-asignado-profesor-label">Profesor guía:</span>
+          <ng-container *ngIf="profesorAsignado() as profesor; else profesorPorAsignar">
+            <span class="tema-asignado-profesor-nombre">{{ profesor.nombre }}</span>
+            <span class="tema-asignado-profesor-extra" *ngIf="profesor.carrera"> · {{ profesor.carrera }}</span>
+          </ng-container>
+        </div>
+
+        <ng-template #profesorPorAsignar>
+          <span class="tema-asignado-profesor-nombre">Por asignar</span>
+        </ng-template>
+
+        <div class="tema-asignado-integrantes">
+          <h5>Integrantes del grupo</h5>
+          <ng-container *ngIf="temaAsignadoIntegrantes().length; else sinIntegrantes">
+            <ul>
+              <li *ngFor="let integrante of temaAsignadoIntegrantes()">
+                <strong>{{ integrante.nombre }}</strong>
+                <span *ngIf="integrante.correo"> · {{ integrante.correo }}</span>
+              </li>
+            </ul>
+          </ng-container>
+          <ng-template #sinIntegrantes>
+            <p class="muted" style="margin: 0">Aún no hay compañeros registrados.</p>
+          </ng-template>
+        </div>
+
+        <div class="tema-asignado-actions">
+          <a class="btn light sm" routerLink="/alumno/temas" *ngIf="puedeGestionarCupos()">Gestionar cupos del grupo</a>
+          <a class="btn link" routerLink="/alumno/temas">Ver detalle del tema</a>
+        </div>
+      </section>
+    </ng-container>
+
+    <ng-template #sinTemaAsignado>
+      <div class="alert info">
+        Aún no tienes un tema asignado en Trabajo de Título I. Revisa los <a routerLink="/alumno/temas">temas disponibles</a>
+        para postular.
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="card reuniones-card" aria-live="polite">
+    <div class="card-head">
+      <h3>Solicitudes y reuniones</h3>
+      <span class="chip ghost" *ngIf="solicitudesPendientes().length">Pendientes: {{ solicitudesPendientes().length }}</span>
+    </div>
+
+    <div class="alert error" *ngIf="reunionesError()">{{ reunionesError() }}</div>
+    <p class="muted" *ngIf="reunionesCargando()">Cargando tus solicitudes y reuniones…</p>
+
+    <section class="solicitudes-pendientes">
+      <h4>Pendientes por respuesta</h4>
+      <div *ngIf="solicitudesPendientes().length; else sinPendientes">
+        <div class="solicitud-row" *ngFor="let solicitud of solicitudesPendientes()">
+          <div>
+            <p class="solicitud-titulo">{{ solicitud.proyectoNombre || 'Solicitud de reunión' }}</p>
+            <p class="solicitud-detalle">Estado: {{ estadoSolicitudLabel(solicitud.estado) }}</p>
+          </div>
+          <span class="chip warning">Pendiente</span>
+        </div>
+      </div>
+      <ng-template #sinPendientes>
+        <div class="empty-box">No hay solicitudes pendientes por revisar.</div>
+      </ng-template>
+    </section>
+
+    <section class="historial-reuniones">
+      <div class="historial-head">
+        <h4>Historial reciente</h4>
+        <span class="chip ghost">Últimos {{ historialEventos().length || 0 }}</span>
+      </div>
+      <div *ngIf="!historialEventos().length" class="empty-box">Aún no tienes reuniones registradas.</div>
+      <ul *ngIf="historialEventos().length" class="historial-list">
+        <li *ngFor="let evento of historialEventos()">
+          <div>
+            <p class="evento-titulo">{{ evento.titulo }}</p>
+            <p class="evento-detalle">{{ evento.detalle }}</p>
+          </div>
+          <div class="evento-meta">
+            <span class="chip state">{{ evento.estado }}</span>
+            <span class="evento-fecha">{{ evento.fecha | date: 'mediumDate' }}</span>
+          </div>
+        </li>
+      </ul>
+    </section>
+  </div>
+
+</div>

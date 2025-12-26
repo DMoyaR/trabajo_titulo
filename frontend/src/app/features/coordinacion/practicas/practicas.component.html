@@ -1,0 +1,544 @@
+<h2 class="ttl">Coordinación — Prácticas</h2>
+
+<!-- ======= Pestañas principales ======= -->
+<div class="toolbar card">
+<div class="tabs main-tabs">
+<button class="tab"
+  [class.active]="mainTab()==='solicitudes'"
+  (click)="setMainTab('solicitudes')"
+  [style.background-color]="mainTab()==='solicitudes' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='solicitudes' ? '#00a35c' : null"
+  [style.color]="mainTab()==='solicitudes' ? '#fff' : null">
+  Solicitudes
+</button>
+
+<button class="tab"
+  [class.active]="mainTab()==='documentos'"
+  (click)="setMainTab('documentos')"
+  [style.background-color]="mainTab()==='documentos' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='documentos' ? '#00a35c' : null"
+  [style.color]="mainTab()==='documentos' ? '#fff' : null">
+  Documentos Oficiales
+</button>
+
+<button class="tab"
+  [class.active]="mainTab()==='recepcion'"
+  (click)="setMainTab('recepcion')"
+  [style.background-color]="mainTab()==='recepcion' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='recepcion' ? '#00a35c' : null"
+  [style.color]="mainTab()==='recepcion' ? '#fff' : null">
+  Recepción de informes
+</button>
+
+
+<button class="tab"
+  *ngIf="isCoordinador"
+  [class.active]="mainTab()==='firma'"
+  (click)="setMainTab('firma')"
+  [style.background-color]="mainTab()==='firma' ? '#00a35c' : null"
+  [style.border-color]="mainTab()==='firma' ? '#00a35c' : null"
+  [style.color]="mainTab()==='firma' ? '#fff' : null">
+  Firma del coordinador
+</button>
+
+
+  </div>
+
+  <!-- Buscador SOLO en Solicitudes -->
+  <div class="filters" *ngIf="mainTab()==='solicitudes'">
+    <input type="search"
+           placeholder="Buscar por alumno o empresa..."
+           [ngModel]="query()"
+           (ngModelChange)="query.set($event)"
+           (keyup.enter)="buscar()" />
+    <button class="btn" (click)="buscar()">Buscar</button>
+  </div>
+</div>
+
+<!-- ======= SUBTABS de estado SOLO en Solicitudes ======= -->
+<div class="card subtabs-bar" *ngIf="mainTab()==='solicitudes'">
+  <div class="tabs subtabs">
+    <button class="tab sm" [class.active]="estado()==='pendiente'" (click)="setEstado('pendiente')">Pendientes</button>
+    <button class="tab sm" [class.active]="estado()==='aprobado'" (click)="setEstado('aprobado')">Aprobadas</button>
+    <button class="tab sm" [class.active]="estado()==='rechazado'" (click)="setEstado('rechazado')">Rechazadas</button>
+  </div>
+</div>
+
+<!-- ======= CONTENIDO: DOCUMENTOS ======= -->
+<section *ngIf="mainTab()==='documentos'">
+  <div class="card docs-card">
+    <div class="card-head">
+      <h3>Documentos oficiales para alumnos</h3>
+    </div>
+
+    <form class="doc-form" [formGroup]="documentoForm" (ngSubmit)="subirDocumento()" novalidate>
+      <div class="doc-grid">
+        <label class="file-input">
+          <input
+            #archivoInput
+            type="file"
+            (change)="onArchivoSeleccionado($event)"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.png,.jpg,.jpeg"
+          />
+          <span>{{ archivoNombre() || 'Seleccionar archivo' }}</span>
+        </label>
+        <input type="text" placeholder="Nombre para mostrar" formControlName="nombre" />
+        <input type="text" placeholder="Descripción (opcional)" formControlName="descripcion" />
+      </div>
+
+      <div class="doc-actions">
+        <button class="btn primary" type="submit" [disabled]="gestionDocumentoLoading()">
+          {{ gestionDocumentoLoading() ? 'Guardando…' : 'Subir documento' }}
+        </button>
+        <button class="btn sm" type="button" (click)="limpiarFormularioDocumento()" [disabled]="gestionDocumentoLoading()">
+          Limpiar
+        </button>
+      </div>
+
+      <div class="help error" *ngIf="documentoUploadError()">{{ documentoUploadError() }}</div>
+      <div class="help error" *ngIf="documentoForm.get('nombre')?.invalid && documentoForm.get('nombre')?.touched">
+        Ingresa un nombre visible para el archivo.
+      </div>
+    </form>
+
+    <div class="doc-list">
+      <p class="muted" *ngIf="documentosLoading()">Cargando documentos…</p>
+      <div class="alert error" *ngIf="documentosError()">{{ documentosError() }}</div>
+      <p class="muted" *ngIf="!documentosLoading() && !documentosError() && !documentosCompartidos().length">
+        Aún no has compartido documentos oficiales con tus estudiantes.
+      </p>
+
+      <ul class="doc-items" *ngIf="!documentosLoading() && documentosCompartidos().length">
+        <li *ngFor="let doc of documentosCompartidos()">
+          <div class="doc-info">
+            <strong>{{ doc.nombre }}</strong>
+            <small class="muted">{{ formatFecha(doc.createdAt) }}</small>
+            <small class="muted" *ngIf="doc.descripcion">{{ doc.descripcion }}</small>
+          </div>
+          <div class="doc-buttons">
+            <a class="btn sm" *ngIf="doc.url; else sinArchivo" [href]="doc.url!" target="_blank" rel="noopener">Descargar</a>
+            <ng-template #sinArchivo>
+              <button class="btn sm" type="button" disabled>Sin archivo</button>
+            </ng-template>
+            <button class="btn danger sm" type="button" (click)="eliminarDocumento(doc.id)" [disabled]="gestionDocumentoLoading()">
+              Eliminar
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======= CONTENIDO: RECEPCIÓN DE INFORMES ======= -->
+<section *ngIf="mainTab()==='recepcion'">
+  <div class="card docs-card">
+    <div class="card-head evaluacion-head">
+      <div>
+        <h3>Recepción de informes</h3>
+        <p class="muted">Visualiza los informes de práctica enviados por los estudiantes y registra la nota.</p>
+      </div>
+      <div class="acciones-head">
+        <button class="btn sm" type="button" (click)="cargarEntregasEvaluacion()" [disabled]="entregasEvaluacionLoading()">
+          {{ entregasEvaluacionLoading() ? 'Actualizando…' : 'Actualizar' }}
+        </button>
+        <button class="btn sm" type="button" (click)="descargarCsvEntregas()" [disabled]="!entregasEvaluacion().length">
+          Descargar CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="doc-list">
+      <p class="muted" *ngIf="entregasEvaluacionLoading()">Cargando entregas…</p>
+      <div class="alert error" *ngIf="entregasEvaluacionError()">{{ entregasEvaluacionError() }}</div>
+      <p class="muted" *ngIf="!entregasEvaluacionLoading() && !entregasEvaluacionError() && !entregasEvaluacion().length">
+        Aún no hay informes enviados por los alumnos.
+      </p>
+
+      <div class="tabla-entregas" *ngIf="!entregasEvaluacionLoading() && entregasEvaluacion().length">
+        <div class="tabla-head">
+          <span>Alumno</span>
+          <span>Empresa</span>
+          <span>Informe</span>
+          <span>Nota</span>
+          <span></span>
+        </div>
+
+          <div class="tabla-row" *ngFor="let entrega of entregasEvaluacion()">
+            <div>
+              <strong>{{ entrega.alumno?.nombre || '—' }}</strong>
+              <div class="muted">{{ entrega.alumno?.correo }}</div>
+            </div>
+            <div>{{ entrega.empresa || '—' }}</div>
+            <div>
+              <a *ngIf="entrega.archivoUrl" [href]="entrega.archivoUrl" target="_blank" rel="noopener">{{ entrega.archivoNombre || 'Informe' }}</a>
+              <span *ngIf="!entrega.archivoUrl">Sin archivo</span>
+              <div class="muted">Enviado {{ formatFecha(entrega.createdAt) || entrega.createdAt }}</div>
+            </div>
+
+
+            <div>
+              <input
+                #notaInput
+                type="text"
+                class="nota-input"
+                [value]="notasEdicion()[entrega.id] ?? entrega.nota"
+                (input)="onNotaChange(entrega.id, notaInput.value)"
+                placeholder="Ej: 6,0"
+              />
+              <div class="help error" *ngIf="notaErrores()[entrega.id]">
+                {{ notaErrores()[entrega.id] }}
+              </div>
+            </div>
+            <div class="acciones-nota">
+              <button
+                class="btn primary sm"
+                type="button"
+                (click)="guardarNota(entrega.id)"
+                [disabled]="notaGuardando(entrega.id) || !!notaErrores()[entrega.id]"
+              >
+                {{ notaGuardando(entrega.id) ? 'Guardando…' : 'Guardar' }}
+              </button>
+            </div>
+
+
+
+          </div>
+        </div>
+      </div>
+    </div>
+</section>
+
+
+<!-- ======= CONTENIDO: FIRMA COORDINADOR ======= -->
+<section *ngIf="mainTab()==='firma' && isCoordinador">
+  <div class="card docs-card firma-card">
+    <div class="card-head">
+      <h3>Firma del coordinador</h3>
+      <p class="muted">Visible solo para coordinación de {{ coordinadorCarrera || 'la carrera' }}.</p>
+    </div>
+
+    <div class="alert error" *ngIf="firmaError()">{{ firmaError() }}</div>
+
+    <div class="firma-grid">
+      <form class="firma-form" (ngSubmit)="subirFirmaCoordinador()" novalidate>
+        <label class="file-input">
+          <input
+            #firmaInput
+            type="file"
+            accept="image/png,image/jpeg"
+            (change)="onFirmaSeleccionada($event)"
+          />
+          <span>{{ firmaArchivoNombre() || 'Seleccionar imagen de firma' }}</span>
+        </label>
+
+        <div class="firma-actions">
+          <button class="btn primary" type="submit" [disabled]="firmaGestionLoading()">
+            {{ firmaGestionLoading() ? 'Guardando…' : 'Guardar firma' }}
+          </button>
+          <button class="btn sm" type="button" (click)="limpiarArchivoFirma()" [disabled]="firmaGestionLoading()">
+            Limpiar
+          </button>
+        </div>
+
+        <div class="help error" *ngIf="firmaUploadError()">{{ firmaUploadError() }}</div>
+        <p class="muted">Formatos aceptados: PNG o JPG. Se utilizará solo en coordinación.</p>
+      </form>
+      <div class="firma-preview">
+        <p class="muted" *ngIf="firmaLoading()">Cargando firma…</p>
+        <div class="alert error" *ngIf="!firmaLoading() && firmaError()">{{ firmaError() }}</div>
+        <div class="preview-box" *ngIf="!firmaLoading() && !firmaError()">
+          <p class="muted" *ngIf="!firmaCoordinador()">Aún no registras una firma para tu carrera.</p>
+          <img
+            *ngIf="firmaArchivoUrl()"
+            [src]="firmaArchivoUrl()!"
+            alt="Firma del coordinador"
+          />
+          <small class="muted" *ngIf="firmaCoordinador()">
+            Última actualización: {{ formatFecha(firmaCoordinador()!.updatedAt) }}
+          </small>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+<div class="firma-url-card">
+  <h3>URL del coordinador</h3>
+  <p class="muted">Ingrese su URL para firmar los documentos</p>
+
+  <div class="firma-grid">
+    <!-- Columna izquierda: formulario URL -->
+    <form [formGroup]="firmaUrlForm" (ngSubmit)="guardarFirmaUrl()">
+      <input
+        type="url"
+        placeholder="https://..."
+        formControlName="urlFirmaDigital"
+      />
+
+      <div class="firma-url-actions">
+        <button class="btn primary" type="submit" [disabled]="firmaUrlLoading()">
+          {{ firmaUrlLoading() ? 'Guardando…' : 'Guardar URL' }}
+        </button>
+      </div>
+
+      <div class="help error" *ngIf="firmaUrlError()">{{ firmaUrlError() }}</div>
+    </form>
+
+    <!-- Columna derecha: vista previa -->
+    <div class="firma-preview">
+      <div class="preview-box">
+        <p class="muted" *ngIf="!firmaDigitalUrl()">Sin vista previa para la URL.</p>
+        <img
+          *ngIf="firmaDigitalUrl()"
+          [src]="firmaDigitalUrl()!"
+          alt="Firma digital desde URL"
+        />
+        <!-- NUEVO: fecha de actualización -->
+        <small
+          class="muted"
+          *ngIf="firmaCoordinador() && firmaDigitalUrl()"
+        >
+          Última actualización: {{ formatFecha(firmaCoordinador()!.updatedAt) }}
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+</section>
+
+
+
+
+
+<!-- ======= CONTENIDO: SOLICITUDES ======= -->
+<section *ngIf="mainTab()==='solicitudes'">
+  <div class="card">
+    <div class="list-head">
+      <span>Alumno</span>
+      <span>Carrera</span>
+      <span>Empresa</span>
+      <span>Duración</span>
+      <span>Estado</span>
+      <span></span>
+    </div>
+
+    <div *ngIf="loading()" class="loading">Cargando...</div>
+    <div *ngIf="error()" class="alert error">{{ error() }}</div>
+
+    <div class="list-body" *ngIf="!loading()">
+      <div class="row" *ngFor="let s of solicitudes()">
+        <div>{{ s.alumno.nombres }} {{ s.alumno.apellidos }}</div>
+        <div>{{ s.alumno.carrera }}</div>
+        <div>{{ s.destinatario.empresa }}</div>
+        <div>{{ s.practica.duracionHoras }} h</div>
+        <div>
+          <span class="chip"
+                [class.chip-warn]="s.estado==='pendiente'"
+                [class.chip-ok]="s.estado==='aprobado'"
+                [class.chip-bad]="s.estado==='rechazado'">{{ s.estado | titlecase }}</span>
+        </div>
+        <div class="actions">
+          <button class="btn sm" (click)="abrirDetalle(s)">Revisar</button>
+        </div>
+      </div>
+
+      <div class="pager" *ngIf="total() > size()">
+        <button class="btn sm" (click)="prevPage()" [disabled]="page()===1">Anterior</button>
+        <span>    Página    {{ page() }}</span>
+        <button class="btn sm" (click)="nextPage()" [disabled]="page()*size()>=total()">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" *ngIf="toast()">{{ toast() }}</div>
+
+<!-- ======= DETALLE  ======= -->
+<ng-container *ngIf="showDetalle() && current() as c">
+  <div class="backdrop" (click)="cerrarDetalle()"></div>
+
+  <aside class="drawer">
+    <header>
+      <h3>Solicitud de {{ c.alumno.nombres }} {{ c.alumno.apellidos }}</h3>
+      <button class="icon" (click)="cerrarDetalle()">✕</button>
+    </header>
+
+    <div class="detail">
+      <div class="col">
+        <div class="info-group">
+          <h4>Datos del alumno</h4>
+          <p><b>RUT:</b> {{ c.alumno.rut }}</p>
+          <p><b>Carrera:</b> {{ c.alumno.carrera }}</p>
+          <p><b>Fecha de solicitud:</b> {{ formatFecha(c.creadoEn) }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Datos de la práctica</h4>
+          <p><b>Jefe directo:</b> {{ c.practica.jefeDirecto }}</p>
+          
+          <p><b>Cargo del estudiante:</b> {{ c.practica.cargoAlumno }}</p>
+          <p><b>Fecha de inicio:</b> {{ formatFecha(c.practica.fechaInicio) }}</p>
+          <p><b>Duración:</b> {{ c.practica.duracionHoras }} horas</p>
+          <p><b>RUT de la empresa:</b> {{ c.practica.empresaRut }}</p>
+          <p><b>Sector de la empresa:</b> {{ c.practica.sectorEmpresa }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Empresa / Destinatario</h4>      
+          <p><b>Empresa:</b> {{ c.destinatario.empresa }}</p>
+          <p><b>Contacto:</b> {{ c.destinatario.nombres }} {{ c.destinatario.apellidos }}</p>
+          <p><b>Correo del encargado:</b> {{ c.practica.correoEncargado }}</p>
+          <p><b>Cargo del contacto:</b> {{ c.destinatario.cargo }}</p>
+        </div>
+
+        <div class="info-group">
+          <h4>Escuela asignada</h4>
+          <p><b>Escuela:</b> {{ c.escuela.nombre }}</p>
+          <p><b>Dirección:</b> {{ c.escuela.direccion }}</p>
+          <p><b>Teléfono:</b> {{ c.escuela.telefono }}</p>
+        </div>
+
+<div class="actions">
+  <form class="approve-form" [formGroup]="aprobarForm">
+
+
+    <!-- Botón original: ahora "Firmar con imagen" -->
+    <button
+      class="btn primary"
+      type="button"
+      (click)="aprobar()"
+    >
+      Firmar con imagen
+    </button>
+
+    <!-- Nuevo botón: "Firmar con URL" -->
+    <button
+      class="btn primary"
+      type="button"
+      (click)="firmarConUrl()"
+    >
+      Firmar con URL
+    </button>
+
+    <!--  Mensaje de error bajo los botones -->
+    <div class="help error" *ngIf="aprobarUrlError()">
+      {{ aprobarUrlError() }}
+    </div>
+  </form>
+
+        <form class="rechazar-form" [formGroup]="rechazarForm" (ngSubmit)="rechazar()">
+
+          <!-- fila con botón a la izquierda e input a la derecha -->
+          <div class="rechazar-row">
+            <button class="btn danger" type="submit">Rechazar</button>
+
+            <input
+              type="text"
+              placeholder="Motivo rechazo"
+              formControlName="motivo"
+            />
+          </div>
+
+          <!-- mensaje de error en rojo debajo -->
+          <div
+            class="help error"
+            *ngIf="rechazarForm.get('motivo')?.invalid && rechazarForm.get('motivo')?.touched"
+          >
+            *Debes agregar un comentario antes de rechazar la solicitud.
+          </div>
+        </form>
+
+        </div>
+      </div>
+
+<div class="col carta-col">
+  <h4>Vista previa</h4>
+  <div class="preview-col">
+    <div class="carta-preview">
+      <!-- Encabezado con logo (similar al PDF) -->
+      <header class="c-enc">
+        <img src="/assets/Logo_Header.png" alt="Logo UTEM" class="c-logo" />
+      </header>
+
+      <!-- Fecha alineada a la derecha -->
+      <div class="c-fecha">{{ fechaHoy() }}</div>
+
+      <!-- Destinatario -->
+      <section class="c-dest">
+        <div>Señor</div>
+        <div class="c-dest-name">
+          {{ cartaPreview().destNombres }} {{ cartaPreview().destApellidos }}
+        </div>
+        <div class="c-dest-cargo">{{ cartaPreview().destCargo }}</div>
+        <div class="c-dest-emp">{{ cartaPreview().destEmpresa }}</div>
+        <div>Presente</div>
+      </section>
+
+      <!-- Cuerpo de la carta, similar a los párrafos del PDF -->
+      <section class="c-body">
+        <!-- Primer párrafo (Me permito dirigirme...) -->
+        <p>
+          Me permito dirigirme a Ud. para presentar al Sr.
+          <b>{{ cartaPreview().alumnoNombres }} {{ cartaPreview().alumnoApellidos }}</b>
+          <ng-container *ngIf="cartaPreview().alumnoRut && cartaPreview().alumnoRut !== '—'">
+            , RUT <b>{{ cartaPreview().alumnoRut }}</b>
+          </ng-container>
+          <ng-container *ngIf="cartaPreview().carrera && cartaPreview().carrera !== '—'">
+            , de la carrera de <b>{{ cartaPreview().carrera }}</b>
+          </ng-container>
+          de la Universidad Tecnológica Metropolitana, y solicitar su aceptación en calidad de alumno en práctica.
+        </p>
+
+        <!-- Segundo párrafo (seguro, duración, fecha de inicio, objetivos) -->
+        <p>
+          Cabe destacar que dicho alumno está cubierto por el seguro estudiantil de acuerdo en el Art. 3º de la
+          ley N.º 16.744 y el Art. 1.º del D.L. N.º 313/73. Esta práctica tiene una duración de
+          <b>{{ cartaPreview().duracionHoras | number }}</b> horas cronológicas,
+          con fecha de inicio el día <b>{{ cartaPreview().fechaInicio }}</b> y sus objetivos son:
+        </p>
+
+        <!-- Lista de objetivos -->
+        <ul class="c-obj">
+          <li *ngFor="let obj of objetivosActuales()">{{ obj }}</li>
+        </ul>
+
+        <!-- Despedida alineada a la derecha, como en el PDF -->
+        <p class="c-despedida">Le saluda atentamente,</p>
+      </section>
+
+      <!-- Firma (imagen + texto) alineada a la derecha -->
+      <footer class="c-sign">
+        <div class="c-sign-inner">
+          <img
+            *ngIf="firmaCartaUrl()"
+            [src]="firmaCartaUrl()!"
+            alt="Firma del coordinador"
+            class="c-firma-img"
+          />
+          <div class="c-firma-text">
+            <div class="c-firma-nombre">{{ firmaActual().nombre }}</div>
+            <div class="c-firma-cargo">{{ firmaActual().cargo }}</div>
+          </div>
+        </div>
+      </footer>
+
+      <!-- Pie de página similar al PDF -->
+      <div class="c-footer">
+        <div class="c-footer-inst">
+          {{ firmaActual().institucion || 'Universidad Tecnológica Metropolitana' }}
+        </div>
+        <div class="c-footer-addr">
+          {{ cartaPreview().escuelaNombre }} — {{ cartaPreview().escuelaDireccion }}
+          — Tel. {{ cartaPreview().escuelaTelefono }} — http://www.utem.cl
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+    </div>
+  </aside>
+</ng-container>

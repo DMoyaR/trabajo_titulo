@@ -1,0 +1,226 @@
+<h2 class="ttl">Gestión de reuniones con estudiantes</h2>
+
+<div class="alert error" *ngIf="error()">{{ error() }}</div>
+<div class="alert success" *ngIf="mensaje()">{{ mensaje() }}</div>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Solicitudes pendientes</h3>
+    <span class="chip" *ngIf="solicitudesPendientes().length">
+      {{ solicitudesPendientes().length }} pendiente{{ solicitudesPendientes().length === 1 ? '' : 's' }}
+    </span>
+  </div>
+
+  <p class="muted" *ngIf="cargandoSolicitudes()">Cargando solicitudes…</p>
+  <p class="muted" *ngIf="!cargandoSolicitudes() && !solicitudesPendientes().length">
+    No tienes solicitudes pendientes de revisión.
+  </p>
+
+  <article class="solicitud" *ngFor="let solicitud of solicitudesPendientes()">
+    <header>
+      <div>
+        <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+        <small class="muted">Enviada el {{ fechaHora(solicitud.creadoEn) }}</small>
+      </div>
+      <span class="estado pendiente">Pendiente</span>
+    </header>
+
+    <p class="motivo">{{ solicitud.motivo }}</p>
+    <p class="muted" *ngIf="solicitud.disponibilidadSugerida">
+      Disponibilidad sugerida: <strong>{{ solicitud.disponibilidadSugerida }}</strong>
+    </p>
+
+    <section class="historial" *ngIf="solicitud.trazabilidad.length">
+      <h5>Historial</h5>
+      <ul>
+        <li *ngFor="let evento of solicitud.trazabilidad">
+          <span class="fecha">{{ fechaHora(evento.fecha) }}</span>
+          <span class="detalle">{{ descripcionEvento(evento) }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <div class="acciones">
+      <button type="button" class="btn primario" (click)="abrirAprobacion(solicitud)" [disabled]="procesandoSolicitud()">
+        Aprobar y agendar
+      </button>
+      <button type="button" class="btn secundario" (click)="abrirRechazo(solicitud)" [disabled]="procesandoSolicitud()">
+        Rechazar
+      </button>
+    </div>
+
+    <div class="panel-form" *ngIf="seleccionada()?.id === solicitud.id">
+      <form *ngIf="modo() === 'aprobar'" [formGroup]="aprobarForm" (ngSubmit)="confirmarAprobacion()">
+        <h5>Agendar reunión</h5>
+        <div class="grid">
+          <label>
+            Fecha
+            <input type="date" formControlName="fecha" />
+          </label>
+          <label>
+            Hora inicio
+            <input type="time" formControlName="horaInicio" />
+          </label>
+          <label>
+            Hora término
+            <input type="time" formControlName="horaTermino" />
+          </label>
+          <label>
+            Modalidad
+            <select formControlName="modalidad">
+              <option value="presencial">Presencial</option>
+              <option value="online">Online</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Comentario (opcional)
+          <textarea rows="3" formControlName="comentario" placeholder="Instrucciones para el estudiante"></textarea>
+        </label>
+        <div class="acciones">
+          <button class="btn primario" type="submit" [disabled]="procesandoSolicitud()">
+            {{ procesandoSolicitud() ? 'Guardando…' : 'Confirmar reunión' }}
+          </button>
+          <button class="btn plano" type="button" (click)="cancelarAccion()">Cancelar</button>
+        </div>
+      </form>
+
+      <form *ngIf="modo() === 'rechazar'" [formGroup]="rechazoForm" (ngSubmit)="confirmarRechazo()">
+        <h5>Rechazar solicitud</h5>
+        <label>
+          Comentario (opcional)
+          <textarea rows="3" formControlName="comentario" placeholder="Explica al estudiante el motivo"></textarea>
+        </label>
+        <div class="acciones">
+          <button class="btn secundario" type="submit" [disabled]="procesandoSolicitud()">
+            {{ procesandoSolicitud() ? 'Guardando…' : 'Confirmar rechazo' }}
+          </button>
+          <button class="btn plano" type="button" (click)="cancelarAccion()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Historial de solicitudes</h3>
+  </div>
+
+  <p class="muted" *ngIf="!solicitudesResueltas().length">Aún no hay solicitudes resueltas.</p>
+
+  <div class="historial-lista" *ngIf="solicitudesResueltas().length">
+    <article class="solicitud" *ngFor="let solicitud of solicitudesResueltas()">
+      <header>
+        <div>
+          <h4>{{ solicitud.alumno?.nombre || 'Alumno' }}</h4>
+          <small class="muted">Actualizada el {{ fechaHora(solicitud.actualizadoEn) }}</small>
+        </div>
+        <span class="estado" [class.aprobada]="solicitud.estado === 'aprobada'" [class.rechazada]="solicitud.estado === 'rechazada'">
+          {{ estadoSolicitudLabel(solicitud.estado) }}
+        </span>
+      </header>
+      <p class="motivo">{{ solicitud.motivo }}</p>
+    </article>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Reuniones programadas</h3>
+  </div>
+
+  <p class="muted" *ngIf="cargandoReuniones()">Cargando reuniones…</p>
+  <p class="muted" *ngIf="!cargandoReuniones() && !reunionesVigentes().length">
+    No tienes reuniones programadas por ahora.
+  </p>
+
+  <div class="tabla" *ngIf="!cargandoReuniones() && reunionesVigentes().length">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Horario</th>
+          <th>Alumno</th>
+          <th>Modalidad</th>
+          <th>Motivo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let reunion of reunionesVigentes()">
+          <td>{{ fechaCorta(reunion.fecha) }}</td>
+          <td>{{ horaCorta(reunion.horaInicio) }} - {{ horaCorta(reunion.horaTermino) }}</td>
+          <td>{{ reunion.alumno?.nombre || 'Alumno' }}</td>
+          <td>{{ modalidadLabel(reunion.modalidad) }}</td>
+          <td>{{ reunion.motivo }}</td>
+          <td>
+            <button type="button" class="btn secundario" (click)="abrirCierre(reunion)" [disabled]="procesandoCierre() || !puedeCerrar(reunion)">
+              Cerrar reunión
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h3>Reuniones cerradas</h3>
+  </div>
+
+  <p class="muted" *ngIf="!reunionesCerradas().length">Aún no registras cierres.</p>
+
+  <div class="tabla" *ngIf="reunionesCerradas().length">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Alumno</th>
+          <th>Modalidad</th>
+          <th>Estado final</th>
+          <th>Comentario</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let reunion of reunionesCerradas()">
+          <td>{{ fechaCorta(reunion.fecha) }}</td>
+          <td>{{ reunion.alumno?.nombre || 'Alumno' }}</td>
+          <td>{{ modalidadLabel(reunion.modalidad) }}</td>
+          <td>
+            <span class="estado" [class.aprobada]="reunion.estado === 'finalizada'" [class.rechazada]="reunion.estado === 'no_realizada'">
+              {{ estadoReunionLabel(reunion.estado) }}
+            </span>
+          </td>
+          <td>{{ reunion.observaciones || '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel" *ngIf="reunionEnCierre() as reunion">
+  <h3>Cerrar reunión con {{ reunion.alumno?.nombre || 'el estudiante' }}</h3>
+  <p class="muted">Reunión programada el {{ fechaCorta(reunion.fecha) }} entre {{ horaCorta(reunion.horaInicio) }} y {{ horaCorta(reunion.horaTermino) }}.</p>
+
+  <form class="form" [formGroup]="cierreForm" (ngSubmit)="confirmarCierre()">
+    <label>
+      Resultado
+      <select formControlName="estado">
+        <option value="finalizada">Finalizada</option>
+        <option value="no_realizada">No realizada</option>
+      </select>
+    </label>
+    <label>
+      Comentario para el estudiante (opcional)
+      <textarea rows="3" formControlName="comentario" placeholder="Notas del cierre"></textarea>
+    </label>
+    <div class="acciones">
+      <button class="btn primario" type="submit" [disabled]="procesandoCierre()">
+        {{ procesandoCierre() ? 'Guardando…' : 'Guardar cierre' }}
+      </button>
+      <button class="btn plano" type="button" (click)="cancelarCierre()">Cancelar</button>
+    </div>
+  </form>
+</section>

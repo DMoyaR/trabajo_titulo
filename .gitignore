@@ -16,8 +16,7 @@ ENV/
 env/
 
 # Archivos de configuración locales
-*.env
-.env.*
+
 
 # Migraciones compiladas
 */migrations/__pycache__/
@@ -38,7 +37,8 @@ htmlcov/
 /bazel-out
 
 # Node
-/node_modules
+node_modules/
+frontend/node_modules/
 npm-debug.log
 yarn-error.log
 yarn-debug.log*

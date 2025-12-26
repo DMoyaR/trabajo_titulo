@@ -1,0 +1,763 @@
+import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+
+import { CurrentUserService } from '../../../shared/services/current-user.service';
+import {
+  DocenteEvaluacionesService,
+  EvaluacionGrupoDto,
+  EvaluacionEntregaDto,
+  GrupoActivoDto,
+} from './docente-evaluaciones.service';
+
+type GrupoEvaluaciones = {
+  nombre: string;
+  evaluaciones: {
+    titulo: string;
+    comentario: string | null;
+    rubricaNombre: string | null;
+    rubricaUrl: string | null;
+    bitacorasRequeridas: number;
+    bitacoraComentario: string | null;
+    fecha: string | null;
+    estado: string;
+  }[];
+};
+
+type EntregaDocente = {
+  id: number;
+  evaluacionId: number;
+  evaluacionTitulo: string;
+  esBitacora: boolean;
+  bitacoraIndice: number | null;
+  grupo: string;
+  alumnoNombre: string;
+  alumnoCorreo: string | null;
+  comentario: string | null;
+  fecha: Date;
+  archivoNombre: string;
+  archivoUrl: string | null;
+  estadoRevision: 'pendiente' | 'revisada';
+  nota: number | null;
+};
+
+type EntregasPorGrupo = {
+  nombre: string;
+  pendientes: EntregaDocente[];
+  revisadas: EntregaDocente[];
+  abierto: boolean;
+};
+
+@Component({
+  selector: 'app-evaluaciones',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './docente-evaluaciones.component.html',
+  styleUrls: ['./docente-evaluaciones.component.css'],
+})
+export class DocenteEvaluacionesComponent implements OnInit {
+  private readonly evaluacionesService = inject(DocenteEvaluacionesService);
+  private readonly currentUserService = inject(CurrentUserService);
+
+  private docenteId: number | null = null;
+
+  readonly estados = ['Pendiente', 'En progreso', 'Evaluada'];
+
+  evaluaciones = signal<EvaluacionGrupoDto[]>([]);
+  grupos = signal<GrupoEvaluaciones[]>([]);
+  cargando = signal(true);
+  enviando = signal(false);
+  error = signal<string | null>(null);
+  gruposActivos = signal<GrupoActivoDto[]>([]);
+  cargandoGruposActivos = signal(false);
+  errorGruposActivos = signal<string | null>(null);
+
+  entregasPendientes = signal<EntregaDocente[]>([]);
+  entregasRevisadas = signal<EntregaDocente[]>([]);
+  entregasPorGrupo = signal<EntregasPorGrupo[]>([]);
+  grupoEntregasSeleccionado = signal<string | null>(null);
+  mostrarPanelEntregas = signal(true);
+
+  grupoSeleccionadoId = signal<number | null>(null);
+  evaluacionTitulo = signal('');
+  evaluacionFecha = signal('');
+  evaluacionComentario = signal('');
+  bitacorasHabilitadas = signal(false);
+  bitacorasRequeridas = signal(0);
+  bitacoraComentario = signal('');
+  bitacoraFechas = signal<string[]>([]);
+  evaluacionRubrica = signal<File | null>(null);
+
+  private rubricaInput?: HTMLInputElement | null;
+
+  estadoCalculado = computed(() =>
+    this.calcularEstadoPorFecha(this.evaluacionFecha().trim() || null)
+  );
+
+  async ngOnInit(): Promise<void> {
+    const profile = this.currentUserService.getProfile();
+    this.docenteId = profile?.id ?? null;
+
+    await Promise.all([this.cargarGruposActivos(), this.cargarEvaluaciones()]);
+  }
+
+  onRubricaSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const archivo = input?.files?.[0] ?? null;
+    this.rubricaInput = input;
+    this.evaluacionRubrica.set(archivo);
+  }
+
+  onFechaChange(event: Event): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.evaluacionFecha.set(valor);
+    this.actualizarBitacorasDesdeFecha(valor);
+  }
+
+  onBitacorasChange(event: Event): void {
+    const valor = Number((event.target as HTMLInputElement | null)?.value ?? 0);
+    if (Number.isNaN(valor) || valor < 0) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
+      return;
+    }
+    const cantidad = Math.trunc(valor);
+    this.bitacorasRequeridas.set(cantidad);
+    this.actualizarFechasManual(cantidad);
+  }
+
+  onBitacorasToggle(event: Event): void {
+    const habilitadas = (event.target as HTMLInputElement | null)?.checked ?? false;
+    this.bitacorasHabilitadas.set(habilitadas);
+
+    if (!habilitadas) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fecha = this.evaluacionFecha();
+    if (fecha) {
+      this.actualizarBitacorasDesdeFecha(fecha);
+    }
+  }
+
+  onBitacoraFechaChange(event: Event, indice: number): void {
+    const valor = (event.target as HTMLInputElement | null)?.value ?? '';
+    this.bitacoraFechas.update((fechas) => {
+      const copia = [...fechas];
+      copia[indice] = valor;
+      return copia;
+    });
+  }
+
+  private actualizarBitacorasDesdeFecha(fechaSeleccionada: string): void {
+    if (!fechaSeleccionada) {
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fecha = new Date(`${fechaSeleccionada}T00:00:00`);
+    const hoy = new Date();
+    const inicioHoy = new Date(
+      hoy.getFullYear(),
+      hoy.getMonth(),
+      hoy.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const diffMs = fecha.getTime() - inicioHoy.getTime();
+    const semanas = Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
+    const bitacoras = Math.max(0, semanas - 1);
+
+    this.bitacorasRequeridas.set(bitacoras);
+    this.bitacoraFechas.set(this.calcularFechasBitacoras(bitacoras, fecha));
+  }
+
+  private actualizarFechasManual(cantidad: number): void {
+    if (!cantidad) {
+      this.bitacoraFechas.set([]);
+      return;
+    }
+
+    const fechaEntrega = this.evaluacionFecha();
+    if (fechaEntrega) {
+      const fecha = new Date(`${fechaEntrega}T00:00:00`);
+      this.bitacoraFechas.set(this.calcularFechasBitacoras(cantidad, fecha));
+      return;
+    }
+
+    const hoy = new Date();
+    const fechas = Array.from({ length: cantidad }).map((_, indice) => {
+      const proxima = new Date(hoy);
+      proxima.setDate(hoy.getDate() + 7 * (indice + 1));
+      return this.formatearFechaInput(proxima);
+    });
+
+    this.bitacoraFechas.set(fechas);
+  }
+
+  private calcularFechasBitacoras(cantidad: number, fechaEntrega: Date): string[] {
+    if (!cantidad) {
+      return [];
+    }
+
+    const fechas: string[] = [];
+    const base = new Date(fechaEntrega);
+
+    for (let i = cantidad; i >= 1; i -= 1) {
+      const punto = new Date(base);
+      punto.setDate(base.getDate() - 7 * i);
+      fechas.push(this.formatearFechaInput(punto));
+    }
+
+    return fechas;
+  }
+
+  private formatearFechaInput(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const day = `${fecha.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private limpiarRubrica(): void {
+    this.evaluacionRubrica.set(null);
+    if (this.rubricaInput) {
+      this.rubricaInput.value = '';
+    }
+  }
+
+  async agregarEvaluacion(event: Event): Promise<void> {
+    event.preventDefault();
+
+    if (this.enviando()) {
+      return;
+    }
+
+    const grupoId = this.grupoSeleccionadoId();
+    const titulo = this.evaluacionTitulo().trim();
+    const fecha = this.evaluacionFecha().trim();
+    const comentario = this.evaluacionComentario().trim();
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
+    const bitacoraComentario = this.bitacoraComentario().trim();
+    const rubrica = this.evaluacionRubrica();
+
+    if (!grupoId || !titulo || !comentario) {
+      return;
+    }
+
+    if (bitacoras > 0 && !bitacoraComentario) {
+      return;
+    }
+
+    const payload = {
+      tema: grupoId,
+      titulo,
+      comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario:
+        bitacoras > 0 ? bitacoraComentario : null,
+      fecha: fecha ? fecha : null,
+      docente: this.docenteId,
+      rubrica,
+    };
+
+    this.enviando.set(true);
+    this.error.set(null);
+
+    try {
+      const evaluacion = await firstValueFrom(
+        this.evaluacionesService.crear(payload)
+      );
+      this.actualizarGruposConEvaluacion(evaluacion);
+      this.evaluaciones.set([...this.evaluaciones(), evaluacion]);
+      this.actualizarEntregas(this.evaluaciones());
+      this.grupoSeleccionadoId.set(null);
+      this.evaluacionTitulo.set('');
+      this.evaluacionFecha.set('');
+      this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
+      this.limpiarRubrica();
+    } catch (error) {
+      console.error('No se pudo registrar la evaluación del grupo', error);
+      this.error.set(
+        'No pudimos guardar la evaluación. Intenta nuevamente en unos momentos.'
+      );
+    } finally {
+      this.enviando.set(false);
+    }
+  }
+
+  async enviarEvaluacionMasiva(): Promise<void> {
+    if (this.enviando()) {
+      return;
+    }
+
+    const titulo = this.evaluacionTitulo().trim();
+    const fecha = this.evaluacionFecha().trim();
+    const comentario = this.evaluacionComentario().trim();
+    const bitacoras = this.bitacorasHabilitadas()
+      ? Math.max(0, Number(this.bitacorasRequeridas()) || 0)
+      : 0;
+    const bitacoraComentario = this.bitacoraComentario().trim();
+    const rubrica = this.evaluacionRubrica();
+    const gruposActivos = this.gruposActivos();
+
+    if (!titulo || !comentario || !gruposActivos.length) {
+      return;
+    }
+
+    if (bitacoras > 0 && !bitacoraComentario) {
+      return;
+    }
+
+    const payloads = gruposActivos.map((grupo) => ({
+      tema: grupo.id,
+      titulo,
+      comentario,
+      bitacoras_requeridas: bitacoras,
+      bitacora_comentario: bitacoras > 0 ? bitacoraComentario : null,
+      fecha: fecha ? fecha : null,
+      docente: this.docenteId,
+      rubrica,
+    }));
+
+    this.enviando.set(true);
+    this.error.set(null);
+
+    try {
+      const resultados = await Promise.allSettled(
+        payloads.map((payload) =>
+          firstValueFrom(this.evaluacionesService.crear(payload))
+        )
+      );
+
+      const exitosas = resultados
+        .filter(
+          (resultado): resultado is PromiseFulfilledResult<EvaluacionGrupoDto> =>
+            resultado.status === 'fulfilled'
+        )
+        .map((resultado) => resultado.value);
+
+      const hayFallos = resultados.some(
+        (resultado) => resultado.status === 'rejected'
+      );
+
+      if (!exitosas.length) {
+        this.error.set(
+          'No pudimos registrar las evaluaciones masivas. Intenta nuevamente.'
+        );
+        return;
+      }
+
+      const evaluacionesActualizadas = [
+        ...this.evaluaciones(),
+        ...exitosas,
+      ];
+
+      this.evaluaciones.set(evaluacionesActualizadas);
+      this.grupos.set(this.agruparEvaluaciones(evaluacionesActualizadas));
+      this.actualizarEntregas(evaluacionesActualizadas);
+
+      this.grupoSeleccionadoId.set(null);
+      this.evaluacionTitulo.set('');
+      this.evaluacionFecha.set('');
+      this.evaluacionComentario.set('');
+      this.bitacorasHabilitadas.set(false);
+      this.bitacorasRequeridas.set(0);
+      this.bitacoraComentario.set('');
+      this.bitacoraFechas.set([]);
+      this.limpiarRubrica();
+
+      if (hayFallos) {
+        this.error.set(
+          'Algunas evaluaciones no se pudieron registrar. Revisa e intenta nuevamente.'
+        );
+      }
+    } catch (error) {
+      console.error('No se pudo registrar la evaluación de forma masiva', error);
+      this.error.set(
+        'No pudimos registrar todas las evaluaciones. Intenta nuevamente en unos momentos.'
+      );
+    } finally {
+      this.enviando.set(false);
+    }
+  }
+
+  private async cargarEvaluaciones(): Promise<void> {
+    this.cargando.set(true);
+    this.error.set(null);
+
+    try {
+      const evaluaciones = await firstValueFrom(
+        this.evaluacionesService.listar(this.docenteId)
+      );
+      this.evaluaciones.set(evaluaciones);
+      this.grupos.set(this.agruparEvaluaciones(evaluaciones));
+      this.actualizarEntregas(evaluaciones);
+    } catch (error) {
+      console.error('No se pudieron cargar las evaluaciones del docente', error);
+      this.error.set(
+        'No pudimos cargar las evaluaciones registradas. Intenta nuevamente más tarde.'
+      );
+      this.evaluaciones.set([]);
+      this.grupos.set([]);
+      this.entregasPendientes.set([]);
+      this.entregasRevisadas.set([]);
+    } finally {
+      this.cargando.set(false);
+    }
+  }
+
+  private async cargarGruposActivos(): Promise<void> {
+    this.cargandoGruposActivos.set(true);
+    this.errorGruposActivos.set(null);
+
+    try {
+      const grupos = await firstValueFrom(
+        this.evaluacionesService.listarGruposActivos(this.docenteId)
+      );
+      this.gruposActivos.set(
+        [...grupos].sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        )
+      );
+    } catch (error) {
+      console.error('No se pudieron cargar los grupos activos del docente', error);
+      this.errorGruposActivos.set(
+        'No pudimos cargar los grupos activos. Intenta nuevamente más tarde.'
+      );
+      this.gruposActivos.set([]);
+    } finally {
+      this.cargandoGruposActivos.set(false);
+    }
+  }
+
+  private agruparEvaluaciones(
+    evaluaciones: EvaluacionGrupoDto[]
+  ): GrupoEvaluaciones[] {
+    const mapa = new Map<string, GrupoEvaluaciones['evaluaciones']>();
+
+    for (const evaluacion of evaluaciones) {
+      const nombreGrupo = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
+      const lista = mapa.get(nombreGrupo) ?? [];
+      lista.push({
+        titulo: evaluacion.titulo,
+        comentario: evaluacion.comentario,
+        rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+        rubricaUrl: evaluacion.rubrica_url,
+        bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+        bitacoraComentario: evaluacion.bitacora_comentario,
+        fecha: evaluacion.fecha,
+        estado: evaluacion.estado,
+      });
+      mapa.set(nombreGrupo, lista);
+    }
+
+    return Array.from(mapa.entries())
+      .map(([nombre, lista]) => ({
+        nombre,
+        evaluaciones: [...lista].sort((a, b) => this.ordenarEvaluaciones(a, b)),
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  }
+
+  private actualizarGruposConEvaluacion(evaluacion: EvaluacionGrupoDto): void {
+    const gruposActuales = this.grupos();
+    const nuevaEvaluacion = {
+      titulo: evaluacion.titulo,
+      comentario: evaluacion.comentario,
+      rubricaNombre: evaluacion.rubrica_nombre ?? 'Rúbrica',
+      rubricaUrl: evaluacion.rubrica_url,
+      bitacorasRequeridas: evaluacion.bitacoras_requeridas ?? 0,
+      bitacoraComentario: evaluacion.bitacora_comentario,
+      fecha: evaluacion.fecha,
+      estado: evaluacion.estado,
+    };
+
+    const indiceGrupo = gruposActuales.findIndex(
+      (grupo) =>
+        grupo.nombre.toLowerCase() ===
+        (evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre).toLowerCase()
+    );
+
+    if (indiceGrupo >= 0) {
+      const grupo = gruposActuales[indiceGrupo];
+      const evaluaciones = [...grupo.evaluaciones, nuevaEvaluacion].sort((a, b) =>
+        this.ordenarEvaluaciones(a, b)
+      );
+      this.grupos.set([
+        ...gruposActuales.slice(0, indiceGrupo),
+        { ...grupo, evaluaciones },
+        ...gruposActuales.slice(indiceGrupo + 1),
+      ]);
+      return;
+    }
+
+    const nuevosGrupos = [
+      ...gruposActuales,
+      {
+        nombre: evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre,
+        evaluaciones: [nuevaEvaluacion],
+      },
+    ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+
+    this.grupos.set(nuevosGrupos);
+  }
+
+  private actualizarEntregas(evaluaciones: EvaluacionGrupoDto[]): void {
+    const pendientes: EntregaDocente[] = [];
+    const revisadas: EntregaDocente[] = [];
+    const gruposMap = new Map<string, { pendientes: EntregaDocente[]; revisadas: EntregaDocente[] }>();
+
+    for (const evaluacion of evaluaciones) {
+      const grupoNombre = evaluacion.grupo?.nombre ?? evaluacion.grupo_nombre;
+      for (const entrega of evaluacion.entregas ?? []) {
+        const mapeada = this.mapEntregaDocente(entrega, evaluacion, grupoNombre);
+        const coleccion = gruposMap.get(grupoNombre) ?? { pendientes: [], revisadas: [] };
+
+        if (entrega.estado_revision === 'revisada') {
+          revisadas.push(mapeada);
+          coleccion.revisadas.push(mapeada);
+        } else {
+          pendientes.push(mapeada);
+          coleccion.pendientes.push(mapeada);
+        }
+
+        gruposMap.set(grupoNombre, coleccion);
+      }
+    }
+
+    const ordenar = (a: EntregaDocente, b: EntregaDocente) => b.fecha.getTime() - a.fecha.getTime();
+
+    pendientes.sort(ordenar);
+    revisadas.sort(ordenar);
+
+    this.entregasPendientes.set(pendientes);
+    this.entregasRevisadas.set(revisadas);
+
+    const seleccionActual = this.grupoEntregasSeleccionado();
+    const gruposOrdenados = Array.from(gruposMap.entries())
+      .map(([nombre, coleccion]) => ({
+        nombre,
+        pendientes: [...coleccion.pendientes].sort(ordenar),
+        revisadas: [...coleccion.revisadas].sort(ordenar),
+        abierto: false,
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+
+    const nombreActivo =
+      seleccionActual && gruposMap.has(seleccionActual)
+        ? seleccionActual
+        : null;
+
+    this.grupoEntregasSeleccionado.set(nombreActivo);
+    this.entregasPorGrupo.set(
+      gruposOrdenados.map((grupo) => ({
+        ...grupo,
+        abierto: nombreActivo ? grupo.nombre === nombreActivo : false,
+      }))
+    );
+  }
+
+  private mapEntregaDocente(
+    entrega: EvaluacionEntregaDto,
+    evaluacion: EvaluacionGrupoDto,
+    grupoNombre: string
+  ): EntregaDocente {
+    const fecha = this.parseFecha(entrega.creado_en);
+    return {
+      id: entrega.id,
+      evaluacionId: evaluacion.id,
+      evaluacionTitulo: evaluacion.titulo,
+      esBitacora: entrega.es_bitacora,
+      bitacoraIndice: entrega.bitacora_indice ?? null,
+      grupo: grupoNombre,
+      alumnoNombre: entrega.alumno?.nombre ?? 'Alumno sin registro',
+      alumnoCorreo: entrega.alumno?.correo ?? null,
+      comentario: entrega.comentario,
+      fecha: fecha ?? new Date(entrega.creado_en),
+      archivoNombre: entrega.archivo_nombre,
+      archivoUrl: entrega.archivo_url,
+      estadoRevision: entrega.estado_revision,
+      nota: entrega.nota,
+    };
+  }
+
+  seleccionarGrupoEntregas(nombre: string): void {
+    const yaSeleccionado = this.grupoEntregasSeleccionado() === nombre;
+
+    this.grupoEntregasSeleccionado.set(yaSeleccionado ? null : nombre);
+    this.entregasPorGrupo.update((grupos) =>
+      grupos.map((grupo) => ({
+        ...grupo,
+        abierto: yaSeleccionado ? false : grupo.nombre === nombre,
+      }))
+    );
+  }
+
+  descargarEntrega(entrega: EntregaDocente): void {
+    if (!entrega.archivoUrl) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.open(entrega.archivoUrl, '_blank');
+  }
+
+  descargarRubrica(url: string | null): void {
+    if (!url) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.open(url, '_blank');
+  }
+
+  private parseFecha(valor: string | null | undefined): Date | null {
+    if (!valor) {
+      return null;
+    }
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  }
+
+  exportarNotasCsv(): void {
+    const revisadas = this.entregasRevisadas();
+
+    if (!revisadas.length || typeof window === 'undefined') {
+      return;
+    }
+
+    const encabezados = [
+      'Grupo',
+      'Evaluación',
+      'Alumno',
+      'Correo',
+      'Fecha de entrega',
+      'Nota',
+      'Comentario',
+      'Estado',
+    ];
+
+    const filas = revisadas.map((entrega) => [
+      entrega.grupo,
+      entrega.evaluacionTitulo,
+      entrega.alumnoNombre,
+      entrega.alumnoCorreo ?? '',
+      this.formatearFechaCsv(entrega.fecha),
+      entrega.nota != null ? String(entrega.nota) : '',
+      entrega.comentario ?? '',
+      entrega.estadoRevision,
+    ]);
+
+    const csv = [encabezados, ...filas]
+      .map((fila) => fila.map((valor) => this.sanitizarCsv(valor)).join(';'))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+
+    enlace.href = url;
+    enlace.download = `notas_grupos_${this.obtenerSufijoArchivo()}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private sanitizarCsv(valor: string | number | null | undefined): string {
+    const texto = valor ?? '';
+    const textoPlano = String(texto);
+
+    if (/([";\n])/u.test(textoPlano)) {
+      return `"${textoPlano.replace(/"/gu, '""')}"`;
+    }
+
+    return textoPlano;
+  }
+
+  private formatearFechaCsv(fecha: Date): string {
+    return new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(fecha);
+  }
+
+  private obtenerSufijoArchivo(): string {
+    const ahora = new Date();
+    const fecha = ahora.toISOString().slice(0, 10);
+    const hora = ahora
+      .toISOString()
+      .slice(11, 16)
+      .replace(':', '');
+
+    return `${fecha}_${hora}`;
+  }
+
+  calcularEstadoPorFecha(fecha: string | null): string {
+    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return this.estados[0];
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const [year, month, day] = fecha.split('-').map(Number);
+    const fechaEvaluacion = new Date(year, (month ?? 1) - 1, day ?? 1);
+    fechaEvaluacion.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(fechaEvaluacion.getTime())) {
+      return this.estados[0];
+    }
+
+    if (fechaEvaluacion.getTime() === hoy.getTime()) {
+      return 'En progreso';
+    }
+
+    if (fechaEvaluacion.getTime() < hoy.getTime()) {
+      return 'Evaluada';
+    }
+
+    return 'Pendiente';
+  }
+
+  private ordenarEvaluaciones(
+    a: GrupoEvaluaciones['evaluaciones'][number],
+    b: GrupoEvaluaciones['evaluaciones'][number]
+  ): number {
+    if (a.fecha && b.fecha) {
+      if (a.fecha === b.fecha) {
+        return a.titulo.localeCompare(b.titulo, 'es', { sensitivity: 'base' });
+      }
+      return b.fecha.localeCompare(a.fecha);
+    }
+
+    if (a.fecha) {
+      return -1;
+    }
+
+    if (b.fecha) {
+      return 1;
+    }
+
+    return a.titulo.localeCompare(b.titulo, 'es', { sensitivity: 'base' });
+  }
+
+  onSeleccionGrupo(event: Event): void {
+    const value = String((event.target as HTMLSelectElement)?.value ?? '').trim();
+    this.grupoSeleccionadoId.set(value ? Number(value) : null);
+  }
+}
