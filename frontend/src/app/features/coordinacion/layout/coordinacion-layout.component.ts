@@ -23,12 +23,12 @@ export class CoordinacionLayoutComponent implements OnDestroy {
   menuOpen = true;
 
   readonly navItems: CoordinacionNavItem[] = [
-    {
+   /*    {
       route: 'notificaciones',
       label: 'Notificaciones',
       icon: 'assets/Notificaciones.png',
       alt: 'Notificaciones',
-    },
+    },*/
     { route: 'inicio', 
       label: 'Inicio', 
       icon: 'assets/Inicio.png', 

@@ -103,29 +103,6 @@
         </div>
       </div>
 
-    <h3 class="section-title">Entregas e hitos recientes</h3>
-
-    <ng-container *ngIf="entregasPorNivel().length; else sinEntregas">
-      <ul class="list">
-        <li *ngFor="let item of entregasPorNivel()">
-          <div class="grupo-info">
-            <div class="grupo-nombre">
-              {{ item.nombre }}
-              <span class="badge" [ngClass]="item.estado">{{ estadoTexto[item.estado] }}</span>
-              <span class="badge soft">{{ item.badge }}</span>
-              <span *ngIf="item.alerta" class="alert-icon">{{ item.alerta }}</span>
-              <span *ngIf="item.estado === 'aprobado'" class="status-icon" aria-label="Aprobado">✓</span>
-            </div>
-            <div class="grupo-alumnos">{{ item.descripcion }}</div>
-            <div class="chips chips-fecha-derecha">
-              <span class="chip-fecha">{{ item.fecha }}</span>
-              <span class="chip-proximo" *ngIf="item.proximoPaso">Próximo paso: {{ item.proximoPaso }}</span>
-            </div>
-          </div>
-        </li>
-      </ul>
-
-    </ng-container>
 
     <ng-template #sinEntregas>
       <p class="muted">Aún no tienes entregas registradas en {{ nivelTitulo() }}.</p>
