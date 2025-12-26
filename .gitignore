@@ -16,9 +16,6 @@ ENV/
 env/
 
 # Archivos de configuración locales
-*.env
-.env.*
-!.env
 
 
 # Migraciones compiladas
