@@ -1,3 +1,5 @@
+import imghdr
+import importlib
 import io
 import json
 import logging
@@ -5,15 +7,18 @@ import re
 import textwrap
 import unicodedata
 import zlib
-import importlib
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.mail import EmailMessage
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Value, Prefetch, Count, Avg, OuterRef, Subquery
 from django.db.models.functions import Replace
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -53,6 +58,7 @@ from .notifications import (
     notificar_cupos_completados,
     notificar_reserva_tema,
     notificar_tema_finalizado,
+    registrar_notificacion,
 )
 from .serializers import (
     LoginSerializer,
@@ -554,10 +560,10 @@ def _notificar_solicitud_reunion_creada(solicitud: SolicitudReunion) -> None:
     if disponibilidad:
         mensaje = f"{mensaje} Disponibilidad sugerida: {disponibilidad}."
 
-    Notificacion.objects.create(
-        usuario=docente,
-        titulo="Nueva solicitud de reunión",
-        mensaje=mensaje,
+    registrar_notificacion(
+        docente,
+        "Nueva solicitud de reunión",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_creada",
@@ -591,10 +597,10 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
     if reunion.observaciones:
         mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Reunión agendada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Reunión agendada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_aprobada",
@@ -617,10 +623,10 @@ def _notificar_solicitud_reunion_aprobada(reunion: Reunion) -> None:
         if reunion.observaciones:
             docente_mensaje = f"{docente_mensaje} Comentario: {reunion.observaciones}."
 
-        Notificacion.objects.create(
-            usuario=docente,
-            titulo="Solicitud de reunión aprobada",
-            mensaje=docente_mensaje,
+        registrar_notificacion(
+            docente,
+            "Solicitud de reunión aprobada",
+            docente_mensaje,
             tipo="reunion",
             meta={
                 "evento": "solicitud_aprobada_docente",
@@ -647,10 +653,10 @@ def _notificar_solicitud_reunion_rechazada(
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Solicitud de reunión rechazada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Solicitud de reunión rechazada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "solicitud_rechazada",
@@ -670,10 +676,10 @@ def _notificar_solicitud_reunion_rechazada(
         if comentario:
             docente_mensaje = f"{docente_mensaje} Comentario: {comentario}."
 
-        Notificacion.objects.create(
-            usuario=docente,
-            titulo="Solicitud de reunión rechazada",
-            mensaje=docente_mensaje,
+        registrar_notificacion(
+            docente,
+            "Solicitud de reunión rechazada",
+            docente_mensaje,
             tipo="reunion",
             meta={
                 "evento": "solicitud_rechazada_docente",
@@ -682,7 +688,6 @@ def _notificar_solicitud_reunion_rechazada(
                 "alumnoId": alumno.pk if alumno else None,
             },
         )
-
 
 def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
     alumno = reunion.alumno
@@ -707,10 +712,10 @@ def _notificar_reunion_agendada_directamente(reunion: Reunion) -> None:
     if reunion.observaciones:
         mensaje = f"{mensaje} Comentario: {reunion.observaciones}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Nueva reunión agendada",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Nueva reunión agendada",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "reunion_agendada",
@@ -734,10 +739,10 @@ def _notificar_reunion_cerrada(reunion: Reunion, comentario: str | None) -> None
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}."
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Estado de reunión actualizado",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Estado de reunión actualizado",
+        mensaje,
         tipo="reunion",
         meta={
             "evento": "reunion_cerrada",
@@ -1210,6 +1215,35 @@ def _generar_documento_carta(solicitud: SolicitudCartaPractica) -> str:
     archivo = ContentFile(pdf_bytes)
     path = default_storage.save(ruta, archivo)
     return default_storage.url(path)
+
+
+def _enviar_correo_carta_generada(solicitud: SolicitudCartaPractica) -> None:
+    alumno = " ".join(
+        parte for parte in [solicitud.alumno_nombres or "", solicitud.alumno_apellidos or ""] if parte
+    ).strip()
+    empresa = (solicitud.dest_empresa or "").strip()
+
+    lineas = ["Se ha generado una nueva carta de práctica."]
+    if alumno:
+        lineas.append(f"Alumno: {alumno}")
+    if empresa:
+        lineas.append(f"Empresa: {empresa}")
+
+    mensaje = EmailMessage(
+        "Nueva carta de práctica generada",
+        "\n".join(lineas),
+        to=["titulotest@gmail.com"],
+    )
+
+    if solicitud.documento:
+        solicitud.documento.open("rb")
+        try:
+            nombre_archivo = solicitud.documento.name.rsplit("/", 1)[-1]
+            mensaje.attach(nombre_archivo, solicitud.documento.read(), "application/pdf")
+        finally:
+            solicitud.documento.close()
+
+    mensaje.send(fail_silently=False)
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -2806,10 +2840,10 @@ def _notificar_decision_propuesta(propuesta: PropuestaTema) -> None:
     else:
         mensaje = mensaje_base
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo=titulo,
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        titulo,
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2839,10 +2873,10 @@ def _notificar_solicitud_ajuste_cupos(propuesta: PropuestaTema) -> None:
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}"
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Ajusta los cupos de tu propuesta",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Ajusta los cupos de tu propuesta",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2869,10 +2903,10 @@ def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
     if comentario:
         mensaje = f"{mensaje} Comentario: {comentario}"
 
-    Notificacion.objects.create(
-        usuario=alumno,
-        titulo="Cupos autorizados",
-        mensaje=mensaje,
+    registrar_notificacion(
+        alumno,
+        "Cupos autorizados",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -2880,7 +2914,6 @@ def _notificar_autorizacion_cupos(propuesta: PropuestaTema) -> None:
             "cupos_autorizados": propuesta.cupos_maximo_autorizado,
         },
     )
-
 
 def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
     docente = propuesta.docente
@@ -2897,10 +2930,10 @@ def _notificar_confirmacion_alumno(propuesta: PropuestaTema) -> None:
         f"{alumno_nombre} confirmó los cupos del tema \"{propuesta.titulo}\" y ahora espera tu aprobación definitiva."
     )
 
-    Notificacion.objects.create(
-        usuario=docente,
-        titulo="Confirmación de cupos recibida",
-        mensaje=mensaje,
+    registrar_notificacion(
+        docente,
+        "Confirmación de cupos recibida",
+        mensaje,
         tipo="propuesta",
         meta={
             "propuesta_id": propuesta.id,
@@ -3059,6 +3092,12 @@ def aprobar_solicitud_carta_practica(request, pk: int):
     solicitud.estado = "aprobado"
     solicitud.save()
 
+    if archivo:
+        try:
+            _enviar_correo_carta_generada(solicitud)
+        except Exception:
+            logger.exception("No se pudo enviar el correo de carta de práctica generada")
+
     serializer = SolicitudCartaPracticaSerializer(solicitud, context={"request": request})
     return Response({"status": "ok", "url": serializer.data.get("url")})
 
@@ -3144,9 +3183,13 @@ def gestionar_documentos_practica(request):
         )
 
     archivo = request.FILES.get("archivo")
-    if not archivo:
+    url_firma_raw = request.data.get("url_firma_digital")
+    url_firma_digital = (url_firma_raw or "").strip()
+    url_provided = "url_firma_digital" in request.data
+
+    if not archivo and not url_firma_digital and not url_provided:
         return Response(
-            {"archivo": ["Este campo es obligatorio."]},
+            {"detail": "Debes adjuntar una imagen o una URL de firma."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -3204,6 +3247,43 @@ def eliminar_documento_practica(request, pk: int):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def proxy_firma_coordinador(request):
+    url = (request.query_params.get("url") or "").strip()
+    if not url:
+        return Response(
+            {"detail": "Debes proporcionar una URL de firma."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        with urllib_request.urlopen(url, timeout=10) as resp:
+            content_type = (resp.headers.get("Content-Type") or "").split(";")[0].lower()
+            data = resp.read()
+    except (urllib_error.URLError, ValueError):  # pragma: no cover - fallo de red externo
+        logger.exception("No se pudo descargar la firma remota")
+        return Response(
+            {"detail": "No se pudo descargar la imagen de la firma."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    detected_type = content_type or ""
+    if not detected_type.startswith("image/"):
+        kind = imghdr.what(None, h=data)
+        if kind:
+            detected_type = f"image/{kind.lower()}"
+        else:
+            return Response(
+                {"detail": "La URL no contiene una imagen válida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    response = HttpResponse(data, content_type=detected_type)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
@@ -3241,30 +3321,50 @@ def gestionar_firma_coordinador_practica(request):
         return Response({"item": serializer.data})
 
     archivo = request.FILES.get("archivo")
-    if not archivo:
+    url_firma_raw = request.data.get("url_firma_digital")
+    url_firma_digital = (url_firma_raw or "").strip()
+    url_provided = "url_firma_digital" in request.data
+
+    if not archivo and not url_firma_digital and not url_provided:
         return Response(
-            {"archivo": ["Este campo es obligatorio."]},
+            {"detail": "Debes adjuntar una imagen o una URL de firma."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    content_type = (archivo.content_type or "").lower()
-    if content_type and not content_type.startswith("image/"):
-        return Response(
-            {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    if archivo:
+        content_type = (archivo.content_type or "").lower()
+        if content_type and not content_type.startswith("image/"):
+            return Response(
+                {"archivo": ["Solo se permiten imágenes (PNG, JPG)."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     firma, created = PracticaFirmaCoordinador.objects.get_or_create(
         carrera=carrera,
-        defaults={"archivo": archivo, "uploaded_by": coordinador},
+        defaults={
+            "archivo": archivo,
+            "uploaded_by": coordinador,
+            "url_firma_digital": url_firma_digital or None,
+        },
     )
 
+    update_fields = []
+
     if not created:
-        if firma.archivo:
-            firma.archivo.delete(save=False)
-        firma.archivo = archivo
+        if archivo:
+            if firma.archivo:
+                firma.archivo.delete(save=False)
+            firma.archivo = archivo
+            update_fields.extend(["archivo"])
+
+        if url_provided:
+            firma.url_firma_digital = url_firma_digital or None
+            update_fields.append("url_firma_digital")
+
         firma.uploaded_by = coordinador
-        firma.save(update_fields=["archivo", "uploaded_by", "updated_at"])
+        update_fields.append("uploaded_by")
+        update_fields.append("updated_at")
+        firma.save(update_fields=update_fields)
 
     serializer = PracticaFirmaCoordinadorSerializer(
         firma, context={"request": request}
@@ -3384,7 +3484,8 @@ def gestionar_entrega_evaluacion_practica(request):
             PracticaEvaluacionEntrega.objects.select_related("evaluacion")
             .filter(
                 Q(evaluacion__carrera__iexact=carrera)
-                | Q(evaluacion_id__in=evaluaciones_ids),
+                | Q(evaluacion_id__in=evaluaciones_ids)
+                | Q(evaluacion__isnull=True),
                 alumno=alumno,
             )
             .order_by("-created_at")
@@ -3415,10 +3516,8 @@ def gestionar_entrega_evaluacion_practica(request):
         evaluacion = _buscar_evaluacion_practica_por_carrera(carrera)
 
     if not evaluacion:
-        return Response(
-            {"detail": "No hay una evaluación disponible para tu carrera."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        evaluacion = None
+
 
     existe_entrega = (
         PracticaEvaluacionEntrega.objects.filter(
@@ -3478,6 +3577,9 @@ def listar_entregas_evaluacion_practica(request):
         )
 
     evaluaciones_ids = _evaluaciones_ids_por_carrera(carrera)
+    alumnos_ids = _filtrar_queryset_por_carrera(
+        Usuario.objects.filter(rol="alumno"), carrera
+    ).values_list("pk", flat=True)
 
     ultima_empresa = (
         SolicitudCartaPractica.objects.filter(alumno_id=OuterRef("alumno_id"))
@@ -3490,6 +3592,8 @@ def listar_entregas_evaluacion_practica(request):
         .filter(
             Q(evaluacion__carrera__iexact=carrera)
             | Q(evaluacion_id__in=evaluaciones_ids)
+            | Q(evaluacion__isnull=True),
+            alumno_id__in=alumnos_ids,
         )
         .annotate(empresa=Subquery(ultima_empresa))
         .order_by("-created_at")
@@ -3527,7 +3631,8 @@ def actualizar_nota_entrega_practica(request, entrega_id: int):
         PracticaEvaluacionEntrega.objects.select_related("evaluacion")
         .filter(
             Q(evaluacion__carrera__iexact=carrera)
-            | Q(evaluacion_id__in=evaluaciones_ids),
+            | Q(evaluacion_id__in=evaluaciones_ids)
+            | Q(evaluacion__isnull=True),
             pk=entrega_id,
         )
         .first()

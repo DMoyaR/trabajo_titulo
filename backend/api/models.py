@@ -685,7 +685,10 @@ class PracticaFirmaCoordinador(models.Model):
         choices=Usuario.CARRERA_CHOICES,
         unique=True,
     )
-    archivo = models.FileField(upload_to="practicas/firmas/%Y/%m/%d", max_length=255)
+    archivo = models.FileField(
+        upload_to="practicas/firmas/%Y/%m/%d", max_length=255, blank=True, null=True
+    )
+    url_firma_digital = models.URLField(blank=True, null=True)
     uploaded_by = models.ForeignKey(
         Usuario,
         on_delete=models.SET_NULL,
@@ -720,7 +723,11 @@ class PracticaEvaluacion(models.Model):
 
 class PracticaEvaluacionEntrega(models.Model):
     evaluacion = models.ForeignKey(
-        PracticaEvaluacion, related_name="entregas", on_delete=models.CASCADE
+        PracticaEvaluacion,
+        related_name="entregas",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     alumno = models.ForeignKey(
         Usuario, related_name="entregas_practica", on_delete=models.CASCADE

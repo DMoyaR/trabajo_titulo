@@ -405,6 +405,15 @@ class PracticaFirmaCoordinadorSerializer(serializers.ModelSerializer):
     class Meta:
         model = PracticaFirmaCoordinador
         fields = [
+                        "id",
+            "carrera",
+            "created_at",
+            "updated_at",
+            "url",
+            "url_firma_digital",
+            "uploadedBy",
+        ]
+        read_only_fields = [
             "id",
             "carrera",
             "created_at",
@@ -412,7 +421,7 @@ class PracticaFirmaCoordinadorSerializer(serializers.ModelSerializer):
             "url",
             "uploadedBy",
         ]
-        read_only_fields = ["id", "carrera", "created_at", "updated_at", "url", "uploadedBy"]
+
 
     def get_url(self, obj: PracticaFirmaCoordinador) -> str | None:
         request = self.context.get("request") if isinstance(self.context, dict) else None

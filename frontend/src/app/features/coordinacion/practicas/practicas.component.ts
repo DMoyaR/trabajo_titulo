@@ -107,6 +107,7 @@ interface FirmaCoordinadorApi {
   created_at: string;
   updated_at: string;
   url: string | null;
+  url_firma_digital?: string | null;
   uploadedBy?: { id: number; nombre: string; correo: string } | null;
 }
 
@@ -116,6 +117,7 @@ interface FirmaCoordinador {
   createdAt: string;
   updatedAt: string;
   url: string | null;
+  urlFirmaDigital: string | null;
 }
 
 interface CartaPreviewData {
@@ -194,6 +196,7 @@ export class PracticasComponent {
   entregasEvaluacionError = signal<string | null>(null);
   notasEdicion = signal<Record<number, string | undefined>>({});
   guardandoNotas = signal<Record<number, boolean>>({});
+  notaErrores = signal<Record<number, string | null>>({});
 
   
   firmaCoordinador = signal<FirmaCoordinador | null>(null);
@@ -203,6 +206,11 @@ export class PracticasComponent {
   firmaGestionLoading = signal(false);
   firmaArchivoNombre = signal<string | null>(null);
   private firmaArchivoSeleccionado: File | null = null;
+  firmaUrlError = signal<string | null>(null);
+  firmaUrlLoading = signal(false);
+
+  aprobarUrlError = signal<string | null>(null);
+
   private logoHeaderDataUrl: string | null = null;
   private logoHeaderPromise: Promise<string | null> | null = null;
 
@@ -234,6 +242,22 @@ export class PracticasComponent {
 
   aprobarForm = this.fb.group({ urlFirmado: [''] });
   rechazarForm = this.fb.group({ motivo: ['', Validators.required] });
+
+  firmaUrlForm = this.fb.group({ urlFirmaDigital: [''] });
+
+  firmaArchivoUrl = computed<string | null>(() => {
+    const firma = this.firmaCoordinador();
+    return firma?.url?.trim() || null;
+  });
+
+    firmaDigitalUrl = computed<string | null>(() => {
+    const firma = this.firmaCoordinador();
+    return firma?.urlFirmaDigital?.trim() || null;
+  });
+
+  firmaCartaUrl = computed<string | null>(() => this.firmaArchivoUrl() || this.firmaDigitalUrl());
+
+
 
   firmasPorCarrera: Record<string, Firma> = {
     'Ingeniería Civil en Computación mención Informática': {
@@ -628,12 +652,16 @@ export class PracticasComponent {
           }));
 
           const notas: Record<number, string> = {};
+          const errores: Record<number, string | null> = {};
+
           mapped.forEach((m) => {
             notas[m.id] = m.nota || '';
+            errores[m.id] = null; // sin error al inicio
           });
 
           this.entregasEvaluacion.set(mapped);
           this.notasEdicion.set(notas);
+          this.notaErrores.set(errores);
           this.entregasEvaluacionLoading.set(false);
         },
         error: () => {
@@ -717,8 +745,42 @@ export class PracticasComponent {
     }
   }
 
+
+  private validarNotaRaw(raw: string): { ok: boolean; normalizada: string | null } {
+    if (!raw) {
+      return { ok: false, normalizada: null };
+    }
+
+    // Aceptar coma o punto como separador decimal
+    const limpio = raw.replace(',', '.').trim();
+
+    // Formato: dígito 1–7, opcional un decimal
+    const regex = /^[1-7](\.[0-9])?$/;
+    if (!regex.test(limpio)) {
+      return { ok: false, normalizada: null };
+    }
+
+    const num = Number(limpio);
+    if (Number.isNaN(num) || num < 1 || num > 7) {
+      return { ok: false, normalizada: null };
+    }
+
+    // Siempre guardamos con un decimal, ej: "6.0"
+    const normalizada = num.toFixed(1);
+    return { ok: true, normalizada };
+  }
+
+
   onNotaChange(entregaId: number, valor: string) {
+    // Guardamos lo que va escribiendo
     this.notasEdicion.update((prev) => ({ ...prev, [entregaId]: valor }));
+
+    // Validamos en tiempo real
+    const { ok } = this.validarNotaRaw(valor);
+    this.notaErrores.update((prev) => ({
+      ...prev,
+      [entregaId]: ok ? null : 'La nota debe estar entre 1,0 y 7,0',
+    }));
   }
 
   notaGuardando(entregaId: number): boolean {
@@ -731,7 +793,20 @@ export class PracticasComponent {
       return;
     }
 
-    const nota = (this.notasEdicion()[entregaId] ?? '').trim();
+    const raw = (this.notasEdicion()[entregaId] ?? '').trim();
+    const { ok, normalizada } = this.validarNotaRaw(raw);
+
+    if (!ok || !normalizada) {
+      this.notaErrores.update((prev) => ({
+        ...prev,
+        [entregaId]: 'La nota debe estar entre 1,0 y 7,0',
+      }));
+      this.toast.set('La nota debe estar entre 1,0 y 7,0');
+      return;
+    }
+
+    const nota = normalizada; // aquí ya va algo tipo "6.0"
+
     this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: true }));
 
     this.http
@@ -745,6 +820,11 @@ export class PracticasComponent {
       .subscribe({
         next: (res) => {
           this.actualizarEntregaLocal(entregaId, res.nota ?? '');
+          // limpiamos el error si todo salió bien
+          this.notaErrores.update((prev) => ({
+            ...prev,
+            [entregaId]: null,
+          }));
           this.toast.set('Nota guardada.');
           this.guardandoNotas.update((prev) => ({ ...prev, [entregaId]: false }));
         },
@@ -754,6 +834,7 @@ export class PracticasComponent {
         },
       });
   }
+
 
   private actualizarEntregaLocal(entregaId: number, nota: string) {
     this.entregasEvaluacion.update((items) => {
@@ -807,6 +888,7 @@ export class PracticasComponent {
   cargarFirmaCoordinador() {
     if (this.coordinadorId === null) {
       this.firmaCoordinador.set(null);
+      this.firmaUrlForm.patchValue({ urlFirmaDigital: '' });
       return;
     }
 
@@ -823,7 +905,9 @@ export class PracticasComponent {
       .subscribe({
         next: (res) => {
           const item = res?.item ?? null;
-          this.firmaCoordinador.set(item ? this.mapFirmaApi(item) : null);
+          const mapped = item ? this.mapFirmaApi(item) : null;
+          this.firmaCoordinador.set(mapped);
+          this.firmaUrlForm.patchValue({ urlFirmaDigital: mapped?.urlFirmaDigital || '' });
           this.firmaLoading.set(false);
         },
         error: () => {
@@ -895,6 +979,41 @@ export class PracticasComponent {
     }
   }
 
+  guardarFirmaUrl() {
+    if (this.coordinadorId === null) {
+      return;
+    }
+
+    this.firmaUrlError.set(null);
+
+    const urlControl = this.firmaUrlForm.get('urlFirmaDigital');
+    const raw = (urlControl?.value as string | null) ?? '';
+    const trimmed = raw.trim();
+
+    const formData = new FormData();
+    formData.append('coordinador', String(this.coordinadorId));
+    formData.append('url_firma_digital', trimmed);
+
+    this.firmaUrlLoading.set(true);
+
+    this.http
+      .post<FirmaCoordinadorApi>('/api/coordinacion/practicas/firma/', formData)
+      .subscribe({
+        next: (res) => {
+          const mapped = this.mapFirmaApi(res);
+          this.firmaCoordinador.set(mapped);
+          this.firmaUrlForm.patchValue({ urlFirmaDigital: mapped.urlFirmaDigital || '' });
+          this.toast.set('URL guardada correctamente.');
+          this.firmaUrlLoading.set(false);
+        },
+        error: () => {
+          this.firmaUrlError.set('No se pudo guardar la URL de la firma.');
+          this.firmaUrlLoading.set(false);
+        },
+      });
+  }
+
+
   private mapFirmaApi(api: FirmaCoordinadorApi): FirmaCoordinador {
     return {
       id: api.id,
@@ -902,6 +1021,7 @@ export class PracticasComponent {
       createdAt: api.created_at,
       updatedAt: api.updated_at,
       url: api.url,
+      urlFirmaDigital: api.url_firma_digital ?? null,
     };
   }
 
@@ -973,43 +1093,101 @@ export class PracticasComponent {
     document.body.classList.remove('no-scroll');
   }
 
-  // ====== Acciones ======
-    async aprobar() {
-    const c = this.current();
-    if (!c) return;
+  
+// ====== Acciones ======
+async aprobar() {
+  // AHORA: este método es "Firmar con imagen"
+  const c = this.current();
+  if (!c) return;
 
-    let archivo: File;
-    try {
-      archivo = await this.generarArchivoCartaPdf(c);
-    } catch (err) {
-      console.error('No se pudo generar el PDF de la carta.', err);
-      this.toast.set('No se pudo generar el archivo PDF de la carta.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('documento', archivo, archivo.name);
-
-    const urlFirmado = this.aprobarForm.value.urlFirmado;
-    if (urlFirmado) {
-      formData.append('url', urlFirmado);
-    }
-
-    this.http
-      .post<AprobarSolicitudResponse>(`/api/coordinacion/solicitudes-carta/${c.id}/aprobar`, formData)
-      .subscribe({
-        next: (res) => {
-          this.toast.set('Solicitud aprobada correctamente.');
-          const nuevaUrl = res?.url ?? null;
-          this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
-          this.cerrarDetalle();
-        },
-        error: (err) => {
-          console.error('Error al aprobar solicitud:', err);
-          this.toast.set('Error al aprobar solicitud.');
-        },
-      });
+  let archivo: File;
+  try {
+    // Genera el PDF usando la firma guardada del coordinador (si existe)
+    archivo = await this.generarArchivoCartaPdf(c);
+  } catch (err) {
+    console.error('No se pudo generar el PDF de la carta.', err);
+    this.toast.set('No se pudo generar el archivo PDF de la carta.');
+    return;
   }
+
+  const formData = new FormData();
+  formData.append('documento', archivo, archivo.name);
+
+  // En esta opción NO usamos la URL, solo firma con imagen
+  this.http
+    .post<AprobarSolicitudResponse>(
+      `/api/coordinacion/solicitudes-carta/${c.id}/aprobar`,
+      formData
+    )
+    .subscribe({
+      next: (res) => {
+        this.toast.set('Solicitud aprobada correctamente.');
+        const nuevaUrl = res?.url ?? null;
+        this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
+        this.cerrarDetalle();
+      },
+      error: (err) => {
+        console.error('Error al aprobar solicitud:', err);
+        this.toast.set('Error al aprobar solicitud.');
+      },
+    });
+}
+
+async firmarConUrl() {
+  const c = this.current();
+  if (!c) return;
+
+  // limpiar mensaje de error previo
+  this.aprobarUrlError.set(null);
+
+  const rawUrl = this.aprobarForm.value.urlFirmado || '';
+  let urlFirmado = rawUrl.trim();
+
+  if (!urlFirmado) {
+    const urlGuardada = this.firmaCoordinador()?.urlFirmaDigital?.trim();
+    if (urlGuardada) {
+      urlFirmado = urlGuardada;
+    }
+  }
+
+  // ⬇️ ahora marcamos el error en vez de usar toast
+  if (!urlFirmado) {
+    this.aprobarUrlError.set('Debes ingresar una URL o guardar una URL de firma.');
+    return;
+  }
+
+  let archivo: File;
+  try {
+    archivo = await this.generarArchivoCartaPdf(c, urlFirmado);
+  } catch (err) {
+    console.error('No se pudo generar el PDF de la carta (modo URL).', err);
+    this.toast.set('No se pudo generar el archivo PDF de la carta.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('documento', archivo, archivo.name);
+  formData.append('url', urlFirmado);
+
+  this.http
+    .post<AprobarSolicitudResponse>(
+      `/api/coordinacion/solicitudes-carta/${c.id}/aprobar`,
+      formData
+    )
+    .subscribe({
+      next: (res) => {
+        this.toast.set('Solicitud aprobada correctamente (URL firmada).');
+        const nuevaUrl = res?.url ?? null;
+        this.actualizarEstadoLocal(c.id, 'aprobado', nuevaUrl);
+        this.cerrarDetalle();
+      },
+      error: (err) => {
+        console.error('Error al aprobar solicitud (URL).', err);
+        this.toast.set('Error al aprobar solicitud.');
+      },
+    });
+}
+
 
 rechazar() {
   const c = this.current();
@@ -1249,11 +1427,21 @@ private escribirBullet(
     return this.logoHeaderPromise;
   }
 
- private async cargarImagenFirma(
+  private async cargarImagenFirma(
     url: string
   ): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' } | null> {
+    
+    // Si ya viene como data URL la usamos directamente
+    if (url.startsWith('data:image/')) {
+      const lower = url.toLowerCase();
+      const format: 'PNG' | 'JPEG' =
+        lower.includes('jpeg') || lower.includes('jpg') ? 'JPEG' : 'PNG';
+      return { dataUrl: url, format };
+    }
+
     try {
-      const resp = await fetch(url);
+      const proxied = `/api/coordinacion/practicas/firma/proxy?url=${encodeURIComponent(url)}`;
+      const resp = await fetch(proxied);
       if (!resp.ok) {
         throw new Error('No se pudo cargar la imagen de la firma');
       }
@@ -1279,18 +1467,28 @@ private escribirBullet(
 
 
 
-  private async generarArchivoCartaPdf(solicitud: SolicitudCarta): Promise<File> {
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const preview = this.construirCartaPreviewData(solicitud);
-    const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
-    const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
-    const fechaTexto = this.fechaHoy();
+private async generarArchivoCartaPdf(
+  solicitud: SolicitudCarta,
+  firmaUrl?: string | null
+): Promise<File> {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const preview = this.construirCartaPreviewData(solicitud);
+  const objetivos = this.obtenerObjetivosParaSolicitud(solicitud);
+  const firma = this.obtenerFirmaPorCarrera(solicitud.alumno?.carrera);
+  const fechaTexto = this.fechaHoy();
 
-    // Firma gráfica del coordinador (si existe)
-    const firmaCoord = this.firmaCoordinador();
-    const firmaImagen = firmaCoord?.url
-      ? await this.cargarImagenFirma(firmaCoord.url)
-      : null;
+  // Firma gráfica del coordinador (si existe y corresponde usar imagen)
+  const firmaCoord = this.firmaCoordinador();
+
+  // Priorizar la imagen subida cuando se firma con imagen.
+  // Solo usamos la URL directa cuando se invoca explícitamente "Firmar con URL".
+  const firmaFuente = firmaUrl?.trim()
+    ? firmaUrl.trim()
+    : firmaCoord?.url || firmaCoord?.urlFirmaDigital?.trim() || null;
+
+  const firmaImagen = firmaFuente
+    ? await this.cargarImagenFirma(firmaFuente)
+    : null;
 
     const margenX = 20;
     let cursorY = 5;
