@@ -79,7 +79,8 @@ export class DocenteTrabajoListComponent implements OnInit {
   entregaEnRevision: Entrega | null = null;
   guardandoEvaluacion = false;
   errorEvaluacion: string | null = null;
-  notaInput: number | null = null;
+  notaInput = '';
+  notaError: string | null = null;
   comentariosInput = '';
   rubricaArchivo: File | null = null;
   informeArchivo: File | null = null;
@@ -270,7 +271,12 @@ export class DocenteTrabajoListComponent implements OnInit {
 
   revisarEntrega(entrega: Entrega) {
     this.entregaEnRevision = entrega;
-    this.notaInput = entrega.esBitacora ? null : entrega.nota;
+    this.notaInput = entrega.esBitacora
+      ? ''
+      : entrega.nota != null
+        ? this.formatearNota(entrega.nota)
+        : '';
+    this.notaError = null;
     this.comentariosInput = '';
     this.rubricaArchivo = null;
     this.informeArchivo = null;
@@ -282,10 +288,45 @@ export class DocenteTrabajoListComponent implements OnInit {
     this.entregaEnRevision = null;
     this.guardandoEvaluacion = false;
     this.errorEvaluacion = null;
-    this.notaInput = null;
+    this.notaInput = '';
+    this.notaError = null;
     this.comentariosInput = '';
     this.rubricaArchivo = null;
     this.informeArchivo = null;
+  }
+
+  onNotaInputChange(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    const valor = input?.value ?? '';
+    this.errorEvaluacion = null;
+
+    if (!valor.trim()) {
+      this.notaInput = '';
+      this.notaError = null;
+      return;
+    }
+
+    if (/^\d$/.test(valor) || /^\d[.,]$/.test(valor)) {
+      this.notaInput = valor;
+      this.notaError = null;
+      return;
+    }
+
+    const notaNormalizada = this.normalizarNotaDesdeTexto(valor);
+
+    if (notaNormalizada == null) {
+      this.notaInput = valor;
+      this.notaError = 'La nota debe estar entre 1,0 y 7,0.';
+      return;
+    }
+
+    const formateada = this.formatearNota(notaNormalizada);
+    this.notaInput = formateada;
+    this.notaError = null;
+
+    if (input) {
+      input.value = formateada;
+    }
   }
 
   guardarEvaluacion() {
@@ -294,17 +335,23 @@ export class DocenteTrabajoListComponent implements OnInit {
     }
 
     const esBitacora = Boolean(this.entregaEnRevision.esBitacora);
+    let notaParaEnviar: number | null = null;
+
     if (!esBitacora) {
-      const notaNormalizada = this.normalizarNota(this.notaInput);
+        const notaNormalizada = this.normalizarNotaDesdeTexto(this.notaInput);
 
       if (notaNormalizada == null) {
-        this.errorEvaluacion = 'La nota debe estar entre 1.0 y 7.0';
+        this.errorEvaluacion = 'La nota debe estar entre 1,0 y 7,0.';
+        this.notaError = this.errorEvaluacion;
         return;
       }
 
-      this.notaInput = notaNormalizada;
+      notaParaEnviar = notaNormalizada;
+      this.notaInput = this.formatearNota(notaNormalizada);
+      this.notaError = null;
     } else {
-      this.notaInput = null;
+      this.notaInput = '';
+      this.notaError = null;
     }
 
 
@@ -320,7 +367,7 @@ export class DocenteTrabajoListComponent implements OnInit {
       .actualizarEntrega(
         Number(entregaEnRevision.id),
         {
-          nota: this.notaInput,
+          nota: notaParaEnviar,
           comentario_docente: this.comentariosInput || 'Sin comentarios adicionales.',
           estado_revision: 'revisada',
         },
@@ -343,7 +390,7 @@ export class DocenteTrabajoListComponent implements OnInit {
               estado: 'evaluado',
               fechaEntrega: this.formatearFecha(fechaEntrega),
               ordenFecha: fechaEntrega.getTime(),
-              nota: entregaActualizada.nota ?? this.notaInput,
+              nota: entregaActualizada.nota ?? notaParaEnviar,
               comentariosDocente:
                 entregaActualizada.comentario_docente || 'Sin comentarios adicionales.',
               rubricaNombre:
@@ -381,8 +428,27 @@ export class DocenteTrabajoListComponent implements OnInit {
     entrega.expanded = !entrega.expanded;
   }
 
-  private normalizarNota(nota: number | null): number | null {
-    if (nota == null || Number.isNaN(nota)) {
+  private normalizarNotaDesdeTexto(valor: string): number | null {
+    const limpio = valor.replace(',', '.').trim();
+
+    if (!limpio) {
+      return null;
+    }
+
+    let nota: number;
+
+    if (/^\d{2}$/.test(limpio)) {
+      const entero = Number(limpio);
+      if (entero >= 10 && entero <= 70) {
+        nota = entero / 10;
+      } else {
+        return null;
+      }
+    } else {
+      nota = Number(limpio);
+    }
+
+    if (Number.isNaN(nota)) {
       return null;
     }
 
@@ -401,7 +467,9 @@ export class DocenteTrabajoListComponent implements OnInit {
     return notaRedondeada;
   }
 
-
+  private formatearNota(nota: number): string {
+    return nota.toFixed(1);
+  }
 
   private actualizarEntregasSeleccionadas(): void {
     if (!this.grupoSeleccionado) {
