@@ -119,8 +119,8 @@
                 </button>
               </div>
               <div class="hit-resumen" *ngIf="e.expanded">
-                <p class="muted"><b>Comentarios:</b></p>
-                <p>{{ e.comentarios }}</p>
+                <p class="muted"><b>Comentarios del docente:</b></p>
+                <p>{{ e.comentariosDocente || 'Sin comentarios adicionales.' }}</p>
                 <div class="hit-files" *ngIf="e.archivoNombre || e.rubricaUrl || e.informeUrl">
                   <p class="muted"><b>Archivos adjuntos</b></p>
                   <div class="file-chip" *ngIf="e.archivoNombre">
@@ -168,6 +168,11 @@
         <label>Entrega</label>
         <div class="readonly">{{ entregaEnRevision?.titulo }}</div>
         <div class="muted">{{ entregaEnRevision?.tipo }}</div>
+      </div>
+
+      <div class="field full" *ngIf="entregaEnRevision?.comentarioAlumno">
+        <label>Comentario del alumno</label>
+        <div class="readonly">{{ entregaEnRevision?.comentarioAlumno }}</div>
       </div>
 
       <ng-container *ngIf="!entregaEnRevision?.esBitacora; else bitacoraInfo">

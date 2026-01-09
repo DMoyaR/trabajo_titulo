@@ -505,6 +505,7 @@ class EvaluacionEntregaAlumno(models.Model):
     )
     titulo = models.CharField(max_length=180)
     comentario = models.TextField(blank=True, null=True)
+    comentario_docente = models.TextField(blank=True, null=True)
     archivo = models.FileField(upload_to=evaluacion_entrega_upload_to, max_length=255)
     rubrica_docente = models.FileField(
         upload_to=evaluacion_entrega_upload_to,

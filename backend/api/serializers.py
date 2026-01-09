@@ -1060,6 +1060,7 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "alumno",
             "titulo",
             "comentario",
+            "comentario_docente",
             "archivo",
             "archivo_url",
             "archivo_nombre",
@@ -1099,10 +1100,16 @@ class EvaluacionEntregaAlumnoSerializer(serializers.ModelSerializer):
             "es_bitacora",
             "creado_en",
             "actualizado_en",
+            "comentario_docente",
         ]
         extra_kwargs = {
             "archivo": {"write_only": True},
             "comentario": {"required": False, "allow_null": True, "allow_blank": True},
+            "comentario_docente": {
+                "required": False,
+                "allow_null": True,
+                "allow_blank": True,
+            },
             "bitacora_indice": {"required": False, "allow_null": True},
         }
 
@@ -1204,6 +1211,7 @@ class DocenteEvaluacionEntregaUpdateSerializer(EvaluacionEntregaAlumnoSerializer
             "actualizado_en",
             "archivo",
             "titulo",
+            "comentario",
         ]
 
 

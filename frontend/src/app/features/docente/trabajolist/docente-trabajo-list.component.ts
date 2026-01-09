@@ -30,7 +30,8 @@ type Entrega = {
   fechaLimite: string | null;
   fechaEntrega: string | null;
   nota: number | null;
-  comentarios: string | null;
+  comentariosDocente: string | null;
+  comentarioAlumno: string | null;
   archivoNombre: string | null;
   archivoUrl: string | null;
   archivoTipo: string | null;
@@ -320,7 +321,7 @@ export class DocenteTrabajoListComponent implements OnInit {
         Number(entregaEnRevision.id),
         {
           nota: this.notaInput,
-          comentario: this.comentariosInput || 'Sin comentarios adicionales.',
+          comentario_docente: this.comentariosInput || 'Sin comentarios adicionales.',
           estado_revision: 'revisada',
         },
         esBitacora ? undefined : { rubrica: this.rubricaArchivo, informe: this.informeArchivo },
@@ -343,8 +344,8 @@ export class DocenteTrabajoListComponent implements OnInit {
               fechaEntrega: this.formatearFecha(fechaEntrega),
               ordenFecha: fechaEntrega.getTime(),
               nota: entregaActualizada.nota ?? this.notaInput,
-              comentarios:
-                entregaActualizada.comentario || 'Sin comentarios adicionales.',
+              comentariosDocente:
+                entregaActualizada.comentario_docente || 'Sin comentarios adicionales.',
               rubricaNombre:
                 entregaActualizada.rubrica_docente_nombre || rubricaAdjunta?.nombre || null,
               rubricaUrl:
@@ -475,7 +476,10 @@ export class DocenteTrabajoListComponent implements OnInit {
       fechaLimite: fechaLimite ? this.formatearFecha(fechaLimite) : null,
       fechaEntrega: fechaEntrega ? this.formatearFecha(fechaEntrega) : null,
       nota: entrega.nota ?? null,
-      comentarios: entrega.comentario ?? evaluacion.comentario ?? null,
+      comentariosDocente:
+        entrega.comentario_docente ??
+        (entrega.estado_revision === 'revisada' ? entrega.comentario : null),
+      comentarioAlumno: entrega.comentario ?? null,
       archivoNombre: entrega.archivo_nombre || null,
       archivoUrl: entrega.archivo_url || null,
       archivoTipo: entrega.archivo_tipo || null,

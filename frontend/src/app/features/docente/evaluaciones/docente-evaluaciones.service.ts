@@ -6,6 +6,7 @@ export interface EvaluacionEntregaDto {
   id: number;
   titulo: string;
   comentario: string | null;
+  comentario_docente?: string | null;
   archivo_url: string | null;
   archivo_nombre: string;
   archivo_tipo: string | null;
@@ -161,7 +162,7 @@ export class DocenteEvaluacionesService {
 
   actualizarEntrega(
     entregaId: number,
-    payload: Pick<EvaluacionEntregaDto, 'nota' | 'comentario' | 'estado_revision'>,
+    payload: Pick<EvaluacionEntregaDto, 'nota' | 'comentario_docente' | 'estado_revision'>,
     archivos?: { rubrica?: File | null; informe?: File | null },
   ): Observable<EvaluacionEntregaDto> {
     const usarFormData = Boolean(archivos?.rubrica || archivos?.informe);
@@ -172,7 +173,7 @@ export class DocenteEvaluacionesService {
 
     const form = new FormData();
     form.append('nota', String(payload.nota ?? ''));
-    form.append('comentario', payload.comentario ?? '');
+    form.append('comentario_docente', payload.comentario_docente ?? '');
     form.append('estado_revision', payload.estado_revision);
 
     if (archivos?.rubrica instanceof File) {
