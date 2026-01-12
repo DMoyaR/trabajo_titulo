@@ -119,8 +119,8 @@
                 </button>
               </div>
               <div class="hit-resumen" *ngIf="e.expanded">
-                <p class="muted"><b>Comentarios:</b></p>
-                <p>{{ e.comentarios }}</p>
+                <p class="muted"><b>Comentarios del docente:</b></p>
+                <p>{{ e.comentariosDocente || 'Sin comentarios adicionales.' }}</p>
                 <div class="hit-files" *ngIf="e.archivoNombre || e.rubricaUrl || e.informeUrl">
                   <p class="muted"><b>Archivos adjuntos</b></p>
                   <div class="file-chip" *ngIf="e.archivoNombre">
@@ -170,18 +170,23 @@
         <div class="muted">{{ entregaEnRevision?.tipo }}</div>
       </div>
 
+      <div class="field full" *ngIf="entregaEnRevision?.comentarioAlumno">
+        <label>Comentario del alumno</label>
+        <div class="readonly">{{ entregaEnRevision?.comentarioAlumno }}</div>
+      </div>
+
       <ng-container *ngIf="!entregaEnRevision?.esBitacora; else bitacoraInfo">
         <div class="field">
           <label>Nota (1.0 a 7.0) <span class="req">*</span></label>
           <input
-            type="number"
-            min="1"
-            max="7"
-            step="0.1"
+            type="text"
+            inputmode="decimal"
             [(ngModel)]="notaInput"
             name="nota"
             [required]="!entregaEnRevision?.esBitacora"
+            (input)="onNotaInputChange($event)"
           />
+          <small class="error" *ngIf="notaError">{{ notaError }}</small>
         </div>
 
         <div class="field">
@@ -224,7 +229,7 @@
         <button
           type="submit"
           class="btn primary"
-          [disabled]="(!entregaEnRevision?.esBitacora && notaInput==null) || guardandoEvaluacion"
+          [disabled]="(!entregaEnRevision?.esBitacora && !notaInput.trim()) || !!notaError || guardandoEvaluacion"
         >
           {{ guardandoEvaluacion ? 'Guardando…' : 'Guardar evaluación' }}
         </button>
